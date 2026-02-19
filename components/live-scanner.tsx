@@ -12,17 +12,20 @@ import type { BeliefOption } from "@/constants/beliefs";
 import type { ScanResult } from "@/hooks/use-scan-history";
 import { generateInterpretation, generateSummary } from "@/hooks/use-scan-history";
 import { getThemeForBelief, type BeliefTheme } from "@/constants/belief-themes";
+import { getStoryForBelief } from "@/constants/belief-stories";
+import { useBeliefStory } from "@/hooks/use-belief-story";
 
 interface LiveScannerProps {
   belief: BeliefOption;
   intensity: number;
   scanDuration?: number;
   soundEnabled?: boolean;
+  storyEnabled?: boolean;
   onComplete: (result: ScanResult) => void;
   onCancel: () => void;
 }
 
-export function LiveScanner({ belief, intensity, scanDuration = 60, soundEnabled = true, onComplete, onCancel }: LiveScannerProps) {
+export function LiveScanner({ belief, intensity, scanDuration = 60, soundEnabled = true, storyEnabled = true, onComplete, onCancel }: LiveScannerProps) {
   if (Platform.OS !== "web") {
     useKeepAwake();
   }
@@ -36,24 +39,35 @@ export function LiveScanner({ belief, intensity, scanDuration = 60, soundEnabled
 
   const sensorState = useSensorEngine(started, intensity, scanDuration);
   const scanAudio = useScanAudio();
+  const beliefStory = useBeliefStory();
+  const story = useMemo(() => storyEnabled ? getStoryForBelief(belief.id) : null, [belief.id, storyEnabled]);
+  const [storyActive, setStoryActive] = useState(false);
 
   // 5-second countdown before scan
   useEffect(() => {
     if (countdown <= 0) {
       setStarted(true);
       if (soundEnabled) scanAudio.start();
+      if (story) {
+        beliefStory.startStory(story);
+        setStoryActive(true);
+      }
       return;
     }
     const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
     return () => clearTimeout(timer);
   }, [countdown, scanAudio]);
 
-  // Update audio intensity with score
+  // Update audio intensity with score and story progress
   useEffect(() => {
     if (started && sensorState.phase === "scanning") {
       if (soundEnabled) scanAudio.updateIntensity(sensorState.overallScore);
+      if (storyActive) {
+        const progress = sensorState.elapsed / scanDuration;
+        beliefStory.updateProgress(progress);
+      }
     }
-  }, [sensorState.overallScore, sensorState.phase, started, scanAudio]);
+  }, [sensorState.overallScore, sensorState.phase, sensorState.elapsed, started, scanAudio, scanDuration, beliefStory, storyActive]);
 
   // Haptic on phase change
   useEffect(() => {
@@ -78,6 +92,10 @@ export function LiveScanner({ belief, intensity, scanDuration = 60, soundEnabled
       if (soundEnabled) {
         scanAudio.stop();
         scanAudio.playComplete();
+      }
+      if (storyActive) {
+        beliefStory.stopStory();
+        setStoryActive(false);
       }
 
       const breakdown = sensorState.sensors
@@ -116,8 +134,9 @@ export function LiveScanner({ belief, intensity, scanDuration = 60, soundEnabled
   // Stop audio on cancel
   const handleCancel = useCallback(() => {
     if (soundEnabled) scanAudio.stop();
+    if (storyActive) beliefStory.stopStory();
     onCancel();
-  }, [scanAudio, onCancel]);
+  }, [scanAudio, onCancel, beliefStory, storyActive]);
 
   const remaining = Math.max(0, scanDuration - Math.floor(sensorState.elapsed));
   const minutes = Math.floor(remaining / 60);
@@ -196,6 +215,15 @@ export function LiveScanner({ belief, intensity, scanDuration = 60, soundEnabled
         <View style={[styles.audioIndicator, { backgroundColor: accentColor + "15", borderColor: accentColor + "40" }]}>
           <Text style={[styles.audioText, { color: accentColor }]}>
             🔊 Audio field active — intensity responds to your belief score
+          </Text>
+        </View>
+      )}
+
+      {/* Story narration indicator */}
+      {storyActive && story && (
+        <View style={[styles.audioIndicator, { backgroundColor: accentColor + "15", borderColor: accentColor + "40" }]}>
+          <Text style={[styles.audioText, { color: accentColor }]}>
+            📖 "{story.title}" — narrated belief journey active
           </Text>
         </View>
       )}

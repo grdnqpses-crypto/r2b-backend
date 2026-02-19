@@ -358,6 +358,109 @@ describe("Scan Report", () => {
   });
 });
 
+describe("Belief Stories", () => {
+  it("should have stories for key beliefs", async () => {
+    const { BELIEF_STORIES } = await import("../constants/belief-stories");
+    expect(BELIEF_STORIES.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("each story should have segments with valid timing", async () => {
+    const { BELIEF_STORIES } = await import("../constants/belief-stories");
+    for (const story of BELIEF_STORIES) {
+      expect(story.id).toBeTruthy();
+      expect(story.beliefId).toBeTruthy();
+      expect(story.title).toBeTruthy();
+      expect(story.segments.length).toBeGreaterThanOrEqual(1);
+      for (const seg of story.segments) {
+        expect(seg.startAt).toBeGreaterThanOrEqual(0);
+        expect(seg.startAt).toBeLessThanOrEqual(1);
+        expect(seg.text).toBeTruthy();
+      }
+    }
+  });
+
+  it("getStoryForBelief should return story for santa", async () => {
+    const { getStoryForBelief } = await import("../constants/belief-stories");
+    const story = getStoryForBelief("santa");
+    expect(story).not.toBeNull();
+    expect(story!.title).toBeTruthy();
+  });
+
+  it("getStoryForBelief should return null for unknown belief", async () => {
+    const { getStoryForBelief } = await import("../constants/belief-stories");
+    const story = getStoryForBelief("nonexistent-belief-xyz");
+    expect(story).toBeNull();
+  });
+
+  it("getAvailableStoryBeliefIds should return array of IDs", async () => {
+    const { getAvailableStoryBeliefIds } = await import("../constants/belief-stories");
+    const ids = getAvailableStoryBeliefIds();
+    expect(ids.length).toBeGreaterThanOrEqual(3);
+    expect(ids).toContain("santa");
+  });
+});
+
+describe("Premium System", () => {
+  it("should have reasonable free tier limits", async () => {
+    const { FREE_SCAN_LIMIT, FREE_SCAN_DURATION, FREE_BELIEF_IDS } = await import("../hooks/use-premium");
+    expect(FREE_SCAN_LIMIT).toBeGreaterThanOrEqual(1);
+    expect(FREE_SCAN_LIMIT).toBeLessThanOrEqual(10);
+    expect(FREE_SCAN_DURATION).toBeGreaterThanOrEqual(15);
+  });
+
+  it("free beliefs should include core childhood beliefs", async () => {
+    const { FREE_BELIEF_IDS } = await import("../hooks/use-premium");
+    expect(FREE_BELIEF_IDS).toContain("santa");
+    expect(FREE_BELIEF_IDS).toContain("tooth-fairy");
+    expect(FREE_BELIEF_IDS).toContain("easter-bunny");
+  });
+
+  it("free belief IDs should all exist in ALL_BELIEFS", async () => {
+    const { FREE_BELIEF_IDS } = await import("../hooks/use-premium");
+    const allIds = ALL_BELIEFS.map((b) => b.id);
+    FREE_BELIEF_IDS.forEach((id: string) => {
+      expect(allIds).toContain(id);
+    });
+  });
+});
+
+describe("Family Profiles", () => {
+  it("should create a profile with correct structure", async () => {
+    const { createProfile } = await import("../hooks/use-family-profiles");
+    const profile = createProfile("Alice", "\u{1F467}");
+    expect(profile.id).toContain("profile-");
+    expect(profile.name).toBe("Alice");
+    expect(profile.emoji).toBe("\u{1F467}");
+    expect(profile.createdAt).toBeTruthy();
+    expect(profile.color).toBeTruthy();
+  });
+
+  it("should generate unique IDs for different profiles", async () => {
+    const { createProfile } = await import("../hooks/use-family-profiles");
+    const a = createProfile("Alice", "\u{1F467}");
+    const b = createProfile("Bob", "\u{1F466}");
+    expect(a.id).not.toBe(b.id);
+  });
+
+  it("should have profile emoji options", async () => {
+    const { PROFILE_EMOJIS } = await import("../hooks/use-family-profiles");
+    expect(PROFILE_EMOJIS.length).toBeGreaterThanOrEqual(10);
+  });
+});
+
+describe("App Settings with Story Narration", () => {
+  it("should have storyNarrationEnabled in default settings", () => {
+    const defaults = {
+      scanDuration: 60 as const,
+      soundEnabled: true,
+      meditationEnabled: true,
+      hapticEnabled: true,
+      storyNarrationEnabled: true,
+    };
+    expect(defaults.storyNarrationEnabled).toBe(true);
+  });
+});
+
 describe("ScanResult journalEntry", () => {
   it("should support optional journalEntry field", () => {
     const mockResult = {

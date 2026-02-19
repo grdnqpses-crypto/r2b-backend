@@ -44,3 +44,9 @@
 - [x] Add Scan Report export — shareable image card or PDF with full sensor data summary
 - [x] Ensure all features are crystal clear: what it does, why, and what it means — kid-friendly but parent-focused
 - [x] Add Settings tab to navigation
+- [x] Rewrite onboarding with deep science-of-belief philosophy (brain doesn't distinguish imagined vs real, placebo effect, belief creates measurable physical changes)
+- [x] Rewrite Learn tab articles with neuroscience-grounded messaging — respects belief while grounding in real science
+- [x] Build premium paywall system with free tier (3 scans/day, 5 beliefs, 30s only) and Premium tier (unlimited)
+- [x] Build Family Profiles — multiple profiles per app, each with own history/journal/streaks
+- [x] Build Belief Stories — narrated immersive audio experiences that play during scans, synced to sensor readings
+- [x] Build Advanced Sensor Lab tab — real-time raw sensor data, live graphs, scientific detail

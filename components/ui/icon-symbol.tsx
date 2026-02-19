@@ -44,6 +44,9 @@ const MAPPING: Record<string, MaterialIconName> = {
   "gear": "settings",
   "gear.circle.fill": "settings",
   "bed.double.fill": "bedtime",
+  "scope": "biotech",
+  "person.2.fill": "people",
+  "crown.fill": "workspace-premium",
 };
 
 type IconSymbolName = keyof typeof MAPPING;

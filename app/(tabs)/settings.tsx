@@ -17,6 +17,11 @@ import { useColors } from "@/hooks/use-colors";
 import { useCustomBeliefs } from "@/hooks/use-custom-beliefs";
 import { useScanHistory } from "@/hooks/use-scan-history";
 import { useBeliefStreak } from "@/hooks/use-belief-streak";
+import { useFamilyProfiles } from "@/hooks/use-family-profiles";
+import { usePremium } from "@/hooks/use-premium";
+import { FamilyProfilesScreen } from "@/components/family-profiles";
+import { PremiumPaywall } from "@/components/premium-paywall";
+import { getAvailableStoryBeliefIds } from "@/constants/belief-stories";
 
 // Settings keys
 const SETTINGS_KEY = "belief-field-settings";
@@ -26,6 +31,7 @@ export interface AppSettings {
   soundEnabled: boolean;
   meditationEnabled: boolean;
   hapticEnabled: boolean;
+  storyNarrationEnabled: boolean;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -33,6 +39,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   soundEnabled: true,
   meditationEnabled: true,
   hapticEnabled: true,
+  storyNarrationEnabled: true,
 };
 
 // Export a hook so other screens can read settings
@@ -68,6 +75,11 @@ export default function SettingsScreen() {
   const { customBeliefs, removeBelief } = useCustomBeliefs();
   const { history } = useScanHistory();
   const { streak } = useBeliefStreak();
+  const familyProfiles = useFamilyProfiles();
+  const premium = usePremium();
+  const [showProfiles, setShowProfiles] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const storyBeliefCount = getAvailableStoryBeliefIds().length;
 
   const handleDeleteCustomBelief = useCallback(
     (id: string, name: string) => {
@@ -119,6 +131,36 @@ export default function SettingsScreen() {
   ];
 
   if (!loaded) return null;
+
+  // Family profiles screen
+  if (showProfiles) {
+    return (
+      <ScreenContainer>
+        <FamilyProfilesScreen
+          profiles={familyProfiles.profiles}
+          activeProfile={familyProfiles.activeProfile}
+          onAddProfile={(name, emoji) => familyProfiles.addProfile(name, emoji)}
+          onSwitchProfile={familyProfiles.switchProfile}
+          onRemoveProfile={familyProfiles.removeProfile}
+          onDismiss={() => setShowProfiles(false)}
+          maxProfiles={premium.premium.isPremium ? 10 : 2}
+        />
+      </ScreenContainer>
+    );
+  }
+
+  // Premium paywall
+  if (showPaywall) {
+    return (
+      <ScreenContainer>
+        <PremiumPaywall
+          reason="general"
+          onActivate={(family) => { premium.activatePremium(family); setShowPaywall(false); }}
+          onDismiss={() => setShowPaywall(false)}
+        />
+      </ScreenContainer>
+    );
+  }
 
   return (
     <ScreenContainer>
@@ -213,6 +255,29 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* STORY NARRATION */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>📖 Belief Stories</Text>
+          <Text style={[styles.sectionDesc, { color: colors.muted }]}>
+            Immersive narrated stories that play during scans, guiding your imagination and deepening your belief experience. Available for {storyBeliefCount} beliefs.
+          </Text>
+
+          <View style={[styles.toggleRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.toggleInfo}>
+              <Text style={[styles.toggleTitle, { color: colors.foreground }]}>Story Narration</Text>
+              <Text style={[styles.toggleDesc, { color: colors.muted }]}>
+                Voice-narrated belief journeys during scans
+              </Text>
+            </View>
+            <Switch
+              value={settings.storyNarrationEnabled}
+              onValueChange={(v) => updateSettings({ storyNarrationEnabled: v })}
+              trackColor={{ false: colors.border, true: colors.primary + "60" }}
+              thumbColor={settings.storyNarrationEnabled ? colors.primary : colors.muted}
+            />
+          </View>
+        </View>
+
         {/* MEDITATION */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>🧘 Pre-Scan Meditation</Text>
@@ -235,6 +300,73 @@ export default function SettingsScreen() {
             />
           </View>
         </View>
+
+        {/* FAMILY PROFILES */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>👨‍👩‍👧‍👦 Family Profiles</Text>
+          <Text style={[styles.sectionDesc, { color: colors.muted }]}>
+            Each family member gets their own scan history, journal, and streak. Switch profiles to keep everyone's belief journey separate.
+          </Text>
+
+          {familyProfiles.activeProfile && (
+            <View style={[styles.activeProfileCard, { backgroundColor: colors.surface, borderColor: colors.primary + "40" }]}>
+              <Text style={{ fontSize: 28 }}>{familyProfiles.activeProfile.emoji}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.toggleTitle, { color: colors.foreground }]}>{familyProfiles.activeProfile.name}</Text>
+                <Text style={[styles.toggleDesc, { color: colors.primary }]}>Active Profile</Text>
+              </View>
+            </View>
+          )}
+
+          <Pressable
+            onPress={() => setShowProfiles(true)}
+            style={({ pressed }) => [
+              styles.profileBtn,
+              { backgroundColor: colors.primary + "12", borderColor: colors.primary + "40", opacity: pressed ? 0.8 : 1 },
+            ]}
+          >
+            <Text style={[styles.profileBtnText, { color: colors.primary }]}>
+              Manage Profiles ({familyProfiles.profiles.length}/{premium.premium.isPremium ? 10 : 2})
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* PREMIUM */}
+        {!premium.premium.isPremium && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>👑 Premium</Text>
+            <Text style={[styles.sectionDesc, { color: colors.muted }]}>
+              Unlock unlimited scans, all belief categories, up to 10 family profiles, and more.
+            </Text>
+            <Pressable
+              onPress={() => setShowPaywall(true)}
+              style={({ pressed }) => [
+                styles.premiumBtn,
+                { opacity: pressed ? 0.9 : 1 },
+              ]}
+            >
+              <LinearGradient
+                colors={["#9B7AFF", "#6B4FCC"]}
+                style={styles.premiumBtnGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Text style={styles.premiumBtnText}>Upgrade to Premium</Text>
+                <Text style={styles.premiumBtnSub}>Unlock the full experience</Text>
+              </LinearGradient>
+            </Pressable>
+          </View>
+        )}
+
+        {premium.premium.isPremium && (
+          <View style={[styles.premiumActive, { backgroundColor: colors.surface, borderColor: colors.primary + "40" }]}>
+            <Text style={{ fontSize: 24 }}>👑</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.toggleTitle, { color: colors.primary }]}>Premium Active</Text>
+              <Text style={[styles.toggleDesc, { color: colors.muted }]}>All features unlocked</Text>
+            </View>
+          </View>
+        )}
 
         {/* CUSTOM BELIEFS */}
         <View style={styles.section}>
@@ -448,4 +580,40 @@ const styles = StyleSheet.create({
   },
   privacyTitle: { fontSize: 15, fontWeight: "700", marginBottom: 6 },
   privacyText: { fontSize: 13, lineHeight: 20 },
+  activeProfileCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 14,
+    borderWidth: 1.5,
+    padding: 14,
+    marginBottom: 8,
+    gap: 12,
+  },
+  profileBtn: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    alignItems: "center",
+  },
+  profileBtnText: { fontSize: 15, fontWeight: "700" },
+  premiumBtn: {
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  premiumBtnGradient: {
+    padding: 18,
+    alignItems: "center",
+    borderRadius: 16,
+  },
+  premiumBtnText: { fontSize: 18, fontWeight: "800", color: "#fff" },
+  premiumBtnSub: { fontSize: 13, color: "rgba(255,255,255,0.7)", marginTop: 4 },
+  premiumActive: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 14,
+    borderWidth: 1.5,
+    padding: 14,
+    marginBottom: 28,
+    gap: 12,
+  },
 });

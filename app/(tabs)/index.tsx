@@ -186,6 +186,7 @@ export default function DetectScreen() {
           intensity={intensity}
           scanDuration={settings.scanDuration}
           soundEnabled={settings.soundEnabled}
+          storyEnabled={settings.storyNarrationEnabled}
           onComplete={handleScanComplete}
           onCancel={() => setScreen("home")}
         />

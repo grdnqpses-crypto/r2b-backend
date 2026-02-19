@@ -26,6 +26,9 @@ export default function TabLayout() {
           borderTopColor: colors.border,
           borderTopWidth: 0.5,
         },
+        tabBarLabelStyle: {
+          fontSize: 10,
+        },
       }}
     >
       <Tabs.Screen
@@ -33,7 +36,16 @@ export default function TabLayout() {
         options={{
           title: "Detect",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="sensor.fill" color={color} />
+            <IconSymbol size={26} name="sensor.fill" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="sensor-lab"
+        options={{
+          title: "Lab",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={26} name="scope" color={color} />
           ),
         }}
       />
@@ -42,7 +54,7 @@ export default function TabLayout() {
         options={{
           title: "History",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="clock.fill" color={color} />
+            <IconSymbol size={26} name="clock.fill" color={color} />
           ),
         }}
       />
@@ -51,7 +63,7 @@ export default function TabLayout() {
         options={{
           title: "Learn",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="book.fill" color={color} />
+            <IconSymbol size={26} name="book.fill" color={color} />
           ),
         }}
       />
@@ -60,7 +72,7 @@ export default function TabLayout() {
         options={{
           title: "Settings",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="gear" color={color} />
+            <IconSymbol size={26} name="gear" color={color} />
           ),
         }}
       />
