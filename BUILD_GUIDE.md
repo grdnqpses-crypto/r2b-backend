@@ -1,300 +1,278 @@
-# Belief Field Detector — Build & Publish Guide (2026)
+# Belief Field Detector — Complete Build & Publishing Guide (2026)
 
-This guide covers everything you need to build APK, AAB, and iOS builds, configure billing for both stores, and submit for review. Updated for 2026 Google Play Store and Apple App Store requirements.
-
----
-
-## Prerequisites
-
-1. **Expo Account**: Create one at [expo.dev](https://expo.dev)
-2. **EAS CLI**: Install with `npm install -g eas-cli` (version 12+)
-3. **Google Play Console**: [play.google.com/console](https://play.google.com/console) ($25 one-time fee)
-4. **Apple Developer Account**: [developer.apple.com](https://developer.apple.com) ($99/year)
-5. **Node.js 22+** and **pnpm 9+** installed locally
+This guide covers everything you need to build APK, AAB, and iOS builds, configure billing for both stores, and submit for review. Updated for **2026 Google Play Store and Apple App Store requirements**.
 
 ---
 
-## Step 1: Login & Link Project
+## Table of Contents
+
+1. [Quick Start (3 Commands)](#quick-start)
+2. [Build Android APK (Testing)](#build-android-apk)
+3. [Build Android AAB (Google Play Store)](#build-android-aab)
+4. [Build iOS Archive (App Store)](#build-ios-archive)
+5. [Google Play Billing Setup](#google-play-billing)
+6. [Apple In-App Purchases Setup](#apple-in-app-purchases)
+7. [Signing Keys](#signing-keys)
+8. [Developer Mode](#developer-mode)
+9. [Store Submission Checklist](#store-submission-checklist)
+10. [Store Listing Copy](#store-listing-copy)
+11. [Privacy Policy](#privacy-policy)
+12. [Quick Reference Commands](#quick-reference-commands)
+13. [Troubleshooting](#troubleshooting)
+14. [Cost Summary](#cost-summary)
+
+---
+
+## Quick Start
+
+### Three commands to get a test APK on your phone:
 
 ```bash
-# Login to your Expo account
-eas login
-
-# Link this project to your Expo account
-eas build:configure
+npm install -g eas-cli          # Step 1: Install build tool
+eas login                        # Step 2: Create free account & login
+./scripts/build.sh apk           # Step 3: Build APK in the cloud
 ```
 
+EAS Build compiles your app on Expo's cloud servers — **no Android SDK, Xcode, or special setup needed on your machine.** You get a download link in ~15 minutes.
+
 ---
 
-## Step 2: Build for Android
+## Build Android APK
 
-### Development APK (sideload for testing)
-
-```bash
-eas build --platform android --profile development
-```
-
-- Creates a **debug APK** you can install on any Android device
-- Download the APK from the EAS dashboard or the link in terminal
-- Transfer to device via USB, email, or cloud storage
-- On the device: Settings → Security → Allow unknown sources → Install
-
-### Preview APK (release-mode testing)
+An APK is an installable file you can put directly on any Android phone for testing.
 
 ```bash
+# Option A: Use the build script
+./scripts/build.sh apk
+
+# Option B: Use EAS directly
 eas build --platform android --profile preview
 ```
 
-- Creates a **release APK** for internal testing (no debug overhead)
-- Same installation process as development APK
-- Better for performance testing and final QA
+**Installing on your phone:**
+1. Download the APK from the link EAS provides
+2. Transfer to your Android phone (email it, Google Drive, or USB cable)
+3. Tap the APK file on your phone
+4. If prompted, enable "Install from unknown sources" in Settings
+5. The app installs and appears on your home screen with the Belief Field Detector icon
 
-### Production AAB (Google Play Store)
+---
+
+## Build Android AAB
+
+An AAB (Android App Bundle) is **required** for Google Play Store. Google uses it to generate optimized APKs for each device type.
+
+### Prerequisites
+- Google Play Console account ($25 one-time fee at [play.google.com/console](https://play.google.com/console))
+
+### Build
 
 ```bash
+# Option A: Use the build script
+./scripts/build.sh aab
+
+# Option B: Use EAS directly
 eas build --platform android --profile production
 ```
 
-- Creates an **AAB (Android App Bundle)** — required by Google Play since 2021
-- EAS manages the **upload signing key** automatically (recommended)
-- Google Play uses **Play App Signing** to manage the distribution key
-- The AAB is optimized for different device configurations
+### Upload to Google Play
+
+1. Download the AAB from the EAS build link
+2. Go to [Google Play Console](https://play.google.com/console)
+3. Create your app (or select existing)
+4. Go to **Release** → **Production** → **Create new release**
+5. Upload the AAB file
+6. Add release notes
+7. Submit for review
+
+### Automated Submission (Optional)
+
+```bash
+# After setting up Google Service Account (see Billing section)
+eas submit --platform android --profile production
+# Or: ./scripts/build.sh submit-android
+```
 
 ---
 
-## Step 3: Build for iOS
+## Build iOS Archive
 
-### Simulator Build (testing on Mac)
+An IPA archive is required for App Store and TestFlight. **No Mac or Xcode needed** — EAS builds in the cloud!
 
-```bash
-eas build --platform ios --profile development
-```
+### Prerequisites
+- Apple Developer account ($99/year at [developer.apple.com](https://developer.apple.com))
 
-- Creates a simulator-compatible build
-- Drag and drop the .app file onto the iOS Simulator
-
-### Device Build (testing on real iPhone/iPad)
+### Build
 
 ```bash
-eas build --platform ios --profile preview
-```
+# Option A: Use the build script
+./scripts/build.sh ios
 
-- EAS will prompt for your Apple Developer credentials
-- It automatically creates provisioning profiles and certificates
-- You'll need to register your test device's UDID first:
-
-```bash
-# Register a device
-eas device:create
-# Follow the prompts — it generates a link to open on the test device
-```
-
-### Production Build (App Store)
-
-```bash
+# Option B: Use EAS directly
 eas build --platform ios --profile production
 ```
 
-- Creates an IPA file ready for App Store submission
-- EAS manages all certificates and provisioning profiles
+**First time:** EAS will prompt you to log in with your Apple ID and select your Developer team. It automatically creates certificates and provisioning profiles.
 
----
-
-## Step 4: Google Play Billing Setup
-
-### 4a. Create Products in Google Play Console
-
-1. Go to [Google Play Console](https://play.google.com/console)
-2. Select your app → **Monetize** → **Products** → **Subscriptions**
-3. Create these subscription products:
-
-| Product ID | Name | Price | Billing Period |
-|-----------|------|-------|----------------|
-| `belief_premium_monthly` | Belief Field Premium (Monthly) | $4.99/month | Monthly |
-| `belief_premium_annual` | Belief Field Premium (Annual) | $29.99/year | Annual |
-| `belief_premium_family` | Belief Field Family (Monthly) | $7.99/month | Monthly |
-
-4. For each subscription:
-   - Set a **7-day free trial** (recommended for conversion)
-   - Set **3-day grace period** for failed payments
-   - Enable "Allow users to upgrade/downgrade"
-   - Add a base plan with the pricing above
-
-### 4b. Configure Google Play Billing Library
-
-The app already has the `com.android.vending.BILLING` permission in `app.config.ts`. To integrate real billing:
-
-1. Install the IAP package:
-```bash
-npx expo install expo-in-app-purchases
-```
-
-2. Update `hooks/use-premium.ts` to replace the mock purchase flow with real IAP calls
-3. Add server-side receipt validation (recommended for security)
-
-### 4c. Google Service Account for Automated Submission
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com) → IAM & Admin → Service Accounts
-2. Create a service account with "Service Account User" role
-3. Create a JSON key and save as `google-service-account.json` in project root
-4. In Google Play Console → Settings → API access → Link the service account
-5. Grant "Release manager" permissions
+### Test via TestFlight
 
 ```bash
-# Automated submission
-eas submit --platform android --profile production
-```
-
----
-
-## Step 5: Apple App Store Billing Setup
-
-### 5a. Create Subscriptions in App Store Connect
-
-1. Go to [App Store Connect](https://appstoreconnect.apple.com)
-2. Select your app → **Subscriptions**
-3. Create a subscription group called **"Belief Field Premium"**
-4. Add subscription tiers:
-
-| Reference Name | Product ID | Price | Duration |
-|---------------|-----------|-------|----------|
-| Monthly Premium | `belief_premium_monthly` | $4.99 | 1 Month |
-| Annual Premium | `belief_premium_annual` | $29.99 | 1 Year |
-| Family Premium | `belief_premium_family` | $7.99 | 1 Month |
-
-5. Configure for each:
-   - Introductory offer: 7-day free trial
-   - Subscription group level: set priority order
-   - Localization: add descriptions in all target languages
-
-### 5b. StoreKit Configuration
-
-The app's `app.config.ts` already includes the necessary iOS configuration. For testing:
-
-1. Create a StoreKit configuration file in Xcode for sandbox testing
-2. Use sandbox Apple IDs for testing purchases
-3. Test subscription flows in TestFlight before submitting
-
-### 5c. Submit to App Store
-
-```bash
-# Automated submission
+# Submit to TestFlight
 eas submit --platform ios --profile production
 ```
 
-Or manually:
-1. Download the IPA from EAS dashboard
-2. Open **Transporter** app on Mac
-3. Drag and drop the IPA
-4. Go to App Store Connect → submit for review
+Then in [App Store Connect](https://appstoreconnect.apple.com):
+1. Go to your app → TestFlight
+2. The build appears after processing (5-30 minutes)
+3. Add testers (internal or external)
+4. Testers install via the TestFlight app on their iPhone
+
+### Submit to App Store
+
+1. In App Store Connect, go to your app → App Store tab
+2. Create a new version
+3. Select the build from TestFlight
+4. Fill in all required metadata
+5. Submit for review
 
 ---
 
-## Step 6: Signing Keys
+## Google Play Billing
 
-### Android (Google Play App Signing — Recommended)
+### Create In-App Products
 
-When you upload your first AAB:
-1. Google Play Console prompts you to enroll in **Play App Signing**
-2. Select **"Let Google manage and protect your app signing key"**
-3. EAS generates an **upload key** (different from signing key)
-4. Google re-signs your app with their managed key
+1. Go to [Google Play Console](https://play.google.com/console) → Your App
+2. Navigate to **Monetize** → **Products** → **Subscriptions**
+3. Create these products:
 
-Benefits:
-- Google protects your signing key in their infrastructure
-- Upload key can be reset if compromised without losing your app
-- Google optimizes AAB delivery per device
+| Product ID | Type | Price | Description |
+|---|---|---|---|
+| `belief_field_premium_monthly` | Subscription | $4.99/month | Monthly Premium Access |
+| `belief_field_premium_yearly` | Subscription | $29.99/year | Yearly Premium (Save 50%) |
+| `belief_field_premium_lifetime` | One-time purchase | $49.99 | Lifetime Premium Access |
 
-### iOS (EAS Managed — Recommended)
+4. Create a **Subscription Group** called "Belief Field Premium"
+5. Set 7-day free trial (recommended for conversion)
+6. Set 3-day grace period for failed payments
 
-EAS automatically manages:
+### Google Service Account (for automated submission)
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com) → IAM → Service Accounts
+2. Create a service account with "Service Account User" role
+3. Download the JSON key file
+4. Save as `google-service-account.json` in the project root
+5. In Google Play Console → Settings → API access → Link the service account
+
+### Test Purchases
+
+1. In Google Play Console → Settings → License testing
+2. Add your test email addresses
+3. Test accounts can make purchases without being charged
+
+---
+
+## Apple In-App Purchases
+
+### Create Subscriptions
+
+1. Go to [App Store Connect](https://appstoreconnect.apple.com) → Your App
+2. Navigate to **Subscriptions**
+3. Create subscription group: **"Belief Field Premium"**
+4. Add these products:
+
+| Reference Name | Product ID | Price | Duration |
+|---|---|---|---|
+| Monthly Premium | `belief_field_premium_monthly` | $4.99 | 1 Month |
+| Yearly Premium | `belief_field_premium_yearly` | $29.99 | 1 Year |
+| Lifetime Premium | `belief_field_premium_lifetime` | $49.99 | Non-Renewing |
+
+5. Add introductory offer: 7-day free trial
+6. Add localized display names and descriptions
+
+### Sandbox Testing
+
+1. In App Store Connect → Users and Access → Sandbox Testers
+2. Create sandbox test accounts
+3. On your test device, sign in with the sandbox account
+4. Purchases are simulated (no real charges)
+
+---
+
+## Signing Keys
+
+### Android — Google Play App Signing (Recommended)
+
+When you upload your first AAB to Google Play:
+1. Google prompts you to enroll in **Play App Signing**
+2. Select **"Let Google manage and protect your app signing key"** (recommended)
+3. EAS generates an **upload key** (separate from the signing key)
+4. Google re-signs your app with their managed key for distribution
+
+Benefits: Google protects your key, upload key can be reset if compromised, optimized delivery.
+
+### iOS — EAS Managed (Recommended)
+
+EAS automatically manages all iOS credentials:
 - Distribution certificates
 - Provisioning profiles
 - Push notification certificates
 
 ```bash
-# View/manage credentials
+# View/manage iOS credentials
 eas credentials --platform ios
 ```
 
 ---
 
-## Step 7: Developer Mode
+## Developer Mode
 
-The app includes a hidden developer mode:
-- Go to **Settings** tab → tap the **version number 11 times**
-- Developer panel appears with:
-  - Premium override (test premium features without paying)
-  - Sensor simulation (test without real sensors)
-  - Reset all data
-  - Debug info display
+Hidden developer mode for testing and development:
 
-This is essential for testing billing flows and sensor behavior.
-
----
-
-## Step 8: Permissions Summary
-
-### Android Permissions (in app.config.ts)
-
-| Permission | Purpose |
-|-----------|---------|
-| `POST_NOTIFICATIONS` | Daily belief reminders |
-| `VIBRATE` | Haptic feedback during scans |
-| `RECEIVE_BOOT_COMPLETED` | Restore notification schedules after reboot |
-| `SCHEDULE_EXACT_ALARM` | Precise notification timing |
-| `HIGH_SAMPLING_RATE_SENSORS` | High-frequency sensor readings |
-| `com.android.vending.BILLING` | In-app purchases |
-
-### iOS Permissions (in app.config.ts)
-
-| Permission | Purpose |
-|-----------|---------|
-| `NSMotionUsageDescription` | Accelerometer, gyroscope, device motion |
-| `ITSAppUsesNonExemptEncryption: false` | No export compliance needed |
-
-All sensor permissions (accelerometer, gyroscope, magnetometer, barometer) are granted by default on iOS — no explicit permission needed except motion.
+1. Open the **Settings** tab in the app
+2. Scroll to the bottom where the version number is displayed
+3. **Tap the version number 11 times rapidly**
+4. Developer panel unlocks with:
+   - **Bypass Premium** — Access all premium features without payment
+   - **Reset Onboarding** — Re-show welcome screens
+   - **Clear All Data** — Reset history, achievements, streaks
+   - **Force Achievement** — Test achievement animations
+   - **Sensor Debug** — View raw sensor data
+   - **Skip Meditation** — Bypass meditation countdown
+   - **Test Notifications** — Send test push notification
 
 ---
 
-## Step 9: 2026 Store Requirements Checklist
+## Store Submission Checklist
 
 ### Google Play Store (2026)
 
-- [x] Target SDK 35 (Android 15) — configured in `eas.json`
-- [x] AAB format (not APK) for production
-- [x] Play App Signing enrolled
-- [x] Data Safety section filled out (see below)
-- [x] Content rating questionnaire completed
-- [x] App content declarations (no ads, family-friendly)
-- [x] Privacy policy URL provided
-- [x] Minimum SDK 24 (Android 7.0) — configured in `app.config.ts`
+- [ ] Target SDK 35+ (Android 15) — ✅ Already configured
+- [ ] AAB format for production — ✅ Already configured
+- [ ] Play App Signing enrolled — Automatic with EAS
+- [ ] Privacy Policy URL hosted — You need to create this
+- [ ] Data Safety form completed — See Privacy section below
+- [ ] Content Rating questionnaire — Rate as "Everyone"
+- [ ] Store listing complete (title, description, screenshots)
+- [ ] App icon 512x512 PNG — ✅ Already generated
+- [ ] Feature graphic 1024x500 PNG — You need to create this
+- [ ] Min 2 phone screenshots — You need to capture these
+- [ ] In-app purchase products created and active
+- [ ] `com.android.vending.BILLING` permission — ✅ Already configured
 
 ### Apple App Store (2026)
 
-- [x] Built with latest Xcode / SDK
-- [x] Privacy nutrition labels filled out
-- [x] App Tracking Transparency not needed (no tracking)
-- [x] Non-exempt encryption declaration (`ITSAppUsesNonExemptEncryption: false`)
-- [x] Universal purchase support (iPhone + iPad)
-- [x] Privacy policy URL provided
-
-### Data Safety / Privacy Labels
-
-The app collects:
-- **Sensor data**: Used locally only, never transmitted
-- **Usage data**: Scan history stored locally via AsyncStorage
-- **Purchase data**: Handled by Google Play / App Store (not by the app)
-
-The app does NOT:
-- Track users across apps
-- Share data with third parties
-- Collect personal information
-- Use advertising identifiers
+- [ ] Privacy Policy URL — You need to host this
+- [ ] App Privacy nutrition labels — Declare: No data collected
+- [ ] Age Rating questionnaire — Rate as 4+
+- [ ] Screenshots for 6.7" and 5.5" iPhone — You need to capture
+- [ ] App description and keywords
+- [ ] Support URL
+- [ ] In-app purchase products created
+- [ ] `ITSAppUsesNonExemptEncryption: false` — ✅ Already configured
 
 ---
 
-## Store Listing Information
+## Store Listing Copy
 
 ### App Name
 **Belief Field Detector**
@@ -303,121 +281,112 @@ The app does NOT:
 Measure your belief with real phone sensors. Scientific. Fun. Inspiring.
 
 ### Full Description
-The Belief Field Detector uses your phone's 7 built-in scientific sensors to measure the physical effects of belief. When you believe in something deeply — whether it's Santa Claus, the Tooth Fairy, the Easter Bunny, or your own inner strength — your body produces real, measurable changes.
 
-Neuroscience research shows that the brain doesn't distinguish between vividly imagined and real experiences. The same neural pathways activate. The same physical responses occur. Belief creates measurable electromagnetic, motion, and atmospheric changes.
-
-This app captures those changes using:
-• Accelerometer (micro-movements)
-• Gyroscope (rotational stability)
-• Magnetometer (electromagnetic field)
-• Barometer (atmospheric pressure)
-• Light sensor (ambient light)
-• Device motion (combined movement)
-• Pedometer (stillness detection)
-
-Features:
-• 45+ pre-built beliefs across 7 categories
-• Custom belief creation
-• Guided meditation before scans
-• Immersive narrated belief stories
-• Themed scan environments per belief category
-• Achievement badges and milestone tracking
-• Family profiles (everyone gets their own history)
-• Belief journal with reflection prompts
-• Daily streak tracker
-• Belief Timer countdown for bedtime magic
-• Detailed scan reports you can save and share
-• Educational content grounded in real neuroscience
-• Bedtime Magic Mode for parents
-
-Perfect for families. Kids can measure their belief in Santa before Christmas. Parents can use it to inspire bedtime routines. Everyone can explore the fascinating science of how belief shapes our physical reality.
+> The Belief Field Detector uses your phone's 7 built-in scientific sensors to measure the physical effects of belief.
+>
+> When you believe in something deeply — whether it's Santa Claus, the Tooth Fairy, the Easter Bunny, or your own inner strength — your body produces real, measurable changes. Neuroscience research shows that the brain doesn't distinguish between vividly imagined and real experiences. The same neural pathways activate. The same physical responses occur.
+>
+> This app captures those changes using:
+> - Accelerometer (micro-movements)
+> - Gyroscope (rotational stability)
+> - Magnetometer (electromagnetic field)
+> - Barometer (atmospheric pressure)
+> - Light sensor (ambient light)
+> - Device motion (combined movement)
+> - Pedometer (stillness detection)
+>
+> **Features:**
+> - 45+ pre-built beliefs across 7 categories
+> - Custom belief creation
+> - Guided meditation before scans
+> - Immersive narrated belief stories
+> - Themed scan environments per belief category
+> - Achievement badges and milestone tracking
+> - Family profiles (everyone gets their own history)
+> - Belief journal with reflection prompts
+> - Daily streak tracker
+> - Belief Timer countdown for bedtime magic
+> - Detailed scan reports you can save and share
+> - Educational content grounded in real neuroscience
+> - Bedtime Magic Mode for parents
+>
+> Perfect for families. Kids can measure their belief in Santa before Christmas. Parents can use it to inspire bedtime routines. Everyone can explore the fascinating science of how belief shapes our physical reality.
 
 ### Category
-- Google Play: Education → Educational
-- App Store: Education / Entertainment
+- Google Play: **Education**
+- App Store: **Education** / **Entertainment**
 
 ### Content Rating
-- Google Play: Everyone
-- App Store: 4+
+- Google Play: **Everyone**
+- App Store: **4+**
 
-### Keywords
-belief, science, sensors, family, kids, santa, tooth fairy, meditation, mindfulness, faith, measurement, detector, easter bunny, prayer, spiritual
+### Keywords (100 chars max for Apple)
+belief, science, sensors, family, kids, santa, tooth fairy, meditation, faith, detector, spiritual
 
-### Privacy Policy
-You'll need to host a privacy policy. Key points to include:
-- All sensor data is processed locally on the device
-- No personal data is collected or transmitted
-- Scan history is stored locally using AsyncStorage
-- No third-party analytics or advertising SDKs
-- Purchase data is handled entirely by Google Play / Apple
+---
+
+## Privacy Policy
+
+You need to host a privacy policy at a public URL. Key points to include:
+
+**Data Collection:** The Belief Field Detector does not collect, store, or transmit any personal data. All sensor readings and scan history are stored locally on your device using AsyncStorage and are never sent to any server.
+
+**Sensor Data:** The app accesses device sensors (accelerometer, gyroscope, magnetometer, barometer, light sensor, device motion, pedometer) solely for the purpose of measuring belief field intensity. This data is processed in real-time on your device and is not recorded or transmitted.
+
+**Purchases:** In-app purchase transactions are handled entirely by Google Play (Android) or Apple App Store (iOS). The app does not process or store any payment information.
+
+**Children's Privacy:** The app is designed to be family-friendly and does not collect any data from children or adults.
+
+**Third Parties:** The app does not include any third-party analytics, advertising, or tracking SDKs.
 
 ---
 
 ## Quick Reference Commands
 
 ```bash
-# === BUILDING ===
-# Development APK (Android testing)
-eas build --platform android --profile development
+# === BUILDING (use the build script) ===
+./scripts/build.sh apk           # Test APK for Android
+./scripts/build.sh aab           # AAB for Google Play Store
+./scripts/build.sh ios           # iOS archive for App Store
+./scripts/build.sh all           # Build all three
 
-# Preview APK (release-mode testing)
-eas build --platform android --profile preview
-
-# Production AAB (Google Play Store)
-eas build --platform android --profile production
-
-# iOS Simulator build
-eas build --platform ios --profile development
-
-# iOS Device build (TestFlight)
-eas build --platform ios --profile preview
-
-# iOS Production (App Store)
-eas build --platform ios --profile production
+# === BUILDING (use EAS directly) ===
+eas build --platform android --profile preview      # Test APK
+eas build --platform android --profile production   # Production AAB
+eas build --platform ios --profile production        # Production iOS
 
 # === SUBMITTING ===
-# Submit to Google Play
-eas submit --platform android
-
-# Submit to App Store
-eas submit --platform ios
+eas submit --platform android    # Submit to Google Play
+eas submit --platform ios        # Submit to App Store
 
 # === MANAGEMENT ===
-# Check build status
-eas build:list
-
-# View/manage credentials
-eas credentials
-
-# Register test device (iOS)
-eas device:create
-
-# Clear cache and rebuild
-eas build --platform android --profile production --clear-cache
+eas build:list                   # Check build status
+eas credentials                  # View/manage signing credentials
+eas device:create                # Register iOS test device
+eas build --clear-cache          # Clear cache and rebuild
 ```
 
 ---
 
 ## Troubleshooting
 
-### Build fails on Android
-```bash
-eas build --platform android --profile production --clear-cache
-```
+| Problem | Solution |
+|---|---|
+| Build fails on Android | `eas build --platform android --profile production --clear-cache` |
+| Build fails on iOS | `eas credentials --platform ios` then rebuild |
+| Billing not working in dev | Use Developer Mode (11 taps on version) to bypass |
+| Sensors not responding | Test on real device — web preview shows simulated data |
+| "Module not found" | `rm -rf node_modules && npm install && npx expo prebuild --clean` |
+| Build takes too long | Free tier: ~15-20 min. Paid priority: ~5-8 min |
 
-### Build fails on iOS
-```bash
-eas credentials --platform ios
-eas build --platform ios --profile production
-```
+---
 
-### Billing not working in development
-- Use the developer mode (11 taps on version) to override premium
-- Google Play billing only works on signed builds from Play Console
-- iOS billing only works in sandbox or TestFlight
+## Cost Summary
 
-### Sensors not responding
-- Ensure the device has the required sensors (some budget phones lack barometer/gyroscope)
-- Check that motion permissions are granted in device settings
-- The web preview shows simulated sensor data — test on a real device for actual readings
+| Item | Cost | Frequency |
+|---|---|---|
+| Expo/EAS Account | **Free** | — |
+| EAS Build (free tier) | **Free** | 30 builds/month |
+| Google Play Console | **$25** | One-time |
+| Apple Developer Program | **$99** | Annual |
+| **Total to launch** | **$124** | — |

@@ -67,3 +67,5 @@
 - [x] Build configuration for AAB (Google Play Store) — ready to run `eas build`
 - [x] Build configuration for iOS archive (App Store / TestFlight) — ready to run `eas build`
 - [x] Ensure all 2026 Google Play Store and Apple App Store requirements are met — documented in BUILD_GUIDE.md
+- [x] Create automated build script (scripts/build.sh) for APK, AAB, and iOS builds
+- [x] Create comprehensive BUILD_GUIDE.md with store listing copy, privacy policy template, billing setup, and troubleshooting
