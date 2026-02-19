@@ -50,9 +50,11 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: env.iosBundleId,
-    "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
+    infoPlist: {
+      ITSAppUsesNonExemptEncryption: false,
+      NSMotionUsageDescription: "This app uses motion sensors to detect and measure your belief field intensity.",
+      SKAdNetworkItems: [],
+    },
   },
   android: {
     adaptiveIcon: {
@@ -64,7 +66,14 @@ const config: ExpoConfig = {
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
     package: env.androidPackage,
-    permissions: ["POST_NOTIFICATIONS"],
+    permissions: [
+      "POST_NOTIFICATIONS",
+      "VIBRATE",
+      "RECEIVE_BOOT_COMPLETED",
+      "SCHEDULE_EXACT_ALARM",
+      "HIGH_SAMPLING_RATE_SENSORS",
+      "com.android.vending.BILLING",
+    ],
     intentFilters: [
       {
         action: "VIEW",

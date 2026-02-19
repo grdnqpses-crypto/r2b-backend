@@ -57,3 +57,13 @@
 - [x] Configure build settings for AAB (Google Play Store) with recommended signing
 - [x] Configure build settings for iOS (App Store)
 - [x] Prepare EAS build configuration for both platforms
+- [x] Add Belief Timer countdown — visual timer after bedtime scan ("Magic activates in X hours")
+- [x] Add About the Science deep-dive section with links to real published studies
+- [x] Configure all sensor permissions for both iOS and Android (motion, location, microphone, notifications, etc.)
+- [x] Integrate Google Play billing (in-app purchases/subscriptions) — configured with product IDs, permission, and BUILD_GUIDE
+- [x] Integrate Apple App Store billing (in-app purchases/subscriptions) — configured with product IDs and BUILD_GUIDE
+- [x] Enhance developer mode with billing bypass and test purchase tools
+- [x] Set up EAS CLI and build configuration for APK (Android testing)
+- [x] Build configuration for AAB (Google Play Store) — ready to run `eas build`
+- [x] Build configuration for iOS archive (App Store / TestFlight) — ready to run `eas build`
+- [x] Ensure all 2026 Google Play Store and Apple App Store requirements are met — documented in BUILD_GUIDE.md

@@ -25,6 +25,7 @@ import { CreateBeliefModal } from "@/components/create-belief-modal";
 import { JournalEntryModal } from "@/components/journal-entry-modal";
 import { BeliefMeditation } from "@/components/belief-meditation";
 import { ScanReport } from "@/components/scan-report";
+import { BeliefTimer } from "@/components/belief-timer";
 import { useAppSettings } from "@/app/(tabs)/settings";
 import { useAchievements } from "@/hooks/use-achievements";
 import {
@@ -44,6 +45,7 @@ type Screen =
   | "create-belief"
   | "journal"
   | "report"
+  | "timer"
   ;
 
 export default function DetectScreen() {
@@ -128,6 +130,10 @@ export default function DetectScreen() {
 
   const handleBedtime = useCallback(() => {
     setScreen("bedtime");
+  }, []);
+
+  const handleTimer = useCallback(() => {
+    setScreen("timer");
   }, []);
 
   const handleViewReport = useCallback(() => {
@@ -248,8 +254,23 @@ export default function DetectScreen() {
           result={lastResult}
           onDismiss={() => setScreen("home")}
           onBedtime={handleBedtime}
+          onTimer={handleTimer}
           onJournal={handleJournal}
           onReport={handleViewReport}
+        />
+      </Modal>
+    );
+  }
+
+  // Belief Timer
+  if (screen === "timer" && lastResult) {
+    return (
+      <Modal visible animationType="fade" statusBarTranslucent>
+        <BeliefTimer
+          beliefName={lastResult.beliefName}
+          beliefEmoji={lastResult.beliefEmoji}
+          score={lastResult.score}
+          onDismiss={() => setScreen("home")}
         />
       </Modal>
     );

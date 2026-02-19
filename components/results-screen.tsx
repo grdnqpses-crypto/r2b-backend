@@ -13,9 +13,10 @@ export interface ResultsScreenProps {
   onBedtime?: () => void;
   onJournal?: () => void;
   onReport?: () => void;
+  onTimer?: () => void;
 }
 
-export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onReport }: ResultsScreenProps) {
+export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onReport, onTimer }: ResultsScreenProps) {
   const colors = useColors();
   const belief = getBeliefById(result.beliefId);
   const { shareAsText } = useShareResults();
@@ -234,6 +235,28 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
           </Pressable>
         )}
 
+        {/* Belief Timer */}
+        {onTimer && (
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== "web") {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              }
+              onTimer();
+            }}
+            style={({ pressed }) => [
+              styles.timerBtn,
+              { backgroundColor: "rgba(155,122,255,0.08)", borderColor: "rgba(155,122,255,0.3)", opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
+            ]}
+          >
+            <Text style={styles.timerBtnEmoji}>⏰</Text>
+            <Text style={[styles.timerBtnTitle, { color: colors.foreground }]}>Start Belief Timer</Text>
+            <Text style={[styles.timerBtnSub, { color: colors.muted }]}>
+              Set a countdown for the magic to activate while you rest
+            </Text>
+          </Pressable>
+        )}
+
         {/* Bedtime button for parents */}
         {onBedtime && belief && (
           <Pressable
@@ -352,6 +375,17 @@ const styles = StyleSheet.create({
   reportBtnTextWrap: { flex: 1 },
   reportBtnTitle: { fontSize: 16, fontWeight: "700" },
   reportBtnSub: { fontSize: 12, marginTop: 2 },
+  timerBtn: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 20,
+    alignItems: "center",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  timerBtnEmoji: { fontSize: 36, marginBottom: 8 },
+  timerBtnTitle: { fontSize: 18, fontWeight: "700" },
+  timerBtnSub: { fontSize: 13, marginTop: 4, textAlign: "center" },
   doneBtn: {
     paddingVertical: 16,
     borderRadius: 16,

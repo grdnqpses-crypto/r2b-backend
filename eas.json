@@ -13,6 +13,9 @@
       },
       "ios": {
         "simulator": true
+      },
+      "env": {
+        "APP_ENV": "development"
       }
     },
     "preview": {
@@ -22,6 +25,9 @@
       },
       "ios": {
         "simulator": false
+      },
+      "env": {
+        "APP_ENV": "preview"
       }
     },
     "production": {
@@ -33,6 +39,9 @@
       "ios": {
         "credentialsSource": "remote",
         "autoIncrement": true
+      },
+      "env": {
+        "APP_ENV": "production"
       }
     }
   },
