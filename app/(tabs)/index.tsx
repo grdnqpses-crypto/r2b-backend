@@ -26,6 +26,7 @@ import { JournalEntryModal } from "@/components/journal-entry-modal";
 import { BeliefMeditation } from "@/components/belief-meditation";
 import { ScanReport } from "@/components/scan-report";
 import { useAppSettings } from "@/app/(tabs)/settings";
+import { useAchievements } from "@/hooks/use-achievements";
 import {
   BELIEF_CATEGORIES,
   ALL_BELIEFS,
@@ -52,6 +53,7 @@ export default function DetectScreen() {
   const { customBeliefs, addBelief } = useCustomBeliefs();
   const { streak, scannedToday, newMilestones, recordScan, clearNewMilestones } = useBeliefStreak();
   const { settings } = useAppSettings();
+  const achievements = useAchievements();
 
   const [screen, setScreen] = useState<Screen>("home");
   const [selectedBelief, setSelectedBelief] = useState<BeliefOption | null>(null);
@@ -103,9 +105,25 @@ export default function DetectScreen() {
       setLastResult(result);
       await saveScan(result);
       await recordScan(result.score, result.beliefName);
+      // Check achievements after scan
+      const totalScans = history.length + 1;
+      const uniqueBeliefs = [...new Set([...history.map(h => h.beliefId), result.beliefId])];
+      const uniqueCategories = [...new Set(uniqueBeliefs.map(id => {
+        const b = getBeliefById(id);
+        return b?.category || "custom";
+      }))];
+      achievements.checkAchievements({
+        totalScans,
+        currentStreak: streak.currentStreak,
+        personalBest: Math.max(result.score, streak.personalBest),
+        uniqueBeliefs,
+        uniqueCategories,
+        journalCount: history.filter(h => h.journalEntry).length,
+        usedMeditation: settings.meditationEnabled,
+      });
       setScreen("results");
     },
-    [saveScan, recordScan]
+    [saveScan, recordScan, history, streak, achievements, settings.meditationEnabled]
   );
 
   const handleBedtime = useCallback(() => {

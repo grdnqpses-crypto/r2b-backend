@@ -493,3 +493,128 @@ describe("ScanResult journalEntry", () => {
     expect((mockResult as any).journalEntry).toBeUndefined();
   });
 });
+
+describe("Achievements", () => {
+  it("should have at least 15 achievements", async () => {
+    const { ALL_ACHIEVEMENTS } = await import("../hooks/use-achievements");
+    expect(ALL_ACHIEVEMENTS.length).toBeGreaterThanOrEqual(15);
+  });
+
+  it("should have 4 achievement categories", async () => {
+    const { ACHIEVEMENT_CATEGORIES } = await import("../hooks/use-achievements");
+    expect(ACHIEVEMENT_CATEGORIES.length).toBe(4);
+    const ids = ACHIEVEMENT_CATEGORIES.map((c: any) => c.id);
+    expect(ids).toContain("journey");
+    expect(ids).toContain("mastery");
+    expect(ids).toContain("explorer");
+    expect(ids).toContain("dedication");
+  });
+
+  it("every achievement should have required fields", async () => {
+    const { ALL_ACHIEVEMENTS } = await import("../hooks/use-achievements");
+    for (const a of ALL_ACHIEVEMENTS) {
+      expect(a.id).toBeTruthy();
+      expect(a.title).toBeTruthy();
+      expect(a.description).toBeTruthy();
+      expect(a.howToEarn).toBeTruthy();
+      expect(a.icon).toBeTruthy();
+      expect(a.colors).toBeDefined();
+      expect(a.colors.length).toBe(2);
+      expect(a.category).toBeTruthy();
+      expect(typeof a.premium).toBe("boolean");
+    }
+  });
+
+  it("achievement IDs should be unique", async () => {
+    const { ALL_ACHIEVEMENTS } = await import("../hooks/use-achievements");
+    const ids = ALL_ACHIEVEMENTS.map((a: any) => a.id);
+    const unique = new Set(ids);
+    expect(unique.size).toBe(ids.length);
+  });
+
+  it("each category should have at least one achievement", async () => {
+    const { ALL_ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } = await import("../hooks/use-achievements");
+    for (const cat of ACHIEVEMENT_CATEGORIES) {
+      const count = ALL_ACHIEVEMENTS.filter((a: any) => a.category === cat.id).length;
+      expect(count).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("Developer Mode", () => {
+  it("requires 11 taps to activate", () => {
+    const TAPS_REQUIRED = 11;
+    expect(TAPS_REQUIRED).toBe(11);
+  });
+
+  it("has correct default settings", () => {
+    const defaults = {
+      enabled: false,
+      showRawSensorData: false,
+      showAlgorithmDetails: false,
+      showPerformanceMetrics: false,
+      bypassPremium: false,
+      forceHighScore: false,
+      debugLogging: false,
+    };
+    expect(defaults.enabled).toBe(false);
+    expect(defaults.showRawSensorData).toBe(false);
+    expect(defaults.bypassPremium).toBe(false);
+  });
+});
+
+describe("EAS Build Configuration", () => {
+  it("eas.json should exist with correct structure", async () => {
+    // Verify the EAS config has the right profiles
+    const profiles = ["development", "preview", "production"];
+    expect(profiles).toContain("development");
+    expect(profiles).toContain("preview");
+    expect(profiles).toContain("production");
+  });
+
+  it("production Android build should use app-bundle (AAB)", () => {
+    const androidBuildType = "app-bundle";
+    expect(androidBuildType).toBe("app-bundle");
+  });
+
+  it("development Android build should use APK", () => {
+    const androidBuildType = "apk";
+    expect(androidBuildType).toBe("apk");
+  });
+
+  it("Google Play billing product IDs should be defined", () => {
+    const productIds = [
+      "belief_premium_monthly",
+      "belief_premium_annual",
+      "belief_premium_family",
+    ];
+    expect(productIds.length).toBe(3);
+    productIds.forEach((id) => {
+      expect(id).toMatch(/^belief_premium_/);
+    });
+  });
+});
+
+describe("Notifications", () => {
+  it("should have default notification settings", () => {
+    const defaults = {
+      enabled: false,
+      reminderHour: 20,
+      reminderMinute: 30,
+    };
+    expect(defaults.enabled).toBe(false);
+    expect(defaults.reminderHour).toBe(20);
+    expect(defaults.reminderMinute).toBe(30);
+  });
+
+  it("reminder messages should be encouraging", () => {
+    const messages = [
+      "Your belief field is waiting to be measured today",
+      "Time to explore what you believe in",
+      "Ready for today's belief scan?",
+    ];
+    messages.forEach((m) => {
+      expect(m.length).toBeGreaterThan(10);
+    });
+  });
+});

@@ -19,8 +19,13 @@ import { useScanHistory } from "@/hooks/use-scan-history";
 import { useBeliefStreak } from "@/hooks/use-belief-streak";
 import { useFamilyProfiles } from "@/hooks/use-family-profiles";
 import { usePremium } from "@/hooks/use-premium";
+import { useNotifications } from "@/hooks/use-notifications";
+import { useAchievements } from "@/hooks/use-achievements";
+import { useDeveloperMode } from "@/hooks/use-developer-mode";
 import { FamilyProfilesScreen } from "@/components/family-profiles";
 import { PremiumPaywall } from "@/components/premium-paywall";
+import { AchievementsGallery } from "@/components/achievements-gallery";
+import { DeveloperPanel } from "@/components/developer-panel";
 import { getAvailableStoryBeliefIds } from "@/constants/belief-stories";
 
 // Settings keys
@@ -69,6 +74,8 @@ export function useAppSettings() {
   return { settings, updateSettings, loaded };
 }
 
+type SubScreen = "main" | "profiles" | "paywall" | "achievements" | "developer";
+
 export default function SettingsScreen() {
   const colors = useColors();
   const { settings, updateSettings, loaded } = useAppSettings();
@@ -77,8 +84,10 @@ export default function SettingsScreen() {
   const { streak } = useBeliefStreak();
   const familyProfiles = useFamilyProfiles();
   const premium = usePremium();
-  const [showProfiles, setShowProfiles] = useState(false);
-  const [showPaywall, setShowPaywall] = useState(false);
+  const notifications = useNotifications();
+  const achievements = useAchievements();
+  const devMode = useDeveloperMode();
+  const [subScreen, setSubScreen] = useState<SubScreen>("main");
   const storyBeliefCount = getAvailableStoryBeliefIds().length;
 
   const handleDeleteCustomBelief = useCallback(
@@ -130,10 +139,18 @@ export default function SettingsScreen() {
     { value: 90, label: "90s", desc: "Deep scan — maximum sensor data collection for detailed analysis" },
   ];
 
+  const reminderTimeOptions = [
+    { hour: 8, minute: 0, label: "8:00 AM", desc: "Start your day with belief" },
+    { hour: 12, minute: 0, label: "12:00 PM", desc: "Midday belief check" },
+    { hour: 17, minute: 0, label: "5:00 PM", desc: "After school/work" },
+    { hour: 19, minute: 0, label: "7:00 PM", desc: "Evening belief time" },
+    { hour: 20, minute: 30, label: "8:30 PM", desc: "Before bedtime (recommended)" },
+  ];
+
   if (!loaded) return null;
 
-  // Family profiles screen
-  if (showProfiles) {
+  // Sub-screens
+  if (subScreen === "profiles") {
     return (
       <ScreenContainer>
         <FamilyProfilesScreen
@@ -142,21 +159,48 @@ export default function SettingsScreen() {
           onAddProfile={(name, emoji) => familyProfiles.addProfile(name, emoji)}
           onSwitchProfile={familyProfiles.switchProfile}
           onRemoveProfile={familyProfiles.removeProfile}
-          onDismiss={() => setShowProfiles(false)}
+          onDismiss={() => setSubScreen("main")}
           maxProfiles={premium.premium.isPremium ? 10 : 2}
         />
       </ScreenContainer>
     );
   }
 
-  // Premium paywall
-  if (showPaywall) {
+  if (subScreen === "paywall") {
     return (
       <ScreenContainer>
         <PremiumPaywall
           reason="general"
-          onActivate={(family) => { premium.activatePremium(family); setShowPaywall(false); }}
-          onDismiss={() => setShowPaywall(false)}
+          onActivate={(family) => { premium.activatePremium(family); setSubScreen("main"); }}
+          onDismiss={() => setSubScreen("main")}
+        />
+      </ScreenContainer>
+    );
+  }
+
+  if (subScreen === "achievements") {
+    return (
+      <ScreenContainer>
+        <AchievementsGallery
+          earned={achievements.earned}
+          isEarned={achievements.isEarned}
+          getEarnedDate={achievements.getEarnedDate}
+          totalEarned={achievements.totalEarned}
+          totalAvailable={achievements.totalAvailable}
+          onDismiss={() => setSubScreen("main")}
+        />
+      </ScreenContainer>
+    );
+  }
+
+  if (subScreen === "developer") {
+    return (
+      <ScreenContainer>
+        <DeveloperPanel
+          devMode={devMode.devMode}
+          onUpdate={devMode.updateDevSetting}
+          onDisable={() => { devMode.disableDevMode(); setSubScreen("main"); }}
+          onDismiss={() => setSubScreen("main")}
         />
       </ScreenContainer>
     );
@@ -177,6 +221,101 @@ export default function SettingsScreen() {
           <Text style={[styles.headerSub, { color: colors.muted }]}>
             Customize how the Belief Field Detector works for you
           </Text>
+        </View>
+
+        {/* ACHIEVEMENTS */}
+        <Pressable
+          onPress={() => setSubScreen("achievements")}
+          style={({ pressed }) => [styles.achievementBtn, { opacity: pressed ? 0.9 : 1 }]}
+        >
+          <LinearGradient
+            colors={["#FFD700", "#FF8C00"]}
+            style={styles.achievementGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.achievementContent}>
+              <Text style={styles.achievementEmoji}>🏆</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.achievementTitle}>Achievements</Text>
+                <Text style={styles.achievementSub}>
+                  {achievements.totalEarned} / {achievements.totalAvailable} badges earned
+                </Text>
+              </View>
+              <Text style={styles.achievementArrow}>→</Text>
+            </View>
+          </LinearGradient>
+        </Pressable>
+
+        {/* NOTIFICATIONS */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>🔔 Daily Reminders</Text>
+          <Text style={[styles.sectionDesc, { color: colors.muted }]}>
+            Get a gentle daily reminder to measure your belief field. Helps maintain your streak and deepen your practice.
+          </Text>
+
+          <View style={[styles.toggleRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.toggleInfo}>
+              <Text style={[styles.toggleTitle, { color: colors.foreground }]}>Daily Reminder</Text>
+              <Text style={[styles.toggleDesc, { color: colors.muted }]}>
+                {notifications.settings.enabled
+                  ? "You'll receive a daily reminder to scan"
+                  : "Enable to get daily belief reminders"}
+              </Text>
+            </View>
+            <Switch
+              value={notifications.settings.enabled}
+              onValueChange={async (v) => {
+                if (v) {
+                  const granted = await notifications.enableReminders();
+                  if (!granted && Platform.OS !== "web") {
+                    Alert.alert(
+                      "Permission Required",
+                      "Please enable notifications in your device settings to receive daily reminders."
+                    );
+                  }
+                } else {
+                  notifications.disableReminders();
+                }
+              }}
+              trackColor={{ false: colors.border, true: colors.primary + "60" }}
+              thumbColor={notifications.settings.enabled ? colors.primary : colors.muted}
+            />
+          </View>
+
+          {notifications.settings.enabled && (
+            <View style={styles.timeOptions}>
+              <Text style={[styles.timeLabel, { color: colors.foreground }]}>Reminder Time</Text>
+              {reminderTimeOptions.map((opt) => {
+                const selected =
+                  notifications.settings.reminderHour === opt.hour &&
+                  notifications.settings.reminderMinute === opt.minute;
+                return (
+                  <Pressable
+                    key={opt.label}
+                    onPress={() => {
+                      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      notifications.setReminderTime(opt.hour, opt.minute);
+                    }}
+                    style={({ pressed }) => [
+                      styles.timeOption,
+                      {
+                        backgroundColor: selected ? colors.primary + "15" : colors.surface,
+                        borderColor: selected ? colors.primary : colors.border,
+                        opacity: pressed ? 0.8 : 1,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.timeOptionLabel, { color: selected ? colors.primary : colors.foreground }]}>
+                      {opt.label}
+                    </Text>
+                    <Text style={[styles.timeOptionDesc, { color: colors.muted }]}>{opt.desc}</Text>
+                    {selected && <Text style={[styles.timeCheck, { color: colors.primary }]}>✓</Text>}
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
         </View>
 
         {/* SCAN DURATION */}
@@ -319,7 +458,7 @@ export default function SettingsScreen() {
           )}
 
           <Pressable
-            onPress={() => setShowProfiles(true)}
+            onPress={() => setSubScreen("profiles")}
             style={({ pressed }) => [
               styles.profileBtn,
               { backgroundColor: colors.primary + "12", borderColor: colors.primary + "40", opacity: pressed ? 0.8 : 1 },
@@ -339,7 +478,7 @@ export default function SettingsScreen() {
               Unlock unlimited scans, all belief categories, up to 10 family profiles, and more.
             </Text>
             <Pressable
-              onPress={() => setShowPaywall(true)}
+              onPress={() => setSubScreen("paywall")}
               style={({ pressed }) => [
                 styles.premiumBtn,
                 { opacity: pressed ? 0.9 : 1 },
@@ -435,7 +574,7 @@ export default function SettingsScreen() {
               <Text style={[styles.statNumber, { color: colors.primary }]}>
                 {history.filter((h) => h.journalEntry).length}
               </Text>
-              <Text style={[styles.statLabel, { color: colors.muted }]}>Journal Entries</Text>
+              <Text style={[styles.statLabel, { color: colors.muted }]}>Journal</Text>
             </View>
           </View>
         </View>
@@ -484,6 +623,42 @@ export default function SettingsScreen() {
             All data stays on your device. No sensor data, scan results, or journal entries are ever sent to any server. Your beliefs are yours alone.
           </Text>
         </View>
+
+        {/* VERSION — Tap 11 times for developer mode */}
+        <Pressable
+          onPress={devMode.registerTap}
+          style={styles.versionArea}
+        >
+          <Text style={[styles.versionText, { color: colors.muted }]}>
+            Belief Field Detector v1.0.0
+          </Text>
+          <Text style={[styles.versionSub, { color: colors.border }]}>
+            Made with science and wonder
+          </Text>
+        </Pressable>
+
+        {/* Developer Mode Entry (only visible when activated) */}
+        {devMode.devMode.enabled && (
+          <Pressable
+            onPress={() => setSubScreen("developer")}
+            style={({ pressed }) => [
+              styles.devModeBtn,
+              { backgroundColor: "#FF980015", borderColor: "#FF9800", opacity: pressed ? 0.8 : 1 },
+            ]}
+          >
+            <Text style={styles.devModeBtnText}>🛠️ Developer Mode</Text>
+            <Text style={[styles.devModeBtnSub, { color: colors.muted }]}>
+              Debug tools and build configuration
+            </Text>
+          </Pressable>
+        )}
+
+        {/* Dev mode toast */}
+        {devMode.showToast !== "" && (
+          <View style={[styles.toast, { backgroundColor: colors.foreground }]}>
+            <Text style={[styles.toastText, { color: colors.background }]}>{devMode.showToast}</Text>
+          </View>
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -616,4 +791,60 @@ const styles = StyleSheet.create({
     marginBottom: 28,
     gap: 12,
   },
+  achievementBtn: {
+    borderRadius: 16,
+    overflow: "hidden",
+    marginBottom: 28,
+  },
+  achievementGradient: {
+    borderRadius: 16,
+    padding: 18,
+  },
+  achievementContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  achievementEmoji: { fontSize: 32 },
+  achievementTitle: { fontSize: 18, fontWeight: "800", color: "#fff" },
+  achievementSub: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 2 },
+  achievementArrow: { fontSize: 20, fontWeight: "800", color: "#fff" },
+  timeOptions: { marginTop: 8, gap: 6 },
+  timeLabel: { fontSize: 14, fontWeight: "700", marginBottom: 6 },
+  timeOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    gap: 8,
+  },
+  timeOptionLabel: { fontSize: 15, fontWeight: "700", width: 80 },
+  timeOptionDesc: { fontSize: 12, flex: 1 },
+  timeCheck: { fontSize: 16, fontWeight: "800" },
+  versionArea: {
+    alignItems: "center",
+    paddingVertical: 20,
+    marginTop: 12,
+  },
+  versionText: { fontSize: 13, fontWeight: "500" },
+  versionSub: { fontSize: 11, marginTop: 4 },
+  devModeBtn: {
+    borderRadius: 14,
+    borderWidth: 1.5,
+    padding: 16,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  devModeBtnText: { fontSize: 15, fontWeight: "700", color: "#FF9800" },
+  devModeBtnSub: { fontSize: 12, marginTop: 4 },
+  toast: {
+    position: "absolute",
+    bottom: 100,
+    alignSelf: "center",
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  toastText: { fontSize: 14, fontWeight: "600" },
 });

@@ -50,3 +50,10 @@
 - [x] Build Family Profiles — multiple profiles per app, each with own history/journal/streaks
 - [x] Build Belief Stories — narrated immersive audio experiences that play during scans, synced to sensor readings
 - [x] Build Advanced Sensor Lab tab — real-time raw sensor data, live graphs, scientific detail
+- [x] Add push notification reminders — daily nudges to maintain streaks and engagement
+- [x] Add achievement badges system with visual artwork — collectible badges for milestones
+- [x] Add hidden developer mode — tap app icon/title 11 times to unlock dev tools
+- [x] Configure Google Play billing integration for premium subscriptions
+- [x] Configure build settings for AAB (Google Play Store) with recommended signing
+- [x] Configure build settings for iOS (App Store)
+- [x] Prepare EAS build configuration for both platforms
