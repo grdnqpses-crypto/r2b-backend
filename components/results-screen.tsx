@@ -7,13 +7,14 @@ import { BeliefFieldOrb } from "./belief-field-orb";
 import { getBeliefById } from "@/constants/beliefs";
 import type { ScanResult } from "@/hooks/use-scan-history";
 
-interface ResultsScreenProps {
+export interface ResultsScreenProps {
   result: ScanResult;
   onDismiss: () => void;
   onBedtime?: () => void;
+  onJournal?: () => void;
 }
 
-export function ResultsScreen({ result, onDismiss, onBedtime }: ResultsScreenProps) {
+export function ResultsScreen({ result, onDismiss, onBedtime, onJournal }: ResultsScreenProps) {
   const colors = useColors();
   const belief = getBeliefById(result.beliefId);
   const { shareAsText } = useShareResults();
@@ -170,6 +171,39 @@ export function ResultsScreen({ result, onDismiss, onBedtime }: ResultsScreenPro
           );
         })}
 
+        {/* Journal button */}
+        {onJournal && (
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== "web") {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }
+              onJournal();
+            }}
+            style={({ pressed }) => [
+              styles.journalBtn,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.primary + "50",
+                opacity: pressed ? 0.8 : 1,
+                transform: [{ scale: pressed ? 0.97 : 1 }],
+              },
+            ]}
+          >
+            <Text style={styles.journalBtnEmoji}>📔</Text>
+            <View style={styles.journalBtnTextWrap}>
+              <Text style={[styles.journalBtnTitle, { color: colors.foreground }]}>
+                {result.journalEntry ? "Edit Journal Entry" : "Write in Your Belief Journal"}
+              </Text>
+              <Text style={[styles.journalBtnSub, { color: colors.muted }]}>
+                {result.journalEntry
+                  ? `"${result.journalEntry.slice(0, 50)}${result.journalEntry.length > 50 ? "..." : ""}"`
+                  : "Record how you felt during this scan"}
+              </Text>
+            </View>
+          </Pressable>
+        )}
+
         {/* Bedtime button for parents */}
         {onBedtime && belief && (
           <Pressable
@@ -262,6 +296,19 @@ const styles = StyleSheet.create({
   bedtimeEmoji: { fontSize: 36, marginBottom: 8 },
   bedtimeBtnTitle: { fontSize: 18, fontWeight: "700" },
   bedtimeBtnSub: { fontSize: 13, marginTop: 4 },
+  journalBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginTop: 16,
+    gap: 12,
+  },
+  journalBtnEmoji: { fontSize: 28 },
+  journalBtnTextWrap: { flex: 1 },
+  journalBtnTitle: { fontSize: 16, fontWeight: "700" },
+  journalBtnSub: { fontSize: 12, marginTop: 2 },
   doneBtn: {
     paddingVertical: 16,
     borderRadius: 16,

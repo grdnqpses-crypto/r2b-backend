@@ -193,6 +193,39 @@ describe("generateInterpretation", () => {
   });
 });
 
+describe("ScanResult journalEntry", () => {
+  it("should support optional journalEntry field", () => {
+    const mockResult = {
+      id: "test-1",
+      beliefId: "santa",
+      beliefName: "Santa Claus",
+      beliefEmoji: "🎅",
+      intensity: 8,
+      score: 75,
+      date: new Date().toISOString(),
+      sensorBreakdown: [],
+      summary: "Test summary",
+      journalEntry: "I felt amazing during this scan!",
+    };
+    expect(mockResult.journalEntry).toBe("I felt amazing during this scan!");
+  });
+
+  it("should allow undefined journalEntry", () => {
+    const mockResult = {
+      id: "test-2",
+      beliefId: "santa",
+      beliefName: "Santa Claus",
+      beliefEmoji: "🎅",
+      intensity: 5,
+      score: 50,
+      date: new Date().toISOString(),
+      sensorBreakdown: [],
+      summary: "Test",
+    };
+    expect((mockResult as any).journalEntry).toBeUndefined();
+  });
+});
+
 describe("generateSummary", () => {
   it("should return extraordinary message for score >= 80", () => {
     const result = generateSummary(85, "Santa Claus");

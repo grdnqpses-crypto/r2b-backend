@@ -20,6 +20,7 @@ export interface ScanResult {
     interpretation: string;
   }[];
   summary: string;
+  journalEntry?: string;
 }
 
 const STORAGE_KEY = "@belief_scan_history";
@@ -59,7 +60,18 @@ export function useScanHistory() {
     };
   }, [history]);
 
-  return { history, loaded, saveScan, getStats };
+  const updateJournal = useCallback(
+    async (scanId: string, entry: string) => {
+      const updated = history.map((h) =>
+        h.id === scanId ? { ...h, journalEntry: entry } : h
+      );
+      setHistory(updated);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    },
+    [history]
+  );
+
+  return { history, loaded, saveScan, getStats, updateJournal };
 }
 
 export function generateInterpretation(

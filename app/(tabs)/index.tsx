@@ -21,6 +21,8 @@ import { LiveScanner } from "@/components/live-scanner";
 import { ResultsScreen } from "@/components/results-screen";
 import { BedtimeMessage } from "@/components/bedtime-message";
 import { CreateBeliefModal } from "@/components/create-belief-modal";
+import { JournalEntryModal } from "@/components/journal-entry-modal";
+import { ChallengeFriend } from "@/components/challenge-friend";
 import {
   BELIEF_CATEGORIES,
   ALL_BELIEFS,
@@ -29,12 +31,19 @@ import {
 } from "@/constants/beliefs";
 import { getBeliefById } from "@/constants/beliefs";
 
-type Screen = "home" | "scanning" | "results" | "bedtime" | "create-belief";
+type Screen =
+  | "home"
+  | "scanning"
+  | "results"
+  | "bedtime"
+  | "create-belief"
+  | "journal"
+  | "challenge";
 
 export default function DetectScreen() {
   const colors = useColors();
   const onboarding = useOnboarding();
-  const { history, saveScan } = useScanHistory();
+  const { history, saveScan, updateJournal } = useScanHistory();
   const { customBeliefs, addBelief } = useCustomBeliefs();
 
   const [screen, setScreen] = useState<Screen>("home");
@@ -91,6 +100,21 @@ export default function DetectScreen() {
     setScreen("bedtime");
   }, []);
 
+  const handleJournal = useCallback(() => {
+    setScreen("journal");
+  }, []);
+
+  const handleJournalSave = useCallback(
+    async (entry: string) => {
+      if (lastResult) {
+        await updateJournal(lastResult.id, entry);
+        setLastResult({ ...lastResult, journalEntry: entry });
+      }
+      setScreen("results");
+    },
+    [lastResult, updateJournal]
+  );
+
   const handleCreateBelief = useCallback(
     (belief: BeliefOption) => {
       addBelief(belief);
@@ -99,6 +123,13 @@ export default function DetectScreen() {
       setScreen("home");
     },
     [addBelief]
+  );
+
+  const handleChallengeComplete = useCallback(
+    async (result: ScanResult) => {
+      await saveScan(result);
+    },
+    [saveScan]
   );
 
   // Onboarding
@@ -137,6 +168,22 @@ export default function DetectScreen() {
     );
   }
 
+  // Journal entry
+  if (screen === "journal" && lastResult) {
+    return (
+      <Modal visible animationType="slide" statusBarTranslucent>
+        <JournalEntryModal
+          beliefName={lastResult.beliefName}
+          beliefEmoji={lastResult.beliefEmoji}
+          score={lastResult.score}
+          existingEntry={lastResult.journalEntry}
+          onSave={handleJournalSave}
+          onSkip={() => setScreen("results")}
+        />
+      </Modal>
+    );
+  }
+
   // Results
   if (screen === "results" && lastResult) {
     return (
@@ -145,6 +192,7 @@ export default function DetectScreen() {
           result={lastResult}
           onDismiss={() => setScreen("home")}
           onBedtime={handleBedtime}
+          onJournal={handleJournal}
         />
       </Modal>
     );
@@ -153,7 +201,6 @@ export default function DetectScreen() {
   // Bedtime
   if (screen === "bedtime" && lastResult) {
     const belief = getBeliefById(lastResult.beliefId);
-    // For custom beliefs, find in customBeliefs
     const customBelief = customBeliefs.find((b) => b.id === lastResult.beliefId);
     const foundBelief = belief || customBelief;
     return (
@@ -164,6 +211,20 @@ export default function DetectScreen() {
           message={foundBelief?.bedtimeMessage || "Time for bed! The magic works while you sleep."}
           score={lastResult.score}
           onDismiss={() => setScreen("home")}
+        />
+      </Modal>
+    );
+  }
+
+  // Challenge a Friend
+  if (screen === "challenge" && selectedBelief) {
+    return (
+      <Modal visible animationType="slide" statusBarTranslucent>
+        <ChallengeFriend
+          belief={selectedBelief}
+          intensity={intensity}
+          onComplete={handleChallengeComplete}
+          onCancel={() => setScreen("home")}
         />
       </Modal>
     );
@@ -264,31 +325,56 @@ export default function DetectScreen() {
         />
       </View>
 
-      {/* Create custom belief button */}
-      <Pressable
-        onPress={() => {
-          if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setScreen("create-belief");
-        }}
-        style={({ pressed }) => [
-          styles.createBtn,
-          {
-            backgroundColor: colors.primary + "12",
-            borderColor: colors.primary + "40",
-            opacity: pressed ? 0.8 : 1,
-          },
-        ]}
-      >
-        <Text style={styles.createBtnIcon}>🎨</Text>
-        <View style={styles.createBtnTextWrap}>
-          <Text style={[styles.createBtnTitle, { color: colors.primary }]}>
-            Create Your Own Belief
+      {/* Action buttons row */}
+      <View style={styles.actionRow}>
+        {/* Create custom belief */}
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setScreen("create-belief");
+          }}
+          style={({ pressed }) => [
+            styles.actionBtn,
+            {
+              backgroundColor: colors.primary + "12",
+              borderColor: colors.primary + "40",
+              opacity: pressed ? 0.8 : 1,
+            },
+          ]}
+        >
+          <Text style={styles.actionBtnIcon}>🎨</Text>
+          <Text style={[styles.actionBtnTitle, { color: colors.primary }]}>Create Belief</Text>
+          <Text style={[styles.actionBtnSub, { color: colors.muted }]}>Make your own</Text>
+        </Pressable>
+
+        {/* Challenge a Friend */}
+        <Pressable
+          onPress={() => {
+            if (!selectedBelief) {
+              // No belief selected yet
+              return;
+            }
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setScreen("challenge");
+          }}
+          style={({ pressed }) => [
+            styles.actionBtn,
+            {
+              backgroundColor: selectedBelief ? colors.success + "12" : colors.surface,
+              borderColor: selectedBelief ? colors.success + "40" : colors.border,
+              opacity: pressed && selectedBelief ? 0.8 : selectedBelief ? 1 : 0.5,
+            },
+          ]}
+        >
+          <Text style={styles.actionBtnIcon}>🏆</Text>
+          <Text style={[styles.actionBtnTitle, { color: selectedBelief ? colors.success : colors.muted }]}>
+            Challenge
           </Text>
-          <Text style={[styles.createBtnSub, { color: colors.muted }]}>
-            Believe in anything — pick an emoji, name it, and measure it
+          <Text style={[styles.actionBtnSub, { color: colors.muted }]}>
+            {selectedBelief ? "Vs a friend" : "Select belief first"}
           </Text>
-        </View>
-      </Pressable>
+        </Pressable>
+      </View>
 
       {/* Search results */}
       {filteredBeliefs && (
@@ -339,6 +425,9 @@ export default function DetectScreen() {
       )}
     </View>
   );
+
+  // Count journal entries
+  const journalCount = history.filter((h) => h.journalEntry).length;
 
   const ListFooter = (
     <View>
@@ -398,6 +487,61 @@ export default function DetectScreen() {
             <Text style={styles.scanBtnText}>Begin Scan</Text>
             <Text style={styles.scanBtnSub}>60-second belief field detection with audio</Text>
           </Pressable>
+
+          {/* Challenge button */}
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setScreen("challenge");
+            }}
+            style={({ pressed }) => [
+              styles.challengeBtn,
+              {
+                backgroundColor: colors.success + "15",
+                borderColor: colors.success + "50",
+                opacity: pressed ? 0.8 : 1,
+                transform: [{ scale: pressed ? 0.97 : 1 }],
+              },
+            ]}
+          >
+            <Text style={[styles.challengeBtnText, { color: colors.success }]}>
+              🏆 Challenge a Friend
+            </Text>
+            <Text style={[styles.challengeBtnSub, { color: colors.muted }]}>
+              Compete to see who believes harder!
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Journal preview */}
+      {journalCount > 0 && (
+        <View style={styles.journalPreview}>
+          <Text style={[styles.sectionLabel, { color: colors.muted }]}>BELIEF JOURNAL</Text>
+          {history
+            .filter((h) => h.journalEntry)
+            .slice(0, 2)
+            .map((scan) => (
+              <View
+                key={scan.id}
+                style={[styles.journalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              >
+                <View style={styles.journalCardHeader}>
+                  <Text style={styles.journalCardEmoji}>{scan.beliefEmoji}</Text>
+                  <View style={styles.journalCardInfo}>
+                    <Text style={[styles.journalCardName, { color: colors.foreground }]}>
+                      {scan.beliefName}
+                    </Text>
+                    <Text style={[styles.journalCardDate, { color: colors.muted }]}>
+                      {new Date(scan.date).toLocaleDateString()} · Score: {scan.score}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={[styles.journalCardText, { color: colors.muted }]} numberOfLines={2}>
+                  "{scan.journalEntry}"
+                </Text>
+              </View>
+            ))}
         </View>
       )}
 
@@ -415,6 +559,7 @@ export default function DetectScreen() {
                 <Text style={[styles.recentName, { color: colors.foreground }]}>{scan.beliefName}</Text>
                 <Text style={[styles.recentDate, { color: colors.muted }]}>
                   {new Date(scan.date).toLocaleDateString()}
+                  {scan.journalEntry ? " · 📔" : ""}
                 </Text>
               </View>
               <View style={[styles.recentScore, { backgroundColor: colors.primary + "20" }]}>
@@ -466,19 +611,17 @@ const styles = StyleSheet.create({
   },
   searchIcon: { fontSize: 16, marginRight: 8 },
   searchInput: { flex: 1, fontSize: 15, height: 48 },
-  createBtn: {
-    flexDirection: "row",
-    alignItems: "center",
+  actionRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
+  actionBtn: {
+    flex: 1,
     borderRadius: 14,
     borderWidth: 1,
     padding: 14,
-    marginBottom: 16,
-    gap: 12,
+    alignItems: "center",
   },
-  createBtnIcon: { fontSize: 28 },
-  createBtnTextWrap: { flex: 1 },
-  createBtnTitle: { fontSize: 15, fontWeight: "700" },
-  createBtnSub: { fontSize: 12, marginTop: 2 },
+  actionBtnIcon: { fontSize: 24, marginBottom: 4 },
+  actionBtnTitle: { fontSize: 14, fontWeight: "700" },
+  actionBtnSub: { fontSize: 11, marginTop: 2 },
   searchResults: { marginBottom: 16 },
   searchResultsLabel: { fontSize: 12, fontWeight: "500", marginBottom: 8 },
   sectionLabel: {
@@ -534,6 +677,29 @@ const styles = StyleSheet.create({
   },
   scanBtnText: { fontSize: 18, fontWeight: "800", color: "#fff" },
   scanBtnSub: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 2 },
+  challengeBtn: {
+    width: "100%",
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: "center",
+    marginTop: 12,
+  },
+  challengeBtnText: { fontSize: 16, fontWeight: "700" },
+  challengeBtnSub: { fontSize: 12, marginTop: 2 },
+  journalPreview: { marginTop: 24 },
+  journalCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 8,
+  },
+  journalCardHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
+  journalCardEmoji: { fontSize: 28 },
+  journalCardInfo: { flex: 1 },
+  journalCardName: { fontSize: 15, fontWeight: "600" },
+  journalCardDate: { fontSize: 12, marginTop: 2 },
+  journalCardText: { fontSize: 13, lineHeight: 20, fontStyle: "italic" },
   recentSection: { marginTop: 24 },
   recentCard: {
     flexDirection: "row",

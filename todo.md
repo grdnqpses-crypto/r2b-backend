@@ -30,3 +30,6 @@
 - [x] Add share results feature (screenshot or share belief field score with friends/family)
 - [x] Add seasonal belief options (Leprechauns for St. Patrick's Day, Cupid for Valentine's Day, etc.)
 - [x] Add full custom belief creation (user picks emoji, name, description)
+- [x] Add Belief Journal — post-scan reflection writing, saved with scan history, viewable in journal tab
+- [x] Add animated particle effects to orb visualization (sparkles, energy waves, belief-themed floating symbols)
+- [x] Add Challenge a Friend mode — two people scan same belief, compare scores side by side

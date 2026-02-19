@@ -8,10 +8,12 @@ import { useScanHistory, type ScanResult } from "@/hooks/use-scan-history";
 import { ResultsScreen } from "@/components/results-screen";
 import { BedtimeMessage } from "@/components/bedtime-message";
 import { getBeliefById } from "@/constants/beliefs";
+import { JournalEntryModal } from "@/components/journal-entry-modal";
 
 export default function HistoryScreen() {
   const colors = useColors();
-  const { history, getStats } = useScanHistory();
+  const { history, getStats, updateJournal } = useScanHistory();
+  const [showJournal, setShowJournal] = useState(false);
   const [selectedScan, setSelectedScan] = useState<ScanResult | null>(null);
   const [showBedtime, setShowBedtime] = useState(false);
 
@@ -42,6 +44,25 @@ export default function HistoryScreen() {
     );
   }
 
+  if (selectedScan && showJournal) {
+    return (
+      <Modal visible animationType="slide" statusBarTranslucent>
+        <JournalEntryModal
+          beliefName={selectedScan.beliefName}
+          beliefEmoji={selectedScan.beliefEmoji}
+          score={selectedScan.score}
+          existingEntry={selectedScan.journalEntry}
+          onSave={async (entry) => {
+            await updateJournal(selectedScan.id, entry);
+            setSelectedScan({ ...selectedScan, journalEntry: entry });
+            setShowJournal(false);
+          }}
+          onSkip={() => setShowJournal(false)}
+        />
+      </Modal>
+    );
+  }
+
   if (selectedScan && !showBedtime) {
     return (
       <Modal visible animationType="slide" statusBarTranslucent>
@@ -49,6 +70,7 @@ export default function HistoryScreen() {
           result={selectedScan}
           onDismiss={() => setSelectedScan(null)}
           onBedtime={() => setShowBedtime(true)}
+          onJournal={() => setShowJournal(true)}
         />
       </Modal>
     );
@@ -74,6 +96,7 @@ export default function HistoryScreen() {
           <Text style={[styles.cardName, { color: colors.foreground }]}>{item.beliefName}</Text>
           <Text style={[styles.cardDate, { color: colors.muted }]}>
             {new Date(item.date).toLocaleDateString()} · Intensity {item.intensity}/10
+            {item.journalEntry ? " · 📔" : ""}
           </Text>
           <View style={styles.sensorSummary}>
             {item.sensorBreakdown.slice(0, 3).map((s) => (

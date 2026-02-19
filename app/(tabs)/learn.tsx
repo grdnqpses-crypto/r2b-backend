@@ -62,6 +62,32 @@ const ARTICLES: Article[] = [
     ],
   },
   {
+    id: "journal",
+    emoji: "📔",
+    title: "Your Belief Journal",
+    subtitle: "Why writing about your beliefs makes them stronger",
+    content: [
+      "The Belief Journal is a powerful tool for deepening your connection to what you believe in. After each scan, you can write about how you felt, what you experienced, and what you were thinking.",
+      "✍️ WHY JOURNALING WORKS — Research in psychology shows that writing about your experiences makes them more vivid and memorable. When you put your feelings into words, your brain processes them more deeply. This is called 'expressive writing' and it has been shown to reduce stress, improve mood, and strengthen emotional connections.",
+      "🧠 THE REFLECTION EFFECT — When you reflect on a belief scan, you're reinforcing the neural pathways associated with that belief. Each time you think about and describe your experience, your brain treats it as a new experience — effectively doubling the impact of each scan.",
+      "📈 TRACKING YOUR JOURNEY — Over time, your journal entries create a beautiful record of your belief journey. You can look back and see how your feelings, focus, and scores have evolved. Many people find that their belief grows stronger as they journal regularly.",
+      "💡 TIPS FOR GREAT JOURNAL ENTRIES — Be honest about how you felt. Describe any physical sensations you noticed. Write about what you were picturing in your mind. Note any emotions that came up. There are no wrong answers — your journal is just for you.",
+    ],
+  },
+  {
+    id: "challenge",
+    emoji: "🏆",
+    title: "Challenge a Friend",
+    subtitle: "How the belief challenge mode works",
+    content: [
+      "The Challenge a Friend feature lets two people test their belief in the same thing and compare results. It's a fun, social way to explore the power of belief together.",
+      "🤝 HOW IT WORKS — Both players take turns holding the phone and focusing on the same belief for 60 seconds each. The phone's sensors measure each person's belief field independently, then compare the results side by side.",
+      "📊 FAIR COMPARISON — Each player gets their own full 60-second scan with fresh sensor calibration. The sensors reset between scans so both players start from the same baseline. The comparison shows not just the overall score but how each individual sensor responded.",
+      "🎮 MAKING IT FUN — Challenge mode works great at family gatherings, sleepovers, and holiday celebrations. Who believes in Santa the most? Who has the strongest faith? Who can focus their belief energy the hardest? It turns belief into a positive, encouraging game.",
+      "❤️ REMEMBER — The real winner is everyone who participates. Believing in something together creates a shared experience that brings people closer. Whether you win or lose, you're both strengthening your belief fields.",
+    ],
+  },
+  {
     id: "parents",
     emoji: "👨‍👩‍👧‍👦",
     title: "Guide for Parents",
