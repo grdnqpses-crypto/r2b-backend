@@ -42,6 +42,7 @@ const MAPPING: Record<string, MaterialIconName> = {
   "pause.fill": "pause",
   "square.and.arrow.up": "share",
   "gear": "settings",
+  "gear.circle.fill": "settings",
   "bed.double.fill": "bedtime",
 };
 

@@ -16,13 +16,13 @@ import { getThemeForBelief, type BeliefTheme } from "@/constants/belief-themes";
 interface LiveScannerProps {
   belief: BeliefOption;
   intensity: number;
+  scanDuration?: number;
+  soundEnabled?: boolean;
   onComplete: (result: ScanResult) => void;
   onCancel: () => void;
 }
 
-const SCAN_DURATION = 60;
-
-export function LiveScanner({ belief, intensity, onComplete, onCancel }: LiveScannerProps) {
+export function LiveScanner({ belief, intensity, scanDuration = 60, soundEnabled = true, onComplete, onCancel }: LiveScannerProps) {
   if (Platform.OS !== "web") {
     useKeepAwake();
   }
@@ -34,14 +34,14 @@ export function LiveScanner({ belief, intensity, onComplete, onCancel }: LiveSca
   // Get the theme for this belief's category
   const theme: BeliefTheme = useMemo(() => getThemeForBelief(belief.category), [belief.category]);
 
-  const sensorState = useSensorEngine(started, intensity, SCAN_DURATION);
+  const sensorState = useSensorEngine(started, intensity, scanDuration);
   const scanAudio = useScanAudio();
 
   // 5-second countdown before scan
   useEffect(() => {
     if (countdown <= 0) {
       setStarted(true);
-      scanAudio.start();
+      if (soundEnabled) scanAudio.start();
       return;
     }
     const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
@@ -51,7 +51,7 @@ export function LiveScanner({ belief, intensity, onComplete, onCancel }: LiveSca
   // Update audio intensity with score
   useEffect(() => {
     if (started && sensorState.phase === "scanning") {
-      scanAudio.updateIntensity(sensorState.overallScore);
+      if (soundEnabled) scanAudio.updateIntensity(sensorState.overallScore);
     }
   }, [sensorState.overallScore, sensorState.phase, started, scanAudio]);
 
@@ -75,8 +75,10 @@ export function LiveScanner({ belief, intensity, onComplete, onCancel }: LiveSca
   // Auto-complete
   useEffect(() => {
     if (sensorState.phase === "complete") {
-      scanAudio.stop();
-      scanAudio.playComplete();
+      if (soundEnabled) {
+        scanAudio.stop();
+        scanAudio.playComplete();
+      }
 
       const breakdown = sensorState.sensors
         .filter((s) => s.available)
@@ -113,11 +115,11 @@ export function LiveScanner({ belief, intensity, onComplete, onCancel }: LiveSca
 
   // Stop audio on cancel
   const handleCancel = useCallback(() => {
-    scanAudio.stop();
+    if (soundEnabled) scanAudio.stop();
     onCancel();
   }, [scanAudio, onCancel]);
 
-  const remaining = Math.max(0, SCAN_DURATION - Math.floor(sensorState.elapsed));
+  const remaining = Math.max(0, scanDuration - Math.floor(sensorState.elapsed));
   const minutes = Math.floor(remaining / 60);
   const seconds = remaining % 60;
 

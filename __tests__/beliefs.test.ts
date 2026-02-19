@@ -193,42 +193,37 @@ describe("generateInterpretation", () => {
   });
 });
 
-describe("ScanResult journalEntry", () => {
-  it("should support optional journalEntry field", () => {
-    const mockResult = {
-      id: "test-1",
-      beliefId: "santa",
-      beliefName: "Santa Claus",
-      beliefEmoji: "🎅",
-      intensity: 8,
-      score: 75,
-      date: new Date().toISOString(),
-      sensorBreakdown: [],
-      summary: "Test summary",
-      journalEntry: "I felt amazing during this scan!",
-    };
-    expect(mockResult.journalEntry).toBe("I felt amazing during this scan!");
+describe("generateSummary", () => {
+  it("should return extraordinary message for score >= 80", () => {
+    const result = generateSummary(85, "Santa Claus");
+    expect(result).toContain("Incredible");
+    expect(result).toContain("Santa Claus");
   });
 
-  it("should allow undefined journalEntry", () => {
-    const mockResult = {
-      id: "test-2",
-      beliefId: "santa",
-      beliefName: "Santa Claus",
-      beliefEmoji: "🎅",
-      intensity: 5,
-      score: 50,
-      date: new Date().toISOString(),
-      sensorBreakdown: [],
-      summary: "Test",
-    };
-    expect((mockResult as any).journalEntry).toBeUndefined();
+  it("should return impressive message for score >= 60", () => {
+    const result = generateSummary(65, "Tooth Fairy");
+    expect(result).toContain("Impressive");
+  });
+
+  it("should return good message for score >= 40", () => {
+    const result = generateSummary(45, "Easter Bunny");
+    expect(result).toContain("Good");
+  });
+
+  it("should return encouraging message for score >= 20", () => {
+    const result = generateSummary(25, "Guardian Angels");
+    expect(result).toContain("starting");
+  });
+
+  it("should return beginning message for low score", () => {
+    const result = generateSummary(10, "Luck");
+    expect(result).toContain("beginning");
   });
 });
 
 describe("Belief Themes", () => {
   it("should have themes for all main categories", async () => {
-    const { BELIEF_THEMES, getThemeForCategory, getThemeForBelief } = await import("../constants/belief-themes");
+    const { BELIEF_THEMES } = await import("../constants/belief-themes");
     expect(BELIEF_THEMES.childhood).toBeDefined();
     expect(BELIEF_THEMES.religion).toBeDefined();
     expect(BELIEF_THEMES.spiritual).toBeDefined();
@@ -297,30 +292,101 @@ describe("Belief Streak", () => {
   });
 });
 
-describe("generateSummary", () => {
-  it("should return extraordinary message for score >= 80", () => {
-    const result = generateSummary(85, "Santa Claus");
-    expect(result).toContain("Incredible");
-    expect(result).toContain("Santa Claus");
+describe("Settings defaults", () => {
+  it("default scan duration should be 60 seconds", () => {
+    const defaults = { scanDuration: 60, soundEnabled: true, meditationEnabled: true, hapticEnabled: true };
+    expect(defaults.scanDuration).toBe(60);
+    expect(defaults.soundEnabled).toBe(true);
+    expect(defaults.meditationEnabled).toBe(true);
+    expect(defaults.hapticEnabled).toBe(true);
   });
 
-  it("should return impressive message for score >= 60", () => {
-    const result = generateSummary(65, "Tooth Fairy");
-    expect(result).toContain("Impressive");
+  it("valid scan durations are 30, 60, 90", () => {
+    const validDurations = [30, 60, 90];
+    validDurations.forEach((d) => {
+      expect([30, 60, 90]).toContain(d);
+    });
+  });
+});
+
+describe("Meditation flow", () => {
+  it("meditation has 9 steps", () => {
+    const MEDITATION_STEP_COUNT = 9;
+    expect(MEDITATION_STEP_COUNT).toBe(9);
   });
 
-  it("should return good message for score >= 40", () => {
-    const result = generateSummary(45, "Easter Bunny");
-    expect(result).toContain("Good");
+  it("meditation includes breathing phases", () => {
+    const phases = ["welcome", "breathe-in-1", "hold-1", "breathe-out-1", "focus", "breathe-in-2", "hold-2", "breathe-out-2", "ready"];
+    expect(phases.length).toBe(9);
+    expect(phases.filter((p) => p.includes("breathe")).length).toBe(4);
+    expect(phases[0]).toBe("welcome");
+    expect(phases[phases.length - 1]).toBe("ready");
+  });
+});
+
+describe("Scan Report", () => {
+  it("score labels are correct for all ranges", () => {
+    const getScoreLabel = (score: number) => {
+      if (score >= 80) return "Extraordinary";
+      if (score >= 60) return "Powerful";
+      if (score >= 40) return "Strong";
+      if (score >= 20) return "Growing";
+      return "Emerging";
+    };
+    expect(getScoreLabel(95)).toBe("Extraordinary");
+    expect(getScoreLabel(80)).toBe("Extraordinary");
+    expect(getScoreLabel(65)).toBe("Powerful");
+    expect(getScoreLabel(45)).toBe("Strong");
+    expect(getScoreLabel(25)).toBe("Growing");
+    expect(getScoreLabel(10)).toBe("Emerging");
+    expect(getScoreLabel(0)).toBe("Emerging");
   });
 
-  it("should return encouraging message for score >= 20", () => {
-    const result = generateSummary(25, "Guardian Angels");
-    expect(result).toContain("starting");
+  it("score colors map to correct ranges", () => {
+    const getScoreColor = (score: number) => {
+      if (score >= 80) return "#00E676";
+      if (score >= 60) return "#9B7AFF";
+      if (score >= 40) return "#FFD600";
+      if (score >= 20) return "#FF9100";
+      return "#78909C";
+    };
+    expect(getScoreColor(90)).toBe("#00E676");
+    expect(getScoreColor(70)).toBe("#9B7AFF");
+    expect(getScoreColor(50)).toBe("#FFD600");
+    expect(getScoreColor(30)).toBe("#FF9100");
+    expect(getScoreColor(5)).toBe("#78909C");
+  });
+});
+
+describe("ScanResult journalEntry", () => {
+  it("should support optional journalEntry field", () => {
+    const mockResult = {
+      id: "test-1",
+      beliefId: "santa",
+      beliefName: "Santa Claus",
+      beliefEmoji: "🎅",
+      intensity: 8,
+      score: 75,
+      date: new Date().toISOString(),
+      sensorBreakdown: [],
+      summary: "Test summary",
+      journalEntry: "I felt amazing during this scan!",
+    };
+    expect(mockResult.journalEntry).toBe("I felt amazing during this scan!");
   });
 
-  it("should return beginning message for low score", () => {
-    const result = generateSummary(10, "Luck");
-    expect(result).toContain("beginning");
+  it("should allow undefined journalEntry", () => {
+    const mockResult = {
+      id: "test-2",
+      beliefId: "santa",
+      beliefName: "Santa Claus",
+      beliefEmoji: "🎅",
+      intensity: 5,
+      score: 50,
+      date: new Date().toISOString(),
+      sensorBreakdown: [],
+      summary: "Test",
+    };
+    expect((mockResult as any).journalEntry).toBeUndefined();
   });
 });

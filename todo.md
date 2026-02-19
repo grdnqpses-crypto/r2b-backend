@@ -39,3 +39,8 @@
 - [x] Enhance personal growth focus — show belief deepening over time, personal bests, growth journey
 - [x] Add themed scan environments per belief category (colors, gradients, particle styles matching each belief)
 - [x] Add belief streak tracker — daily scan counter, personal growth journey, encouragement for consistency
+- [x] Add Belief Meditation mode — guided breathing exercise before scan with calming visuals and voice prompts
+- [x] Add Settings screen — scan duration (30s/60s/90s), sound on/off, custom belief management
+- [x] Add Scan Report export — shareable image card or PDF with full sensor data summary
+- [x] Ensure all features are crystal clear: what it does, why, and what it means — kid-friendly but parent-focused
+- [x] Add Settings tab to navigation

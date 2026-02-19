@@ -12,9 +12,10 @@ export interface ResultsScreenProps {
   onDismiss: () => void;
   onBedtime?: () => void;
   onJournal?: () => void;
+  onReport?: () => void;
 }
 
-export function ResultsScreen({ result, onDismiss, onBedtime, onJournal }: ResultsScreenProps) {
+export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onReport }: ResultsScreenProps) {
   const colors = useColors();
   const belief = getBeliefById(result.beliefId);
   const { shareAsText } = useShareResults();
@@ -97,6 +98,35 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal }: Resul
             </Text>
           </View>
         </Pressable>
+
+        {/* View Full Report */}
+        {onReport && (
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== "web") {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }
+              onReport();
+            }}
+            style={({ pressed }) => [
+              styles.reportBtn,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.primary + "50",
+                opacity: pressed ? 0.8 : 1,
+                transform: [{ scale: pressed ? 0.97 : 1 }],
+              },
+            ]}
+          >
+            <Text style={styles.reportBtnEmoji}>📊</Text>
+            <View style={styles.reportBtnTextWrap}>
+              <Text style={[styles.reportBtnTitle, { color: colors.foreground }]}>View Full Report</Text>
+              <Text style={[styles.reportBtnSub, { color: colors.muted }]}>
+                Detailed scan card you can save or print
+              </Text>
+            </View>
+          </Pressable>
+        )}
 
         {/* Summary */}
         <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -309,6 +339,19 @@ const styles = StyleSheet.create({
   journalBtnTextWrap: { flex: 1 },
   journalBtnTitle: { fontSize: 16, fontWeight: "700" },
   journalBtnSub: { fontSize: 12, marginTop: 2 },
+  reportBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  reportBtnEmoji: { fontSize: 28 },
+  reportBtnTextWrap: { flex: 1 },
+  reportBtnTitle: { fontSize: 16, fontWeight: "700" },
+  reportBtnSub: { fontSize: 12, marginTop: 2 },
   doneBtn: {
     paddingVertical: 16,
     borderRadius: 16,

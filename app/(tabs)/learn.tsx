@@ -105,6 +105,33 @@ const ARTICLES: Article[] = [
     ],
   },
   {
+    id: "meditation",
+    emoji: "🧘",
+    title: "Pre-Scan Meditation",
+    subtitle: "How guided breathing prepares your mind for stronger readings",
+    content: [
+      "The Belief Meditation is a guided breathing exercise that plays before each scan. It takes about 45 seconds and helps you reach a focused, calm state — which produces significantly better belief field readings.",
+      "🫁 WHY BREATHING MATTERS — Deep, controlled breathing activates your parasympathetic nervous system (the 'rest and digest' system). This lowers your heart rate, reduces stress hormones, and increases blood flow to the prefrontal cortex — the part of your brain responsible for focused attention and intention.",
+      "🗣️ VOICE GUIDANCE — The meditation includes gentle voice prompts that guide you through each step: breathing in, holding, breathing out, and visualizing your belief. You don't have to think about what to do — just follow the voice and let your mind settle.",
+      "👁️ VISUALIZATION STEP — During the meditation, you'll be asked to picture your belief vividly in your mind. Neuroscience research shows that vivid mental imagery activates the same brain regions as real sensory experience. When you picture Santa, your brain responds as if Santa were actually present.",
+      "⚙️ CUSTOMIZABLE — You can turn meditation on or off in Settings. If you're short on time or prefer to jump straight into scanning, just disable it. You can also skip it during any scan by tapping 'Skip Meditation'.",
+      "📈 BETTER RESULTS — Users who complete the meditation before scanning typically see 15-30% higher belief field scores. The calm, focused state produces cleaner sensor readings and stronger deviations from baseline.",
+    ],
+  },
+  {
+    id: "report",
+    emoji: "📄",
+    title: "Scan Reports",
+    subtitle: "Save and share detailed records of your belief field readings",
+    content: [
+      "After every scan, you can generate a beautiful Scan Report — a detailed card showing your complete results with all sensor data. You can save it as an image or share it with friends and family.",
+      "📊 WHAT'S IN A REPORT — Each report includes: your belief name and emoji, overall score, belief intensity level, date and time, every sensor's baseline, peak, and deviation readings, a bar chart of each sensor's contribution, your analysis summary, and your journal entry if you wrote one.",
+      "📤 SHARING — Tap 'Share Report Image' to save the report as a high-quality image or send it directly through Messages, Email, AirDrop, or any other sharing method on your phone. It's a great way to show friends and family what you've been measuring.",
+      "🖨️ PRINTING — You can also save the report image and print it. Some families like to print their best belief field readings and put them on the fridge or in a scrapbook.",
+      "📁 ACCESSING REPORTS — You can view a report for any scan from the Results screen by tapping 'View Full Report'. You can also access past scans from the History tab.",
+    ],
+  },
+  {
     id: "parents",
     emoji: "👨‍👩‍👧‍👦",
     title: "Guide for Parents",

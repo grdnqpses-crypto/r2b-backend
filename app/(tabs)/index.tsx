@@ -23,6 +23,9 @@ import { ResultsScreen } from "@/components/results-screen";
 import { BedtimeMessage } from "@/components/bedtime-message";
 import { CreateBeliefModal } from "@/components/create-belief-modal";
 import { JournalEntryModal } from "@/components/journal-entry-modal";
+import { BeliefMeditation } from "@/components/belief-meditation";
+import { ScanReport } from "@/components/scan-report";
+import { useAppSettings } from "@/app/(tabs)/settings";
 import {
   BELIEF_CATEGORIES,
   ALL_BELIEFS,
@@ -33,11 +36,13 @@ import { getBeliefById } from "@/constants/beliefs";
 
 type Screen =
   | "home"
+  | "meditation"
   | "scanning"
   | "results"
   | "bedtime"
   | "create-belief"
   | "journal"
+  | "report"
   ;
 
 export default function DetectScreen() {
@@ -46,6 +51,7 @@ export default function DetectScreen() {
   const { history, saveScan, updateJournal } = useScanHistory();
   const { customBeliefs, addBelief } = useCustomBeliefs();
   const { streak, scannedToday, newMilestones, recordScan, clearNewMilestones } = useBeliefStreak();
+  const { settings } = useAppSettings();
 
   const [screen, setScreen] = useState<Screen>("home");
   const [selectedBelief, setSelectedBelief] = useState<BeliefOption | null>(null);
@@ -85,8 +91,12 @@ export default function DetectScreen() {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    setScreen("scanning");
-  }, [selectedBelief]);
+    if (settings.meditationEnabled) {
+      setScreen("meditation");
+    } else {
+      setScreen("scanning");
+    }
+  }, [selectedBelief, settings.meditationEnabled]);
 
   const handleScanComplete = useCallback(
     async (result: ScanResult) => {
@@ -100,6 +110,10 @@ export default function DetectScreen() {
 
   const handleBedtime = useCallback(() => {
     setScreen("bedtime");
+  }, []);
+
+  const handleViewReport = useCallback(() => {
+    setScreen("report");
   }, []);
 
   const handleJournal = useCallback(() => {
@@ -150,6 +164,19 @@ export default function DetectScreen() {
     );
   }
 
+  // Meditation
+  if (screen === "meditation" && selectedBelief) {
+    return (
+      <Modal visible animationType="fade" statusBarTranslucent>
+        <BeliefMeditation
+          belief={selectedBelief}
+          onComplete={() => setScreen("scanning")}
+          onSkip={() => setScreen("scanning")}
+        />
+      </Modal>
+    );
+  }
+
   // Live Scanner
   if (screen === "scanning" && selectedBelief) {
     return (
@@ -157,6 +184,8 @@ export default function DetectScreen() {
         <LiveScanner
           belief={selectedBelief}
           intensity={intensity}
+          scanDuration={settings.scanDuration}
+          soundEnabled={settings.soundEnabled}
           onComplete={handleScanComplete}
           onCancel={() => setScreen("home")}
         />
@@ -180,6 +209,18 @@ export default function DetectScreen() {
     );
   }
 
+  // Report
+  if (screen === "report" && lastResult) {
+    return (
+      <Modal visible animationType="slide" statusBarTranslucent>
+        <ScanReport
+          result={lastResult}
+          onDismiss={() => setScreen("results")}
+        />
+      </Modal>
+    );
+  }
+
   // Results
   if (screen === "results" && lastResult) {
     return (
@@ -189,6 +230,7 @@ export default function DetectScreen() {
           onDismiss={() => setScreen("home")}
           onBedtime={handleBedtime}
           onJournal={handleJournal}
+          onReport={handleViewReport}
         />
       </Modal>
     );
@@ -508,7 +550,7 @@ export default function DetectScreen() {
             ]}
           >
             <Text style={styles.scanBtnText}>Begin Scan</Text>
-            <Text style={styles.scanBtnSub}>60-second belief field detection with audio</Text>
+            <Text style={styles.scanBtnSub}>{settings.scanDuration}-second belief field detection{settings.soundEnabled ? ' with audio' : ''}</Text>
           </Pressable>
 
 
