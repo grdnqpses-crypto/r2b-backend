@@ -5,6 +5,7 @@ import { useKeepAwake } from "expo-keep-awake";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/use-colors";
 import { useSensorEngine } from "@/hooks/use-sensors";
+import { useScanAudio } from "@/hooks/use-scan-audio";
 import { SensorCard } from "./sensor-card";
 import { BeliefFieldOrb } from "./belief-field-orb";
 import type { BeliefOption } from "@/constants/beliefs";
@@ -30,16 +31,25 @@ export function LiveScanner({ belief, intensity, onComplete, onCancel }: LiveSca
   const [showSensors, setShowSensors] = useState(false);
 
   const sensorState = useSensorEngine(started, intensity, SCAN_DURATION);
+  const scanAudio = useScanAudio();
 
   // 5-second countdown before scan
   useEffect(() => {
     if (countdown <= 0) {
       setStarted(true);
+      scanAudio.start();
       return;
     }
     const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
     return () => clearTimeout(timer);
-  }, [countdown]);
+  }, [countdown, scanAudio]);
+
+  // Update audio intensity with score
+  useEffect(() => {
+    if (started && sensorState.phase === "scanning") {
+      scanAudio.updateIntensity(sensorState.overallScore);
+    }
+  }, [sensorState.overallScore, sensorState.phase, started, scanAudio]);
 
   // Haptic on phase change
   useEffect(() => {
@@ -61,6 +71,10 @@ export function LiveScanner({ belief, intensity, onComplete, onCancel }: LiveSca
   // Auto-complete
   useEffect(() => {
     if (sensorState.phase === "complete") {
+      // Stop audio and play completion chime
+      scanAudio.stop();
+      scanAudio.playComplete();
+
       const breakdown = sensorState.sensors
         .filter((s) => s.available)
         .map((s) => ({
@@ -93,6 +107,12 @@ export function LiveScanner({ belief, intensity, onComplete, onCancel }: LiveSca
       setTimeout(() => onComplete(result), 500);
     }
   }, [sensorState.phase]);
+
+  // Stop audio on cancel
+  const handleCancel = useCallback(() => {
+    scanAudio.stop();
+    onCancel();
+  }, [scanAudio, onCancel]);
 
   const remaining = Math.max(0, SCAN_DURATION - Math.floor(sensorState.elapsed));
   const minutes = Math.floor(remaining / 60);
@@ -132,6 +152,9 @@ export function LiveScanner({ belief, intensity, onComplete, onCancel }: LiveSca
     []
   );
 
+  // Audio indicator
+  const audioActive = started && sensorState.phase === "scanning";
+
   const ListHeader = (
     <View style={styles.listHeader}>
       {/* Timer and belief */}
@@ -149,6 +172,15 @@ export function LiveScanner({ belief, intensity, onComplete, onCancel }: LiveSca
           <Text style={[styles.timerLabel, { color: colors.muted }]}>remaining</Text>
         </View>
       </View>
+
+      {/* Audio indicator */}
+      {audioActive && (
+        <View style={[styles.audioIndicator, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "40" }]}>
+          <Text style={[styles.audioText, { color: colors.primary }]}>
+            🔊 Audio field active — intensity responds to your belief score
+          </Text>
+        </View>
+      )}
 
       {/* Orb */}
       <View style={styles.orbContainer}>
@@ -202,7 +234,7 @@ export function LiveScanner({ belief, intensity, onComplete, onCancel }: LiveSca
 
       {/* Cancel button */}
       <Pressable
-        onPress={onCancel}
+        onPress={handleCancel}
         style={({ pressed }) => [
           styles.cancelBtn,
           { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
@@ -224,12 +256,21 @@ const styles = StyleSheet.create({
   countdownNumber: { fontSize: 96, fontWeight: "900", marginTop: 20 },
   listContent: { paddingHorizontal: 16, paddingBottom: 100 },
   listHeader: { marginBottom: 12 },
-  topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 },
+  topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 },
   beliefLabel: { fontSize: 12, fontWeight: "500", textTransform: "uppercase", letterSpacing: 1 },
   beliefName: { fontSize: 20, fontWeight: "800", marginTop: 2 },
   timerContainer: { alignItems: "flex-end" },
   timer: { fontSize: 32, fontWeight: "900", fontVariant: ["tabular-nums"] },
   timerLabel: { fontSize: 11, fontWeight: "500", marginTop: -4 },
+  audioIndicator: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  audioText: { fontSize: 12, fontWeight: "600" },
   orbContainer: { alignItems: "center", marginVertical: 8 },
   ticker: {
     borderRadius: 12,

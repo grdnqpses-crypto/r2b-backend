@@ -2,6 +2,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet, Platform } from "react-n
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/use-colors";
+import { useShareResults } from "@/hooks/use-share-results";
 import { BeliefFieldOrb } from "./belief-field-orb";
 import { getBeliefById } from "@/constants/beliefs";
 import type { ScanResult } from "@/hooks/use-scan-history";
@@ -15,6 +16,7 @@ interface ResultsScreenProps {
 export function ResultsScreen({ result, onDismiss, onBedtime }: ResultsScreenProps) {
   const colors = useColors();
   const belief = getBeliefById(result.beliefId);
+  const { shareAsText } = useShareResults();
 
   const getScoreLabel = (score: number) => {
     if (score >= 80) return "Extraordinary";
@@ -29,6 +31,13 @@ export function ResultsScreen({ result, onDismiss, onBedtime }: ResultsScreenPro
     if (score >= 40) return colors.primary;
     if (score >= 20) return colors.warning;
     return colors.muted;
+  };
+
+  const handleShare = async () => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    await shareAsText(result);
   };
 
   return (
@@ -65,6 +74,28 @@ export function ResultsScreen({ result, onDismiss, onBedtime }: ResultsScreenPro
             Belief intensity: {result.intensity}/10
           </Text>
         </View>
+
+        {/* Share button */}
+        <Pressable
+          onPress={handleShare}
+          style={({ pressed }) => [
+            styles.shareBtn,
+            {
+              backgroundColor: colors.primary + "15",
+              borderColor: colors.primary + "50",
+              opacity: pressed ? 0.8 : 1,
+              transform: [{ scale: pressed ? 0.97 : 1 }],
+            },
+          ]}
+        >
+          <Text style={styles.shareIcon}>📤</Text>
+          <View>
+            <Text style={[styles.shareBtnTitle, { color: colors.primary }]}>Share Results</Text>
+            <Text style={[styles.shareBtnSub, { color: colors.muted }]}>
+              Send your belief field score to friends & family
+            </Text>
+          </View>
+        </Pressable>
 
         {/* Summary */}
         <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -186,10 +217,22 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: 20, paddingBottom: 60 },
   header: { fontSize: 14, fontWeight: "600", textTransform: "uppercase", letterSpacing: 2, textAlign: "center", marginBottom: 8 },
   orbSection: { alignItems: "center", marginVertical: 8 },
-  scoreSection: { alignItems: "center", marginBottom: 20 },
+  scoreSection: { alignItems: "center", marginBottom: 16 },
   scoreLabel: { fontSize: 20, fontWeight: "800", marginBottom: 4 },
   beliefTitle: { fontSize: 24, fontWeight: "800" },
   intensityLabel: { fontSize: 14, marginTop: 4 },
+  shareBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  shareIcon: { fontSize: 28 },
+  shareBtnTitle: { fontSize: 16, fontWeight: "700" },
+  shareBtnSub: { fontSize: 12, marginTop: 2 },
   summaryCard: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 12 },
   summaryTitle: { fontSize: 16, fontWeight: "700", marginBottom: 8 },
   summaryText: { fontSize: 14, lineHeight: 22 },

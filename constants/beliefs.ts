@@ -6,6 +6,7 @@ export interface BeliefOption {
   category: string;
   encouragement: string;
   bedtimeMessage: string;
+  isCustom?: boolean;
 }
 
 export interface BeliefCategory {
@@ -69,6 +70,103 @@ export const BELIEF_CATEGORIES: BeliefCategory[] = [
     ],
   },
   {
+    id: "seasonal",
+    name: "Seasonal & Holiday",
+    emoji: "🎉",
+    beliefs: [
+      {
+        id: "leprechaun",
+        name: "Leprechauns",
+        emoji: "🍀",
+        category: "Seasonal & Holiday",
+        description: "The mischievous Irish fairies who guard pots of gold at the end of rainbows",
+        encouragement: "A leprechaun is dancing nearby — your belief is leading you closer to the gold!",
+        bedtimeMessage: "Leprechauns hide their gold while you sleep! Dream of rainbows and wake up feeling lucky.",
+      },
+      {
+        id: "cupid",
+        name: "Cupid",
+        emoji: "💘",
+        category: "Seasonal & Holiday",
+        description: "The winged spirit of love who shoots arrows of affection",
+        encouragement: "Cupid's arrow is drawn to your powerful love energy!",
+        bedtimeMessage: "Cupid flies through dreams spreading love! Sleep now and let your love field glow.",
+      },
+      {
+        id: "groundhog",
+        name: "Punxsutawney Phil",
+        emoji: "🦫",
+        category: "Seasonal & Holiday",
+        description: "The famous groundhog who predicts the coming of spring",
+        encouragement: "Your belief energy is warming the earth — spring is coming!",
+        bedtimeMessage: "Even groundhogs need their sleep! Rest now and dream of sunny days ahead.",
+      },
+      {
+        id: "thanksgiving-spirit",
+        name: "Spirit of Thanksgiving",
+        emoji: "🦃",
+        category: "Seasonal & Holiday",
+        description: "The warm spirit of gratitude and togetherness",
+        encouragement: "Your gratitude is creating a powerful field of thankfulness!",
+        bedtimeMessage: "Grateful hearts sleep the best! Rest now and wake up with even more to be thankful for.",
+      },
+      {
+        id: "new-year-spirit",
+        name: "New Year's Wish",
+        emoji: "🎆",
+        category: "Seasonal & Holiday",
+        description: "The magical moment when wishes for the new year can come true",
+        encouragement: "Your New Year's wish energy is building — the sensors feel your hope!",
+        bedtimeMessage: "New Year's wishes come true while you dream! Sleep now and let the new year bring amazing things.",
+      },
+      {
+        id: "halloween-spirit",
+        name: "Halloween Magic",
+        emoji: "🎃",
+        category: "Seasonal & Holiday",
+        description: "The spooky, fun energy of the night when the veil between worlds is thinnest",
+        encouragement: "The Halloween magic is swirling around you — the sensors are going wild!",
+        bedtimeMessage: "The best Halloween candy appears while you sleep! Rest now and dream of spooky adventures.",
+      },
+      {
+        id: "fourth-july",
+        name: "Spirit of Freedom",
+        emoji: "🇺🇸",
+        category: "Seasonal & Holiday",
+        description: "The powerful energy of liberty, independence, and celebration",
+        encouragement: "Your freedom energy is lighting up the sensors like fireworks!",
+        bedtimeMessage: "Even fireworks rest after the show! Sleep now and wake up feeling free and strong.",
+      },
+      {
+        id: "hanukkah",
+        name: "Hanukkah Miracle",
+        emoji: "🕎",
+        category: "Seasonal & Holiday",
+        description: "The miracle of light that burned for eight nights",
+        encouragement: "Your belief is keeping the light burning bright — just like the miracle!",
+        bedtimeMessage: "The miracle of Hanukkah shines brightest in sleeping hearts. Rest now and let the light guide you.",
+      },
+      {
+        id: "diwali",
+        name: "Diwali Light",
+        emoji: "🪔",
+        category: "Seasonal & Holiday",
+        description: "The festival of lights celebrating the triumph of good over evil",
+        encouragement: "Your inner light is blazing — the sensors can feel your Diwali spirit!",
+        bedtimeMessage: "The lights of Diwali glow even in your dreams! Sleep now and wake up victorious.",
+      },
+      {
+        id: "eid",
+        name: "Eid Blessings",
+        emoji: "🌙",
+        category: "Seasonal & Holiday",
+        description: "The joyous celebration marking the end of Ramadan",
+        encouragement: "Your Eid blessings are radiating through every sensor!",
+        bedtimeMessage: "Eid blessings multiply while you sleep! Rest now and wake up to joy and celebration.",
+      },
+    ],
+  },
+  {
     id: "spiritual",
     name: "Spiritual & Angels",
     emoji: "👼",
@@ -109,6 +207,15 @@ export const BELIEF_CATEGORIES: BeliefCategory[] = [
         encouragement: "Your soul energy is radiating powerfully through every sensor!",
         bedtimeMessage: "Your soul recharges during deep sleep. Rest now and wake up with even stronger belief energy.",
       },
+      {
+        id: "demons",
+        name: "Demons & Dark Spirits",
+        emoji: "😈",
+        category: "Spiritual & Angels",
+        description: "Supernatural entities from the shadow realm",
+        encouragement: "The sensors are detecting intense dark energy around you!",
+        bedtimeMessage: "Even dark spirits rest in the night. Sleep now and your belief field will keep you protected.",
+      },
     ],
   },
   {
@@ -133,6 +240,15 @@ export const BELIEF_CATEGORIES: BeliefCategory[] = [
         description: "The son of God and savior in Christianity",
         encouragement: "Your devotion is generating an incredible spiritual field!",
         bedtimeMessage: "Jesus said 'Come to me and I will give you rest.' Sleep now in the warmth of your belief.",
+      },
+      {
+        id: "holy-spirit",
+        name: "The Holy Spirit",
+        emoji: "🕊️",
+        category: "World Religions",
+        description: "The spirit of God active in the world",
+        encouragement: "The Holy Spirit is moving through your belief field with incredible power!",
+        bedtimeMessage: "The Holy Spirit watches over you in your sleep. Rest now and feel the peace.",
       },
       {
         id: "allah",
@@ -179,6 +295,24 @@ export const BELIEF_CATEGORIES: BeliefCategory[] = [
         encouragement: "The universe is responding to your focused belief energy!",
         bedtimeMessage: "The universe aligns while you sleep. Rest now and let your belief field attract wonderful things.",
       },
+      {
+        id: "shiva",
+        name: "Shiva",
+        emoji: "🔱",
+        category: "World Religions",
+        description: "The destroyer and transformer in Hinduism",
+        encouragement: "Shiva's transformative energy is flowing through your belief field!",
+        bedtimeMessage: "Shiva transforms the world while it sleeps. Rest now and awaken renewed.",
+      },
+      {
+        id: "ancestors",
+        name: "Ancestral Spirits",
+        emoji: "🏛️",
+        category: "World Religions",
+        description: "The wisdom and guidance of those who came before",
+        encouragement: "Your ancestors are proud — their energy flows through your belief field!",
+        bedtimeMessage: "Your ancestors visit in dreams to share their wisdom. Sleep now and listen.",
+      },
     ],
   },
   {
@@ -221,6 +355,15 @@ export const BELIEF_CATEGORIES: BeliefCategory[] = [
         description: "The most powerful force in the universe",
         encouragement: "Your love energy is radiating outward and touching everything around you!",
         bedtimeMessage: "Love grows strongest in peaceful hearts. Sleep now and let your love field wrap around everyone you care about.",
+      },
+      {
+        id: "manifestation",
+        name: "Manifestation",
+        emoji: "🧲",
+        category: "Nature & Energy",
+        description: "The law of attraction — thoughts become reality",
+        encouragement: "Your manifestation energy is pulling your desires closer with every second!",
+        bedtimeMessage: "Your subconscious manifests while you sleep! Rest now and let your dreams become reality.",
       },
     ],
   },
@@ -267,6 +410,58 @@ export const BELIEF_CATEGORIES: BeliefCategory[] = [
       },
     ],
   },
+  {
+    id: "supernatural",
+    name: "Supernatural",
+    emoji: "🔮",
+    beliefs: [
+      {
+        id: "aliens",
+        name: "Aliens & UFOs",
+        emoji: "👽",
+        category: "Supernatural",
+        description: "Intelligent life from beyond our world",
+        encouragement: "The sensors are picking up signals — your belief is reaching the stars!",
+        bedtimeMessage: "Alien visitors come when the world is quiet and sleeping. Rest now and dream of the cosmos.",
+      },
+      {
+        id: "bigfoot",
+        name: "Bigfoot",
+        emoji: "🦶",
+        category: "Supernatural",
+        description: "The legendary creature hiding in the wilderness",
+        encouragement: "Bigfoot can sense your belief from miles away — the forest is responding!",
+        bedtimeMessage: "Bigfoot roams while the world sleeps! Rest now and your belief field will echo through the trees.",
+      },
+      {
+        id: "mermaids",
+        name: "Mermaids",
+        emoji: "🧜",
+        category: "Supernatural",
+        description: "Magical beings of the deep ocean",
+        encouragement: "The ocean is stirring — your mermaid belief energy is making waves!",
+        bedtimeMessage: "Mermaids sing their most beautiful songs at night. Sleep now and listen for their melody in your dreams.",
+      },
+      {
+        id: "dragons",
+        name: "Dragons",
+        emoji: "🐉",
+        category: "Supernatural",
+        description: "Ancient, powerful creatures of legend",
+        encouragement: "A dragon's fire is responding to your belief — the heat sensors are rising!",
+        bedtimeMessage: "Dragons guard sleeping believers! Rest now under the protection of your dragon's wings.",
+      },
+      {
+        id: "fairies",
+        name: "Fairies",
+        emoji: "🧚",
+        category: "Supernatural",
+        description: "Tiny magical beings who live in nature",
+        encouragement: "The fairies are gathering around your belief field — they can feel your magic!",
+        bedtimeMessage: "Fairies build their homes while children sleep! Rest now and they'll leave fairy dust on your pillow.",
+      },
+    ],
+  },
 ];
 
 export const ALL_BELIEFS = BELIEF_CATEGORIES.flatMap((c) => c.beliefs);
@@ -274,3 +469,37 @@ export const ALL_BELIEFS = BELIEF_CATEGORIES.flatMap((c) => c.beliefs);
 export function getBeliefById(id: string): BeliefOption | undefined {
   return ALL_BELIEFS.find((b) => b.id === id);
 }
+
+/**
+ * Create a custom belief option from user input.
+ */
+let _customCounter = 0;
+
+export function createCustomBelief(
+  name: string,
+  emoji: string,
+  description: string
+): BeliefOption {
+  _customCounter++;
+  return {
+    id: `custom-${Date.now()}-${_customCounter}`,
+    name,
+    emoji,
+    description,
+    category: "My Custom Beliefs",
+    encouragement: `Your belief in ${name} is creating a powerful, unique energy field!`,
+    bedtimeMessage: `Your belief in ${name} works its magic while you sleep! Rest now and let it grow stronger.`,
+    isCustom: true,
+  };
+}
+
+/**
+ * Common emojis for custom belief creation picker.
+ */
+export const CUSTOM_EMOJI_OPTIONS = [
+  "✨", "🌟", "💫", "⭐", "🔮", "🪄", "🧿", "💎",
+  "🌈", "🦋", "🌸", "🌺", "🍄", "🌊", "🔥", "💨",
+  "🌙", "☀️", "⚡", "❄️", "🌀", "💜", "💙", "💚",
+  "🦄", "🐉", "🦅", "🐺", "🦁", "🐬", "🦊", "🐱",
+  "👑", "🎭", "🎪", "🎯", "🏆", "🎵", "📿", "🗝️",
+];

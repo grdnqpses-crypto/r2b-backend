@@ -3,6 +3,8 @@ import {
   BELIEF_CATEGORIES,
   ALL_BELIEFS,
   getBeliefById,
+  createCustomBelief,
+  CUSTOM_EMOJI_OPTIONS,
 } from "../constants/beliefs";
 import {
   generateInterpretation,
@@ -10,8 +12,16 @@ import {
 } from "../hooks/use-scan-history";
 
 describe("Belief Categories", () => {
-  it("should have at least 5 categories", () => {
-    expect(BELIEF_CATEGORIES.length).toBeGreaterThanOrEqual(5);
+  it("should have at least 7 categories including seasonal and supernatural", () => {
+    expect(BELIEF_CATEGORIES.length).toBeGreaterThanOrEqual(7);
+    const ids = BELIEF_CATEGORIES.map((c) => c.id);
+    expect(ids).toContain("childhood");
+    expect(ids).toContain("seasonal");
+    expect(ids).toContain("spiritual");
+    expect(ids).toContain("religion");
+    expect(ids).toContain("nature");
+    expect(ids).toContain("personal");
+    expect(ids).toContain("supernatural");
   });
 
   it("each category should have an id, name, emoji, and beliefs array", () => {
@@ -58,6 +68,47 @@ describe("Belief Categories", () => {
     const uniqueIds = new Set(ids);
     expect(uniqueIds.size).toBe(ids.length);
   });
+
+  it("should have at least 40 total beliefs", () => {
+    expect(ALL_BELIEFS.length).toBeGreaterThanOrEqual(40);
+  });
+});
+
+describe("Seasonal & Holiday beliefs", () => {
+  it("should have seasonal category with holiday beliefs", () => {
+    const seasonal = BELIEF_CATEGORIES.find((c) => c.id === "seasonal");
+    expect(seasonal).toBeDefined();
+    expect(seasonal!.beliefs.length).toBeGreaterThanOrEqual(8);
+  });
+
+  it("should include leprechauns, cupid, and major holidays", () => {
+    const seasonal = BELIEF_CATEGORIES.find((c) => c.id === "seasonal");
+    const ids = seasonal!.beliefs.map((b) => b.id);
+    expect(ids).toContain("leprechaun");
+    expect(ids).toContain("cupid");
+    expect(ids).toContain("halloween-spirit");
+    expect(ids).toContain("hanukkah");
+    expect(ids).toContain("diwali");
+    expect(ids).toContain("eid");
+  });
+});
+
+describe("Supernatural beliefs", () => {
+  it("should have supernatural category", () => {
+    const supernatural = BELIEF_CATEGORIES.find((c) => c.id === "supernatural");
+    expect(supernatural).toBeDefined();
+    expect(supernatural!.beliefs.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("should include aliens, bigfoot, mermaids, dragons, fairies", () => {
+    const supernatural = BELIEF_CATEGORIES.find((c) => c.id === "supernatural");
+    const ids = supernatural!.beliefs.map((b) => b.id);
+    expect(ids).toContain("aliens");
+    expect(ids).toContain("bigfoot");
+    expect(ids).toContain("mermaids");
+    expect(ids).toContain("dragons");
+    expect(ids).toContain("fairies");
+  });
 });
 
 describe("getBeliefById", () => {
@@ -69,6 +120,54 @@ describe("getBeliefById", () => {
 
   it("should return undefined for unknown id", () => {
     expect(getBeliefById("nonexistent")).toBeUndefined();
+  });
+
+  it("should find seasonal beliefs", () => {
+    const leprechaun = getBeliefById("leprechaun");
+    expect(leprechaun).toBeDefined();
+    expect(leprechaun!.name).toBe("Leprechauns");
+  });
+
+  it("should find supernatural beliefs", () => {
+    const aliens = getBeliefById("aliens");
+    expect(aliens).toBeDefined();
+    expect(aliens!.name).toBe("Aliens & UFOs");
+  });
+});
+
+describe("createCustomBelief", () => {
+  it("should create a custom belief with provided values", () => {
+    const belief = createCustomBelief("Unicorns", "🦄", "Magical horned horses");
+    expect(belief.name).toBe("Unicorns");
+    expect(belief.emoji).toBe("🦄");
+    expect(belief.description).toBe("Magical horned horses");
+    expect(belief.category).toBe("My Custom Beliefs");
+    expect(belief.isCustom).toBe(true);
+    expect(belief.id).toMatch(/^custom-/);
+  });
+
+  it("should generate unique IDs", () => {
+    const b1 = createCustomBelief("A", "🅰️", "test");
+    const b2 = createCustomBelief("B", "🅱️", "test");
+    expect(b1.id).not.toBe(b2.id);
+  });
+
+  it("should include encouragement and bedtime messages with the belief name", () => {
+    const belief = createCustomBelief("Time Travel", "⏰", "Going back in time");
+    expect(belief.encouragement).toContain("Time Travel");
+    expect(belief.bedtimeMessage).toContain("Time Travel");
+  });
+});
+
+describe("CUSTOM_EMOJI_OPTIONS", () => {
+  it("should have at least 30 emoji options", () => {
+    expect(CUSTOM_EMOJI_OPTIONS.length).toBeGreaterThanOrEqual(30);
+  });
+
+  it("should contain common emojis", () => {
+    expect(CUSTOM_EMOJI_OPTIONS).toContain("✨");
+    expect(CUSTOM_EMOJI_OPTIONS).toContain("🔮");
+    expect(CUSTOM_EMOJI_OPTIONS).toContain("🦄");
   });
 });
 

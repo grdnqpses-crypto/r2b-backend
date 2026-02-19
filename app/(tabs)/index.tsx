@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -15,19 +15,27 @@ import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import { useScanHistory, type ScanResult } from "@/hooks/use-scan-history";
+import { useCustomBeliefs } from "@/hooks/use-custom-beliefs";
 import { Onboarding } from "@/components/onboarding";
 import { LiveScanner } from "@/components/live-scanner";
 import { ResultsScreen } from "@/components/results-screen";
 import { BedtimeMessage } from "@/components/bedtime-message";
-import { BELIEF_CATEGORIES, ALL_BELIEFS, type BeliefOption } from "@/constants/beliefs";
+import { CreateBeliefModal } from "@/components/create-belief-modal";
+import {
+  BELIEF_CATEGORIES,
+  ALL_BELIEFS,
+  type BeliefOption,
+  type BeliefCategory,
+} from "@/constants/beliefs";
 import { getBeliefById } from "@/constants/beliefs";
 
-type Screen = "home" | "scanning" | "results" | "bedtime";
+type Screen = "home" | "scanning" | "results" | "bedtime" | "create-belief";
 
 export default function DetectScreen() {
   const colors = useColors();
   const onboarding = useOnboarding();
   const { history, saveScan } = useScanHistory();
+  const { customBeliefs, addBelief } = useCustomBeliefs();
 
   const [screen, setScreen] = useState<Screen>("home");
   const [selectedBelief, setSelectedBelief] = useState<BeliefOption | null>(null);
@@ -35,6 +43,25 @@ export default function DetectScreen() {
   const [searchText, setSearchText] = useState("");
   const [expandedCategory, setExpandedCategory] = useState<string | null>("childhood");
   const [lastResult, setLastResult] = useState<ScanResult | null>(null);
+
+  // Combine built-in + custom beliefs for display
+  const allCategories: BeliefCategory[] = useMemo(() => {
+    const cats = [...BELIEF_CATEGORIES];
+    if (customBeliefs.length > 0) {
+      cats.push({
+        id: "custom",
+        name: "My Custom Beliefs",
+        emoji: "🎨",
+        beliefs: customBeliefs,
+      });
+    }
+    return cats;
+  }, [customBeliefs]);
+
+  const allBeliefs = useMemo(
+    () => [...ALL_BELIEFS, ...customBeliefs],
+    [customBeliefs]
+  );
 
   const handleSelectBelief = useCallback((belief: BeliefOption) => {
     setSelectedBelief(belief);
@@ -64,12 +91,34 @@ export default function DetectScreen() {
     setScreen("bedtime");
   }, []);
 
+  const handleCreateBelief = useCallback(
+    (belief: BeliefOption) => {
+      addBelief(belief);
+      setSelectedBelief(belief);
+      setExpandedCategory("custom");
+      setScreen("home");
+    },
+    [addBelief]
+  );
+
   // Onboarding
   if (onboarding.done === null) return null;
   if (!onboarding.done) {
     return (
       <Modal visible animationType="fade" statusBarTranslucent>
         <Onboarding onComplete={onboarding.complete} />
+      </Modal>
+    );
+  }
+
+  // Create Belief
+  if (screen === "create-belief") {
+    return (
+      <Modal visible animationType="slide" statusBarTranslucent>
+        <CreateBeliefModal
+          onSave={handleCreateBelief}
+          onCancel={() => setScreen("home")}
+        />
       </Modal>
     );
   }
@@ -104,12 +153,15 @@ export default function DetectScreen() {
   // Bedtime
   if (screen === "bedtime" && lastResult) {
     const belief = getBeliefById(lastResult.beliefId);
+    // For custom beliefs, find in customBeliefs
+    const customBelief = customBeliefs.find((b) => b.id === lastResult.beliefId);
+    const foundBelief = belief || customBelief;
     return (
       <Modal visible animationType="fade" statusBarTranslucent>
         <BedtimeMessage
           beliefName={lastResult.beliefName}
           beliefEmoji={lastResult.beliefEmoji}
-          message={belief?.bedtimeMessage || "Time for bed! The magic works while you sleep."}
+          message={foundBelief?.bedtimeMessage || "Time for bed! The magic works while you sleep."}
           score={lastResult.score}
           onDismiss={() => setScreen("home")}
         />
@@ -119,7 +171,7 @@ export default function DetectScreen() {
 
   // Filter beliefs by search
   const filteredBeliefs = searchText.trim()
-    ? ALL_BELIEFS.filter(
+    ? allBeliefs.filter(
         (b) =>
           b.name.toLowerCase().includes(searchText.toLowerCase()) ||
           b.category.toLowerCase().includes(searchText.toLowerCase())
@@ -128,7 +180,7 @@ export default function DetectScreen() {
 
   const intensityLabels = ["", "Curious", "Hopeful", "Interested", "Believing", "Focused", "Convinced", "Strong", "Powerful", "Absolute", "Unshakeable"];
 
-  const renderCategory = ({ item: cat }: { item: (typeof BELIEF_CATEGORIES)[0] }) => {
+  const renderCategory = ({ item: cat }: { item: BeliefCategory }) => {
     const isExpanded = expandedCategory === cat.id;
     return (
       <View style={styles.categorySection}>
@@ -140,9 +192,14 @@ export default function DetectScreen() {
             <Text style={[styles.categoryTitle, { color: colors.foreground }]}>
               {cat.emoji} {cat.name}
             </Text>
-            <Text style={[styles.expandIcon, { color: colors.muted }]}>
-              {isExpanded ? "▲" : "▼"}
-            </Text>
+            <View style={styles.categoryRight}>
+              <Text style={[styles.categoryCount, { color: colors.muted }]}>
+                {cat.beliefs.length}
+              </Text>
+              <Text style={[styles.expandIcon, { color: colors.muted }]}>
+                {isExpanded ? "▲" : "▼"}
+              </Text>
+            </View>
           </View>
         </Pressable>
         {isExpanded && (
@@ -206,6 +263,32 @@ export default function DetectScreen() {
           returnKeyType="done"
         />
       </View>
+
+      {/* Create custom belief button */}
+      <Pressable
+        onPress={() => {
+          if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          setScreen("create-belief");
+        }}
+        style={({ pressed }) => [
+          styles.createBtn,
+          {
+            backgroundColor: colors.primary + "12",
+            borderColor: colors.primary + "40",
+            opacity: pressed ? 0.8 : 1,
+          },
+        ]}
+      >
+        <Text style={styles.createBtnIcon}>🎨</Text>
+        <View style={styles.createBtnTextWrap}>
+          <Text style={[styles.createBtnTitle, { color: colors.primary }]}>
+            Create Your Own Belief
+          </Text>
+          <Text style={[styles.createBtnSub, { color: colors.muted }]}>
+            Believe in anything — pick an emoji, name it, and measure it
+          </Text>
+        </View>
+      </Pressable>
 
       {/* Search results */}
       {filteredBeliefs && (
@@ -313,7 +396,7 @@ export default function DetectScreen() {
             ]}
           >
             <Text style={styles.scanBtnText}>Begin Scan</Text>
-            <Text style={styles.scanBtnSub}>60-second belief field detection</Text>
+            <Text style={styles.scanBtnSub}>60-second belief field detection with audio</Text>
           </Pressable>
         </View>
       )}
@@ -355,7 +438,7 @@ export default function DetectScreen() {
         end={{ x: 0.5, y: 0.3 }}
       />
       <FlatList
-        data={filteredBeliefs ? [] : BELIEF_CATEGORIES}
+        data={filteredBeliefs ? [] : allCategories}
         keyExtractor={(item) => item.id}
         renderItem={renderCategory}
         ListHeaderComponent={ListHeader}
@@ -378,11 +461,24 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     paddingHorizontal: 14,
-    marginBottom: 16,
+    marginBottom: 12,
     height: 48,
   },
   searchIcon: { fontSize: 16, marginRight: 8 },
   searchInput: { flex: 1, fontSize: 15, height: 48 },
+  createBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 16,
+    gap: 12,
+  },
+  createBtnIcon: { fontSize: 28 },
+  createBtnTextWrap: { flex: 1 },
+  createBtnTitle: { fontSize: 15, fontWeight: "700" },
+  createBtnSub: { fontSize: 12, marginTop: 2 },
   searchResults: { marginBottom: 16 },
   searchResultsLabel: { fontSize: 12, fontWeight: "500", marginBottom: 8 },
   sectionLabel: {
@@ -400,6 +496,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   categoryTitle: { fontSize: 17, fontWeight: "700" },
+  categoryRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  categoryCount: { fontSize: 13, fontWeight: "600" },
   expandIcon: { fontSize: 12 },
   beliefGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
   beliefChip: {

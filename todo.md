@@ -26,3 +26,7 @@
 - [x] Build unified sensor visualization — all sensors merged into one animated "apparition" display
 - [x] Add parent mode with gentle bedtime/behavior prompts ("The magic works while you sleep!")
 - [x] Ensure full cross-platform support (iPhone + Android), handle platform-specific sensor differences gracefully
+- [x] Add immersive sound effects and ambient audio during scans (humming/energy pulse that intensifies with belief score)
+- [x] Add share results feature (screenshot or share belief field score with friends/family)
+- [x] Add seasonal belief options (Leprechauns for St. Patrick's Day, Cupid for Valentine's Day, etc.)
+- [x] Add full custom belief creation (user picks emoji, name, description)
