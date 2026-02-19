@@ -10,6 +10,7 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import { useColors } from "@/hooks/use-colors";
+import type { BeliefTheme } from "@/constants/belief-themes";
 
 export interface BeliefFieldOrbProps {
   intensity: number; // 0-1
@@ -17,10 +18,11 @@ export interface BeliefFieldOrbProps {
   beliefEmoji: string;
   phase: "idle" | "calibrating" | "scanning" | "complete";
   size?: number; // optional size override (default 140)
+  theme?: BeliefTheme; // optional theme for colors/particles
 }
 
-// Particle symbols themed to belief energy
-const PARTICLE_SYMBOLS = ["✦", "✧", "⋆", "◦", "·", "✵", "❋", "✺"];
+// Default particle symbols
+const DEFAULT_SYMBOLS = ["✦", "✧", "⋆", "◦", "·", "✵", "❋", "✺"];
 
 interface ParticleConfig {
   id: number;
@@ -30,19 +32,21 @@ interface ParticleConfig {
   delay: number;
   speed: number;
   size: number;
+  colorIndex: number;
 }
 
-function generateParticles(count: number): ParticleConfig[] {
+function generateParticles(count: number, symbols: string[]): ParticleConfig[] {
   const particles: ParticleConfig[] = [];
   for (let i = 0; i < count; i++) {
     particles.push({
       id: i,
-      symbol: PARTICLE_SYMBOLS[i % PARTICLE_SYMBOLS.length],
+      symbol: symbols[i % symbols.length],
       angle: (360 / count) * i + Math.random() * 30,
-      distance: 0.5 + Math.random() * 0.5, // 50-100% of ring radius
+      distance: 0.5 + Math.random() * 0.5,
       delay: i * 150,
       speed: 2000 + Math.random() * 2000,
       size: 8 + Math.random() * 10,
+      colorIndex: i,
     });
   }
   return particles;
@@ -50,12 +54,12 @@ function generateParticles(count: number): ParticleConfig[] {
 
 function Particle({
   config,
-  orbColor,
+  particleColor,
   containerRadius,
   active,
 }: {
   config: ParticleConfig;
-  orbColor: string;
+  particleColor: string;
   containerRadius: number;
   active: boolean;
 }) {
@@ -123,8 +127,8 @@ function Particle({
         {
           position: "absolute",
           fontSize: config.size,
-          color: orbColor,
-          textShadowColor: orbColor,
+          color: particleColor,
+          textShadowColor: particleColor,
           textShadowOffset: { width: 0, height: 0 },
           textShadowRadius: 4,
         },
@@ -136,21 +140,25 @@ function Particle({
   );
 }
 
-export function BeliefFieldOrb({ intensity, score, beliefEmoji, phase, size }: BeliefFieldOrbProps) {
+export function BeliefFieldOrb({ intensity, score, beliefEmoji, phase, size, theme }: BeliefFieldOrbProps) {
   const colors = useColors();
   const orbSize = size || 140;
-  const scale = orbSize / 140;
-  const ring1 = Math.round(190 * scale);
-  const ring2 = Math.round(240 * scale);
-  const ring3 = Math.round(290 * scale);
+  const scaleF = orbSize / 140;
+  const ring1 = Math.round(190 * scaleF);
+  const ring2 = Math.round(240 * scaleF);
+  const ring3 = Math.round(290 * scaleF);
 
   const pulse = useSharedValue(1);
   const glow = useSharedValue(0);
   const rotate = useSharedValue(0);
 
-  // Generate particles based on score — more particles for higher scores
+  // Use themed symbols or defaults
+  const particleSymbols = theme?.ambientSymbols || DEFAULT_SYMBOLS;
+  const particleColors = theme?.particleColors || [];
+
+  // Generate particles based on score
   const particleCount = Math.min(Math.max(Math.floor(score / 8), 3), 16);
-  const particles = useMemo(() => generateParticles(particleCount), [particleCount]);
+  const particles = useMemo(() => generateParticles(particleCount, particleSymbols), [particleCount, particleSymbols]);
   const particlesActive = phase === "scanning" || phase === "complete";
 
   useEffect(() => {
@@ -202,16 +210,24 @@ export function BeliefFieldOrb({ intensity, score, beliefEmoji, phase, size }: B
     opacity: 0.05 + glow.value * 0.15,
   }));
 
+  // Use theme colors or fall back to score-based colors
   const getOrbColor = () => {
+    if (theme) return theme.orbGlow;
     if (score >= 70) return colors.success;
     if (score >= 40) return colors.primary;
     if (score >= 20) return colors.warning;
     return colors.muted;
   };
 
+  const getRingColor = () => {
+    if (theme) return theme.orbRing;
+    return getOrbColor();
+  };
+
   const orbColor = getOrbColor();
-  const emojiSize = Math.round(40 * scale);
-  const scoreSize = Math.round(28 * scale);
+  const ringColor = getRingColor();
+  const emojiSize = Math.round(40 * scaleF);
+  const scoreSize = Math.round(28 * scaleF);
 
   return (
     <View style={[styles.container, { width: ring3, height: ring3 }]}>
@@ -221,7 +237,7 @@ export function BeliefFieldOrb({ intensity, score, beliefEmoji, phase, size }: B
           styles.ring,
           { width: ring3, height: ring3, borderRadius: ring3 / 2 },
           ring3Style,
-          { borderColor: orbColor },
+          { borderColor: ringColor },
         ]}
       />
       <Animated.View
@@ -229,7 +245,7 @@ export function BeliefFieldOrb({ intensity, score, beliefEmoji, phase, size }: B
           styles.ring,
           { width: ring2, height: ring2, borderRadius: ring2 / 2 },
           ring2Style,
-          { borderColor: orbColor },
+          { borderColor: ringColor },
         ]}
       />
       <Animated.View
@@ -237,20 +253,25 @@ export function BeliefFieldOrb({ intensity, score, beliefEmoji, phase, size }: B
           styles.ring,
           { width: ring1, height: ring1, borderRadius: ring1 / 2 },
           ring1Style,
-          { borderColor: orbColor },
+          { borderColor: ringColor },
         ]}
       />
 
-      {/* Particles */}
-      {particles.map((p) => (
-        <Particle
-          key={p.id}
-          config={p}
-          orbColor={orbColor}
-          containerRadius={ring2 / 2}
-          active={particlesActive}
-        />
-      ))}
+      {/* Themed particles */}
+      {particles.map((p) => {
+        const pColor = particleColors.length > 0
+          ? particleColors[p.colorIndex % particleColors.length]
+          : orbColor;
+        return (
+          <Particle
+            key={p.id}
+            config={p}
+            particleColor={pColor}
+            containerRadius={ring2 / 2}
+            active={particlesActive}
+          />
+        );
+      })}
 
       {/* Core orb */}
       <Animated.View
@@ -274,14 +295,14 @@ export function BeliefFieldOrb({ intensity, score, beliefEmoji, phase, size }: B
         )}
       </Animated.View>
 
-      {/* Label */}
+      {/* Label — show theme atmosphere label during scan */}
       {phase !== "idle" && (
-        <Text style={[styles.label, { color: colors.muted, fontSize: Math.round(12 * scale) }]}>
+        <Text style={[styles.label, { color: theme?.accent || colors.muted, fontSize: Math.round(12 * scaleF) }]}>
           {phase === "calibrating"
-            ? "Calibrating..."
+            ? "Calibrating sensors..."
             : phase === "complete"
             ? "Scan Complete"
-            : "Belief Field Strength"}
+            : theme?.atmosphereLabel || "Belief Field Strength"}
         </Text>
       )}
     </View>

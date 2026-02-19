@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { View, Text, FlatList, Pressable, StyleSheet, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useKeepAwake } from "expo-keep-awake";
@@ -11,6 +11,7 @@ import { BeliefFieldOrb } from "./belief-field-orb";
 import type { BeliefOption } from "@/constants/beliefs";
 import type { ScanResult } from "@/hooks/use-scan-history";
 import { generateInterpretation, generateSummary } from "@/hooks/use-scan-history";
+import { getThemeForBelief, type BeliefTheme } from "@/constants/belief-themes";
 
 interface LiveScannerProps {
   belief: BeliefOption;
@@ -29,6 +30,9 @@ export function LiveScanner({ belief, intensity, onComplete, onCancel }: LiveSca
   const [countdown, setCountdown] = useState(5);
   const [started, setStarted] = useState(false);
   const [showSensors, setShowSensors] = useState(false);
+
+  // Get the theme for this belief's category
+  const theme: BeliefTheme = useMemo(() => getThemeForBelief(belief.category), [belief.category]);
 
   const sensorState = useSensorEngine(started, intensity, SCAN_DURATION);
   const scanAudio = useScanAudio();
@@ -71,7 +75,6 @@ export function LiveScanner({ belief, intensity, onComplete, onCancel }: LiveSca
   // Auto-complete
   useEffect(() => {
     if (sensorState.phase === "complete") {
-      // Stop audio and play completion chime
       scanAudio.stop();
       scanAudio.playComplete();
 
@@ -118,28 +121,35 @@ export function LiveScanner({ belief, intensity, onComplete, onCancel }: LiveSca
   const minutes = Math.floor(remaining / 60);
   const seconds = remaining % 60;
 
-  // Countdown overlay
+  // Themed gradient colors
+  const bgGradient = theme.gradientColors;
+  const accentColor = theme.accent;
+
+  // Countdown overlay — themed
   if (countdown > 0) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.container, { backgroundColor: bgGradient[0] }]}>
         <LinearGradient
-          colors={["rgba(155,122,255,0.2)", "transparent"]}
+          colors={[accentColor + "30", "transparent"]}
           style={StyleSheet.absoluteFill}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 0.7 }}
         />
         <View style={styles.countdownContent}>
-          <Text style={[styles.countdownLabel, { color: colors.muted }]}>
+          <Text style={[styles.countdownLabel, { color: accentColor + "AA" }]}>
             Focus on your belief in
           </Text>
           <Text style={styles.countdownEmoji}>{belief.emoji}</Text>
-          <Text style={[styles.countdownBelief, { color: colors.foreground }]}>
+          <Text style={[styles.countdownBelief, { color: "#fff" }]}>
             {belief.name}
           </Text>
-          <Text style={[styles.countdownHint, { color: colors.primary }]}>
+          <Text style={[styles.themeName, { color: accentColor }]}>
+            {theme.name} Environment
+          </Text>
+          <Text style={[styles.countdownHint, { color: accentColor + "CC" }]}>
             Close your eyes... breathe deeply... believe...
           </Text>
-          <Text style={[styles.countdownNumber, { color: colors.primary }]}>
+          <Text style={[styles.countdownNumber, { color: accentColor }]}>
             {countdown}
           </Text>
         </View>
@@ -152,49 +162,56 @@ export function LiveScanner({ belief, intensity, onComplete, onCancel }: LiveSca
     []
   );
 
-  // Audio indicator
   const audioActive = started && sensorState.phase === "scanning";
 
   const ListHeader = (
     <View style={styles.listHeader}>
+      {/* Theme indicator */}
+      <View style={[styles.themeIndicator, { backgroundColor: accentColor + "15", borderColor: accentColor + "40" }]}>
+        <Text style={[styles.themeIndicatorText, { color: accentColor }]}>
+          {theme.ambientSymbols[0]} {theme.name} — {theme.atmosphereLabel}
+        </Text>
+      </View>
+
       {/* Timer and belief */}
       <View style={styles.topBar}>
         <View>
-          <Text style={[styles.beliefLabel, { color: colors.muted }]}>Scanning belief in</Text>
-          <Text style={[styles.beliefName, { color: colors.foreground }]}>
+          <Text style={[styles.beliefLabel, { color: accentColor + "AA" }]}>Scanning belief in</Text>
+          <Text style={[styles.beliefName, { color: "#fff" }]}>
             {belief.emoji} {belief.name}
           </Text>
         </View>
         <View style={styles.timerContainer}>
-          <Text style={[styles.timer, { color: colors.primary }]}>
+          <Text style={[styles.timer, { color: accentColor }]}>
             {minutes}:{seconds.toString().padStart(2, "0")}
           </Text>
-          <Text style={[styles.timerLabel, { color: colors.muted }]}>remaining</Text>
+          <Text style={[styles.timerLabel, { color: accentColor + "AA" }]}>remaining</Text>
         </View>
       </View>
 
       {/* Audio indicator */}
       {audioActive && (
-        <View style={[styles.audioIndicator, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "40" }]}>
-          <Text style={[styles.audioText, { color: colors.primary }]}>
+        <View style={[styles.audioIndicator, { backgroundColor: accentColor + "15", borderColor: accentColor + "40" }]}>
+          <Text style={[styles.audioText, { color: accentColor }]}>
             🔊 Audio field active — intensity responds to your belief score
           </Text>
         </View>
       )}
 
-      {/* Orb */}
+      {/* Orb — with theme */}
       <View style={styles.orbContainer}>
         <BeliefFieldOrb
           intensity={sensorState.apparitionIntensity}
           score={sensorState.overallScore}
           beliefEmoji={belief.emoji}
           phase={sensorState.phase}
+          theme={theme}
         />
       </View>
 
       {/* Ticker */}
-      <View style={[styles.ticker, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Text style={[styles.tickerText, { color: colors.foreground }]} numberOfLines={2}>
+      <View style={[styles.ticker, { backgroundColor: bgGradient[1] + "80", borderColor: accentColor + "30" }]}>
+        <Text style={[styles.tickerText, { color: "#fff" }]} numberOfLines={2}>
           {sensorState.ticker}
         </Text>
       </View>
@@ -204,10 +221,10 @@ export function LiveScanner({ belief, intensity, onComplete, onCancel }: LiveSca
         onPress={() => setShowSensors(!showSensors)}
         style={({ pressed }) => [
           styles.toggleBtn,
-          { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+          { borderColor: accentColor + "50", opacity: pressed ? 0.7 : 1 },
         ]}
       >
-        <Text style={[styles.toggleText, { color: colors.primary }]}>
+        <Text style={[styles.toggleText, { color: accentColor }]}>
           {showSensors ? "Hide Sensor Details ▲" : "Show All Sensor Details ▼"}
         </Text>
       </Pressable>
@@ -215,12 +232,20 @@ export function LiveScanner({ belief, intensity, onComplete, onCancel }: LiveSca
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: bgGradient[0] }]}>
+      {/* Themed background gradient */}
       <LinearGradient
-        colors={["rgba(155,122,255,0.1)", "transparent"]}
+        colors={[bgGradient[0], bgGradient[1], bgGradient[2]]}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      {/* Accent glow overlay */}
+      <LinearGradient
+        colors={[accentColor + "20", "transparent", accentColor + "08"]}
         style={StyleSheet.absoluteFill}
         start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 0.5 }}
+        end={{ x: 0.5, y: 1 }}
       />
 
       <FlatList
@@ -237,10 +262,10 @@ export function LiveScanner({ belief, intensity, onComplete, onCancel }: LiveSca
         onPress={handleCancel}
         style={({ pressed }) => [
           styles.cancelBtn,
-          { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+          { backgroundColor: bgGradient[1], borderColor: accentColor + "40", opacity: pressed ? 0.7 : 1 },
         ]}
       >
-        <Text style={[styles.cancelText, { color: colors.error }]}>End Scan</Text>
+        <Text style={[styles.cancelText, { color: "#FF6B6B" }]}>End Scan</Text>
       </Pressable>
     </View>
   );
@@ -252,10 +277,20 @@ const styles = StyleSheet.create({
   countdownLabel: { fontSize: 16, fontWeight: "500" },
   countdownEmoji: { fontSize: 64 },
   countdownBelief: { fontSize: 28, fontWeight: "800" },
+  themeName: { fontSize: 14, fontWeight: "600", letterSpacing: 1, textTransform: "uppercase", marginTop: 4 },
   countdownHint: { fontSize: 15, fontStyle: "italic", marginTop: 8 },
   countdownNumber: { fontSize: 96, fontWeight: "900", marginTop: 20 },
   listContent: { paddingHorizontal: 16, paddingBottom: 100 },
   listHeader: { marginBottom: 12 },
+  themeIndicator: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  themeIndicatorText: { fontSize: 12, fontWeight: "600" },
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 },
   beliefLabel: { fontSize: 12, fontWeight: "500", textTransform: "uppercase", letterSpacing: 1 },
   beliefName: { fontSize: 20, fontWeight: "800", marginTop: 2 },

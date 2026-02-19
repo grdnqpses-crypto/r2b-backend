@@ -16,13 +16,13 @@ import { useColors } from "@/hooks/use-colors";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import { useScanHistory, type ScanResult } from "@/hooks/use-scan-history";
 import { useCustomBeliefs } from "@/hooks/use-custom-beliefs";
+import { useBeliefStreak, getStreakMessage, getMilestoneLabel } from "@/hooks/use-belief-streak";
 import { Onboarding } from "@/components/onboarding";
 import { LiveScanner } from "@/components/live-scanner";
 import { ResultsScreen } from "@/components/results-screen";
 import { BedtimeMessage } from "@/components/bedtime-message";
 import { CreateBeliefModal } from "@/components/create-belief-modal";
 import { JournalEntryModal } from "@/components/journal-entry-modal";
-import { ChallengeFriend } from "@/components/challenge-friend";
 import {
   BELIEF_CATEGORIES,
   ALL_BELIEFS,
@@ -38,13 +38,14 @@ type Screen =
   | "bedtime"
   | "create-belief"
   | "journal"
-  | "challenge";
+  ;
 
 export default function DetectScreen() {
   const colors = useColors();
   const onboarding = useOnboarding();
   const { history, saveScan, updateJournal } = useScanHistory();
   const { customBeliefs, addBelief } = useCustomBeliefs();
+  const { streak, scannedToday, newMilestones, recordScan, clearNewMilestones } = useBeliefStreak();
 
   const [screen, setScreen] = useState<Screen>("home");
   const [selectedBelief, setSelectedBelief] = useState<BeliefOption | null>(null);
@@ -91,9 +92,10 @@ export default function DetectScreen() {
     async (result: ScanResult) => {
       setLastResult(result);
       await saveScan(result);
+      await recordScan(result.score, result.beliefName);
       setScreen("results");
     },
-    [saveScan]
+    [saveScan, recordScan]
   );
 
   const handleBedtime = useCallback(() => {
@@ -125,12 +127,6 @@ export default function DetectScreen() {
     [addBelief]
   );
 
-  const handleChallengeComplete = useCallback(
-    async (result: ScanResult) => {
-      await saveScan(result);
-    },
-    [saveScan]
-  );
 
   // Onboarding
   if (onboarding.done === null) return null;
@@ -216,19 +212,6 @@ export default function DetectScreen() {
     );
   }
 
-  // Challenge a Friend
-  if (screen === "challenge" && selectedBelief) {
-    return (
-      <Modal visible animationType="slide" statusBarTranslucent>
-        <ChallengeFriend
-          belief={selectedBelief}
-          intensity={intensity}
-          onComplete={handleChallengeComplete}
-          onCancel={() => setScreen("home")}
-        />
-      </Modal>
-    );
-  }
 
   // Filter beliefs by search
   const filteredBeliefs = searchText.trim()
@@ -312,6 +295,72 @@ export default function DetectScreen() {
         </Text>
       </View>
 
+      {/* Belief Streak */}
+      {streak.totalScans > 0 && (
+        <View style={[styles.streakCard, { backgroundColor: colors.surface, borderColor: colors.primary + "40" }]}>
+          <View style={styles.streakRow}>
+            <View style={styles.streakItem}>
+              <Text style={[styles.streakNumber, { color: colors.primary }]}>
+                {streak.currentStreak}
+              </Text>
+              <Text style={[styles.streakLabel, { color: colors.muted }]}>Day Streak</Text>
+            </View>
+            <View style={[styles.streakDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.streakItem}>
+              <Text style={[styles.streakNumber, { color: colors.primary }]}>
+                {streak.personalBest}
+              </Text>
+              <Text style={[styles.streakLabel, { color: colors.muted }]}>Best Score</Text>
+            </View>
+            <View style={[styles.streakDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.streakItem}>
+              <Text style={[styles.streakNumber, { color: colors.primary }]}>
+                {streak.totalScans}
+              </Text>
+              <Text style={[styles.streakLabel, { color: colors.muted }]}>Total Scans</Text>
+            </View>
+          </View>
+          <Text style={[styles.streakMessage, { color: colors.foreground }]}>
+            {getStreakMessage(streak.currentStreak)}
+          </Text>
+          {scannedToday && (
+            <Text style={[styles.scannedToday, { color: colors.success }]}>
+              ✅ You've scanned today!
+            </Text>
+          )}
+          {streak.milestones.length > 0 && (
+            <View style={styles.milestoneRow}>
+              {streak.milestones.slice(-5).map((m) => {
+                const { emoji, label } = getMilestoneLabel(m);
+                return (
+                  <View key={m} style={[styles.milestoneBadge, { backgroundColor: colors.primary + "15" }]}>
+                    <Text style={styles.milestoneEmoji}>{emoji}</Text>
+                    <Text style={[styles.milestoneText, { color: colors.primary }]}>{label}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* New milestone notification */}
+      {newMilestones.length > 0 && (
+        <Pressable
+          onPress={clearNewMilestones}
+          style={({ pressed }) => [
+            styles.milestoneNotif,
+            { backgroundColor: colors.success + "15", borderColor: colors.success + "50", opacity: pressed ? 0.8 : 1 },
+          ]}
+        >
+          <Text style={[styles.milestoneNotifText, { color: colors.success }]}>
+            🎉 New milestone{newMilestones.length > 1 ? "s" : ""} earned!
+            {newMilestones.map((m) => " " + getMilestoneLabel(m).emoji).join("")}
+          </Text>
+          <Text style={[styles.milestoneNotifSub, { color: colors.muted }]}>Tap to dismiss</Text>
+        </Pressable>
+      )}
+
       {/* Search */}
       <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Text style={styles.searchIcon}>🔍</Text>
@@ -347,33 +396,7 @@ export default function DetectScreen() {
           <Text style={[styles.actionBtnSub, { color: colors.muted }]}>Make your own</Text>
         </Pressable>
 
-        {/* Challenge a Friend */}
-        <Pressable
-          onPress={() => {
-            if (!selectedBelief) {
-              // No belief selected yet
-              return;
-            }
-            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setScreen("challenge");
-          }}
-          style={({ pressed }) => [
-            styles.actionBtn,
-            {
-              backgroundColor: selectedBelief ? colors.success + "12" : colors.surface,
-              borderColor: selectedBelief ? colors.success + "40" : colors.border,
-              opacity: pressed && selectedBelief ? 0.8 : selectedBelief ? 1 : 0.5,
-            },
-          ]}
-        >
-          <Text style={styles.actionBtnIcon}>🏆</Text>
-          <Text style={[styles.actionBtnTitle, { color: selectedBelief ? colors.success : colors.muted }]}>
-            Challenge
-          </Text>
-          <Text style={[styles.actionBtnSub, { color: colors.muted }]}>
-            {selectedBelief ? "Vs a friend" : "Select belief first"}
-          </Text>
-        </Pressable>
+
       </View>
 
       {/* Search results */}
@@ -488,29 +511,7 @@ export default function DetectScreen() {
             <Text style={styles.scanBtnSub}>60-second belief field detection with audio</Text>
           </Pressable>
 
-          {/* Challenge button */}
-          <Pressable
-            onPress={() => {
-              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setScreen("challenge");
-            }}
-            style={({ pressed }) => [
-              styles.challengeBtn,
-              {
-                backgroundColor: colors.success + "15",
-                borderColor: colors.success + "50",
-                opacity: pressed ? 0.8 : 1,
-                transform: [{ scale: pressed ? 0.97 : 1 }],
-              },
-            ]}
-          >
-            <Text style={[styles.challengeBtnText, { color: colors.success }]}>
-              🏆 Challenge a Friend
-            </Text>
-            <Text style={[styles.challengeBtnSub, { color: colors.muted }]}>
-              Compete to see who believes harder!
-            </Text>
-          </Pressable>
+
         </View>
       )}
 
@@ -611,7 +612,7 @@ const styles = StyleSheet.create({
   },
   searchIcon: { fontSize: 16, marginRight: 8 },
   searchInput: { flex: 1, fontSize: 15, height: 48 },
-  actionRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
+  actionRow: { marginBottom: 16 },
   actionBtn: {
     flex: 1,
     borderRadius: 14,
@@ -677,16 +678,7 @@ const styles = StyleSheet.create({
   },
   scanBtnText: { fontSize: 18, fontWeight: "800", color: "#fff" },
   scanBtnSub: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 2 },
-  challengeBtn: {
-    width: "100%",
-    paddingVertical: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    alignItems: "center",
-    marginTop: 12,
-  },
-  challengeBtnText: { fontSize: 16, fontWeight: "700" },
-  challengeBtnSub: { fontSize: 12, marginTop: 2 },
+
   journalPreview: { marginTop: 24 },
   journalCard: {
     borderRadius: 14,
@@ -716,4 +708,48 @@ const styles = StyleSheet.create({
   recentDate: { fontSize: 12, marginTop: 2 },
   recentScore: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
   recentScoreText: { fontSize: 18, fontWeight: "800" },
+  streakCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 16,
+  },
+  streakRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    marginBottom: 10,
+  },
+  streakItem: { alignItems: "center", flex: 1 },
+  streakNumber: { fontSize: 28, fontWeight: "900" },
+  streakLabel: { fontSize: 11, fontWeight: "600", marginTop: 2, textTransform: "uppercase", letterSpacing: 0.5 },
+  streakDivider: { width: 1, height: 36 },
+  streakMessage: { fontSize: 13, fontWeight: "600", textAlign: "center", marginTop: 4 },
+  scannedToday: { fontSize: 12, fontWeight: "600", textAlign: "center", marginTop: 6 },
+  milestoneRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 10,
+  },
+  milestoneBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    gap: 4,
+  },
+  milestoneEmoji: { fontSize: 14 },
+  milestoneText: { fontSize: 11, fontWeight: "600" },
+  milestoneNotif: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  milestoneNotifText: { fontSize: 14, fontWeight: "700" },
+  milestoneNotifSub: { fontSize: 11, marginTop: 4 },
 });

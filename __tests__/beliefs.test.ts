@@ -226,6 +226,77 @@ describe("ScanResult journalEntry", () => {
   });
 });
 
+describe("Belief Themes", () => {
+  it("should have themes for all main categories", async () => {
+    const { BELIEF_THEMES, getThemeForCategory, getThemeForBelief } = await import("../constants/belief-themes");
+    expect(BELIEF_THEMES.childhood).toBeDefined();
+    expect(BELIEF_THEMES.religion).toBeDefined();
+    expect(BELIEF_THEMES.spiritual).toBeDefined();
+    expect(BELIEF_THEMES.personal).toBeDefined();
+    expect(BELIEF_THEMES.supernatural).toBeDefined();
+    expect(BELIEF_THEMES.seasonal).toBeDefined();
+    expect(BELIEF_THEMES.custom).toBeDefined();
+  });
+
+  it("each theme should have required visual properties", async () => {
+    const { BELIEF_THEMES } = await import("../constants/belief-themes");
+    for (const [key, theme] of Object.entries(BELIEF_THEMES)) {
+      expect(theme.name).toBeTruthy();
+      expect(theme.gradientColors).toHaveLength(3);
+      expect(theme.orbGlow).toBeTruthy();
+      expect(theme.orbRing).toBeTruthy();
+      expect(theme.particleColors.length).toBeGreaterThanOrEqual(3);
+      expect(theme.ambientSymbols.length).toBeGreaterThanOrEqual(3);
+      expect(theme.accent).toBeTruthy();
+      expect(theme.atmosphereLabel).toBeTruthy();
+    }
+  });
+
+  it("getThemeForBelief should return correct theme for known categories", async () => {
+    const { getThemeForBelief } = await import("../constants/belief-themes");
+    const childhood = getThemeForBelief("Childhood Magic");
+    expect(childhood.name).toBe("Wonder & Magic");
+    const religion = getThemeForBelief("World Religions");
+    expect(religion.name).toBe("Sacred Light");
+  });
+
+  it("getThemeForBelief should return fallback for unknown category", async () => {
+    const { getThemeForBelief } = await import("../constants/belief-themes");
+    const fallback = getThemeForBelief("Unknown Category");
+    expect(fallback).toBeDefined();
+    expect(fallback.name).toBe("Wonder & Magic");
+  });
+});
+
+describe("Belief Streak", () => {
+  it("getStreakMessage should return appropriate messages", async () => {
+    const { getStreakMessage } = await import("../hooks/use-belief-streak");
+    expect(getStreakMessage(0)).toContain("Start");
+    expect(getStreakMessage(1)).toContain("Great start");
+    expect(getStreakMessage(3)).toContain("Three-day");
+    expect(getStreakMessage(7)).toContain("One full week");
+    expect(getStreakMessage(14)).toContain("Two weeks");
+    expect(getStreakMessage(30)).toContain("Legendary");
+  });
+
+  it("getMilestoneLabel should return emoji and label", async () => {
+    const { getMilestoneLabel } = await import("../hooks/use-belief-streak");
+    const first = getMilestoneLabel("first-scan");
+    expect(first.emoji).toBe("🌟");
+    expect(first.label).toBe("First Scan");
+    const streak7 = getMilestoneLabel("7-day-streak");
+    expect(streak7.emoji).toBe("⚡");
+    expect(streak7.label).toBe("7-Day Streak");
+  });
+
+  it("getMilestoneLabel should handle unknown milestones", async () => {
+    const { getMilestoneLabel } = await import("../hooks/use-belief-streak");
+    const unknown = getMilestoneLabel("unknown-milestone");
+    expect(unknown.emoji).toBe("⭐");
+    expect(unknown.label).toBe("unknown-milestone");
+  });
+});
+
 describe("generateSummary", () => {
   it("should return extraordinary message for score >= 80", () => {
     const result = generateSummary(85, "Santa Claus");

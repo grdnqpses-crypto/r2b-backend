@@ -33,3 +33,9 @@
 - [x] Add Belief Journal — post-scan reflection writing, saved with scan history, viewable in journal tab
 - [x] Add animated particle effects to orb visualization (sparkles, energy waves, belief-themed floating symbols)
 - [x] Add Challenge a Friend mode — two people scan same belief, compare scores side by side
+- [x] Remove Challenge a Friend mode (belief is personal, not competitive)
+- [x] Remove competitive/leaderboard elements
+- [x] Add Belief Streak tracker — reward daily scanning with streak counter, encourage deeper belief over time
+- [x] Enhance personal growth focus — show belief deepening over time, personal bests, growth journey
+- [x] Add themed scan environments per belief category (colors, gradients, particle styles matching each belief)
+- [x] Add belief streak tracker — daily scan counter, personal growth journey, encouragement for consistency
