@@ -1,0 +1,28 @@
+# Belief Field Detector — TODO
+
+- [x] Set up dark scientific theme (colors, fonts, always-dark mode)
+- [x] Add tab icon mappings for Detect, History, Learn tabs
+- [x] Configure 3-tab layout (Detect, History, Learn)
+- [x] Build onboarding flow (3 slides, shown once)
+- [x] Build Home/Detect screen with belief input, intensity slider, begin scan button
+- [x] Build sensor integration engine (accelerometer, gyroscope, magnetometer, barometer, light sensor, device motion, pedometer)
+- [x] Build Live Scanner screen with real-time sensor dashboard
+- [x] Build sensor cards with live values, units, explanations, mini-graphs
+- [x] Build central belief field visualization (animated orb)
+- [x] Build real-time explanation ticker during scan
+- [x] Build Results screen with belief field score and sensor breakdown
+- [x] Build sensor detail cards with baseline vs peak, deviation, interpretation
+- [x] Build History tab with past scans list and stats
+- [x] Build Learn tab with educational content about sensors and belief science
+- [x] Add haptic feedback during scan intensity changes
+- [x] Add keep-awake during scan
+- [x] Persist scan history with AsyncStorage
+- [x] Generate app logo and branding assets
+- [x] Ensure all sensor readings are transparent with plain-language explanations
+- [x] Ensure user understands what phone is doing, why, and what outcome means
+- [x] Add pre-built belief categories with icons (Santa, Tooth Fairy, Easter Bunny, religions, spiritual, custom)
+- [x] Make experience inspiring and encouraging — harder belief = stronger sensor response
+- [x] Kid-friendly language and encouraging feedback messages
+- [x] Build unified sensor visualization — all sensors merged into one animated "apparition" display
+- [x] Add parent mode with gentle bedtime/behavior prompts ("The magic works while you sleep!")
+- [x] Ensure full cross-platform support (iPhone + Android), handle platform-specific sensor differences gracefully
