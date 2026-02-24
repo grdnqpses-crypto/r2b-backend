@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { View, Text, FlatList, Pressable, StyleSheet, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useKeepAwake } from "expo-keep-awake";
@@ -26,9 +26,9 @@ interface LiveScannerProps {
 }
 
 export function LiveScanner({ belief, intensity, scanDuration = 60, soundEnabled = true, storyEnabled = true, onComplete, onCancel }: LiveScannerProps) {
-  if (Platform.OS !== "web") {
-    useKeepAwake();
-  }
+  // Always call useKeepAwake unconditionally (React Rules of Hooks)
+  // On web it's a no-op internally
+  useKeepAwake();
   const colors = useColors();
   const [countdown, setCountdown] = useState(5);
   const [started, setStarted] = useState(false);
@@ -71,19 +71,23 @@ export function LiveScanner({ belief, intensity, scanDuration = 60, soundEnabled
 
   // Haptic on phase change
   useEffect(() => {
-    if (sensorState.phase === "scanning" && Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
+    try {
+      if (sensorState.phase === "scanning" && Platform.OS !== "web") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    } catch {}
   }, [sensorState.phase]);
 
-  // Haptic on score milestones
-  const lastMilestone = useState(0);
+  // Haptic on score milestones — use useRef to avoid mutating state directly
+  const lastMilestoneRef = useRef(0);
   useEffect(() => {
-    const milestone = Math.floor(sensorState.overallScore / 20) * 20;
-    if (milestone > lastMilestone[0] && Platform.OS !== "web") {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      lastMilestone[0] = milestone;
-    }
+    try {
+      const milestone = Math.floor(sensorState.overallScore / 20) * 20;
+      if (milestone > lastMilestoneRef.current && Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        lastMilestoneRef.current = milestone;
+      }
+    } catch {}
   }, [sensorState.overallScore]);
 
   // Auto-complete
@@ -104,7 +108,7 @@ export function LiveScanner({ belief, intensity, scanDuration = 60, soundEnabled
           sensorId: s.id,
           sensorName: s.name,
           baseline: s.baseline,
-          peak: Math.max(...s.history, s.current),
+          peak: s.history.length > 0 ? Math.max(...s.history, s.current) : s.current,
           deviation: s.deviation,
           deviationPercent: s.deviationPercent,
           unit: s.unit,
@@ -123,9 +127,11 @@ export function LiveScanner({ belief, intensity, scanDuration = 60, soundEnabled
         summary: generateSummary(sensorState.overallScore, belief.name),
       };
 
-      if (Platform.OS !== "web") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
+      try {
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+      } catch {}
 
       setTimeout(() => onComplete(result), 500);
     }

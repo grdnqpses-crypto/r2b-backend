@@ -28,8 +28,8 @@ export function SensorCard({ sensor }: SensorCardProps) {
       : "BASELINE";
 
   // Mini sparkline using simple bar chart
-  const maxHist = Math.max(...sensor.history, 0.001);
-  const minHist = Math.min(...sensor.history, 0);
+  const maxHist = sensor.history.length > 0 ? Math.max(...sensor.history) : 0.001;
+  const minHist = sensor.history.length > 0 ? Math.min(...sensor.history) : 0;
   const range = maxHist - minHist || 1;
 
   return (

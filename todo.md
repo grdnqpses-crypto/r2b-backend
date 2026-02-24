@@ -73,3 +73,4 @@
 - [x] Build AAB locally (27 MB Android App Bundle for Google Play Store submission)
 - [x] Enable New Architecture (required by Reanimated v4)
 - [x] Install Android SDK 36, build-tools 36.0.0, CMake 3.22.1 for compilation
+- [x] Fix app crash during sensor calibration/scanning phase — app shuts down when all sensors start measuring

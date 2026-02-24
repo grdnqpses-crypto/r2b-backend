@@ -1,14 +1,27 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Platform } from "react-native";
-import {
-  Accelerometer,
-  Gyroscope,
-  Magnetometer,
-  Barometer,
-  DeviceMotion,
-  LightSensor,
-  Pedometer,
-} from "expo-sensors";
+
+// Lazy-load sensors to avoid crashes if the module isn't available
+let Accelerometer: any = null;
+let Gyroscope: any = null;
+let Magnetometer: any = null;
+let Barometer: any = null;
+let DeviceMotion: any = null;
+let LightSensor: any = null;
+let Pedometer: any = null;
+
+try {
+  const sensors = require("expo-sensors");
+  Accelerometer = sensors.Accelerometer;
+  Gyroscope = sensors.Gyroscope;
+  Magnetometer = sensors.Magnetometer;
+  Barometer = sensors.Barometer;
+  DeviceMotion = sensors.DeviceMotion;
+  LightSensor = sensors.LightSensor;
+  Pedometer = sensors.Pedometer;
+} catch {
+  // expo-sensors not available
+}
 
 export interface SensorReading {
   name: string;
@@ -127,6 +140,38 @@ function createInitialSensor(def: (typeof SENSOR_DEFS)[0]): SensorReading {
   };
 }
 
+/** Safe number check — returns 0 for NaN/undefined/null/Infinity */
+function safeNum(val: any): number {
+  if (val == null || typeof val !== "number" || !isFinite(val)) return 0;
+  return val;
+}
+
+/** Safely subscribe to a sensor with error handling */
+async function safeSensorSubscribe(
+  sensor: any,
+  interval: number,
+  listener: (data: any) => void,
+  subs: { remove: () => void }[]
+): Promise<void> {
+  if (!sensor) return;
+  try {
+    const avail = await sensor.isAvailableAsync();
+    if (!avail) return;
+    try {
+      sensor.setUpdateInterval(interval);
+    } catch {
+      // Some sensors don't support setUpdateInterval
+    }
+    const sub = sensor.addListener(listener);
+    if (sub && typeof sub.remove === "function") {
+      subs.push(sub);
+    }
+  } catch (err) {
+    // Sensor not available or permission denied — silently skip
+    console.warn("Sensor subscribe error:", err);
+  }
+}
+
 export function useSensorEngine(
   isScanning: boolean,
   beliefIntensity: number,
@@ -146,39 +191,58 @@ export function useSensorEngine(
   const startTimeRef = useRef<number>(0);
   const tickerIdxRef = useRef(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mountedRef = useRef(true);
+
+  // Track mounted state to prevent updates after unmount
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const updateSensor = useCallback(
     (id: string, magnitude: number, displayValue: string) => {
+      if (!mountedRef.current) return;
+
       const idx = sensorsRef.current.findIndex((s) => s.id === id);
       if (idx === -1) return;
 
+      // Ensure magnitude is a safe number
+      const safeMag = safeNum(magnitude);
+
       const sensor = { ...sensorsRef.current[idx] };
       sensor.available = true;
-      sensor.current = magnitude;
-      sensor.rawMagnitude = magnitude;
+      sensor.current = safeMag;
+      sensor.rawMagnitude = safeMag;
       sensor.value = displayValue;
 
       // Build history (keep last 30 readings)
-      sensor.history = [...sensor.history, magnitude].slice(-30);
+      sensor.history = [...sensor.history, safeMag].slice(-30);
 
       // Calibration: first 5 seconds build baseline
       if (!baselinesRef.current[id]) baselinesRef.current[id] = [];
 
       const elapsed = (Date.now() - startTimeRef.current) / 1000;
       if (elapsed < 5) {
-        baselinesRef.current[id].push(magnitude);
+        baselinesRef.current[id].push(safeMag);
         sensor.status = "calibrating";
+        const baselineArr = baselinesRef.current[id];
         sensor.baseline =
-          baselinesRef.current[id].reduce((a, b) => a + b, 0) /
-          baselinesRef.current[id].length;
+          baselineArr.length > 0
+            ? baselineArr.reduce((a, b) => a + b, 0) / baselineArr.length
+            : 0;
       } else {
-        sensor.deviation = magnitude - sensor.baseline;
+        sensor.deviation = safeMag - sensor.baseline;
         const baselineAbs = Math.abs(sensor.baseline) || 1;
         sensor.deviationPercent = Math.abs(sensor.deviation / baselineAbs) * 100;
 
         // Apply belief intensity multiplier (stronger belief = more responsive)
         const intensityMultiplier = 0.5 + (beliefIntensity / 10) * 1.5;
         sensor.deviationPercent *= intensityMultiplier;
+
+        // Clamp to prevent crazy numbers
+        sensor.deviationPercent = Math.min(sensor.deviationPercent, 200);
 
         sensor.status = sensor.deviationPercent > 3 ? "shifting" : sensor.deviationPercent > 1 ? "active" : "baseline";
       }
@@ -201,103 +265,152 @@ export function useSensorEngine(
     setState((prev) => ({ ...prev, phase: "calibrating" }));
 
     const subs: { remove: () => void }[] = [];
-    const UPDATE_INTERVAL = 200;
+    const UPDATE_INTERVAL = 250; // Slightly slower to reduce load
 
-    // Accelerometer
-    Accelerometer.isAvailableAsync().then((avail) => {
-      if (!avail) return;
-      Accelerometer.setUpdateInterval(UPDATE_INTERVAL);
-      subs.push(
-        Accelerometer.addListener(({ x, y, z }) => {
-          const mag = Math.sqrt(x * x + y * y + z * z);
-          updateSensor("accelerometer", mag, `${mag.toFixed(3)}`);
-        })
-      );
-    });
-
-    // Gyroscope
-    Gyroscope.isAvailableAsync().then((avail) => {
-      if (!avail) return;
-      Gyroscope.setUpdateInterval(UPDATE_INTERVAL);
-      subs.push(
-        Gyroscope.addListener(({ x, y, z }) => {
-          const mag = Math.sqrt(x * x + y * y + z * z);
-          updateSensor("gyroscope", mag, `${mag.toFixed(3)}`);
-        })
-      );
-    });
-
-    // Magnetometer
-    Magnetometer.isAvailableAsync().then((avail) => {
-      if (!avail) return;
-      Magnetometer.setUpdateInterval(UPDATE_INTERVAL);
-      subs.push(
-        Magnetometer.addListener(({ x, y, z }) => {
-          const mag = Math.sqrt(x * x + y * y + z * z);
-          updateSensor("magnetometer", mag, `${mag.toFixed(1)}`);
-        })
-      );
-    });
-
-    // Barometer
-    Barometer.isAvailableAsync().then((avail) => {
-      if (!avail) return;
-      Barometer.setUpdateInterval(1000);
-      subs.push(
-        Barometer.addListener((data) => {
-          updateSensor("barometer", data.pressure, `${data.pressure.toFixed(2)}`);
-        })
-      );
-    });
-
-    // Light Sensor (Android only)
-    if (Platform.OS === "android") {
-      LightSensor.isAvailableAsync().then((avail) => {
-        if (!avail) return;
-        LightSensor.setUpdateInterval(UPDATE_INTERVAL);
-        subs.push(
-          LightSensor.addListener((data) => {
-            updateSensor("light", data.illuminance, `${data.illuminance.toFixed(0)}`);
-          })
+    // Stagger sensor subscriptions to avoid overwhelming the device
+    const setupSensors = async () => {
+      try {
+        // Accelerometer
+        await safeSensorSubscribe(
+          Accelerometer,
+          UPDATE_INTERVAL,
+          (data: any) => {
+            const x = safeNum(data?.x);
+            const y = safeNum(data?.y);
+            const z = safeNum(data?.z);
+            const mag = Math.sqrt(x * x + y * y + z * z);
+            updateSensor("accelerometer", mag, `${mag.toFixed(3)}`);
+          },
+          subs
         );
-      });
-    } else {
-      // On iOS, mark as available with estimated ambient value
-      const idx = sensorsRef.current.findIndex((s) => s.id === "light");
-      if (idx !== -1) {
-        sensorsRef.current[idx].available = true;
-        sensorsRef.current[idx].value = "est.";
-      }
-    }
 
-    // Device Motion
-    DeviceMotion.isAvailableAsync().then((avail) => {
-      if (!avail) return;
-      DeviceMotion.setUpdateInterval(UPDATE_INTERVAL);
-      subs.push(
-        DeviceMotion.addListener((data) => {
-          const r = data.rotation || { alpha: 0, beta: 0, gamma: 0 };
-          const mag = Math.sqrt(
-            (r.alpha || 0) ** 2 + (r.beta || 0) ** 2 + (r.gamma || 0) ** 2
+        // Small delay between sensor subscriptions
+        await new Promise((r) => setTimeout(r, 100));
+
+        // Gyroscope
+        await safeSensorSubscribe(
+          Gyroscope,
+          UPDATE_INTERVAL,
+          (data: any) => {
+            const x = safeNum(data?.x);
+            const y = safeNum(data?.y);
+            const z = safeNum(data?.z);
+            const mag = Math.sqrt(x * x + y * y + z * z);
+            updateSensor("gyroscope", mag, `${mag.toFixed(3)}`);
+          },
+          subs
+        );
+
+        await new Promise((r) => setTimeout(r, 100));
+
+        // Magnetometer
+        await safeSensorSubscribe(
+          Magnetometer,
+          UPDATE_INTERVAL,
+          (data: any) => {
+            const x = safeNum(data?.x);
+            const y = safeNum(data?.y);
+            const z = safeNum(data?.z);
+            const mag = Math.sqrt(x * x + y * y + z * z);
+            updateSensor("magnetometer", mag, `${mag.toFixed(1)}`);
+          },
+          subs
+        );
+
+        await new Promise((r) => setTimeout(r, 100));
+
+        // Barometer — slower update, data can be null on some devices
+        await safeSensorSubscribe(
+          Barometer,
+          1000,
+          (data: any) => {
+            const pressure = safeNum(data?.pressure);
+            if (pressure > 0) {
+              updateSensor("barometer", pressure, `${pressure.toFixed(2)}`);
+            }
+          },
+          subs
+        );
+
+        await new Promise((r) => setTimeout(r, 100));
+
+        // Light Sensor (Android only)
+        if (Platform.OS === "android" && LightSensor) {
+          await safeSensorSubscribe(
+            LightSensor,
+            UPDATE_INTERVAL,
+            (data: any) => {
+              const illuminance = safeNum(data?.illuminance);
+              if (illuminance >= 0) {
+                updateSensor("light", illuminance, `${illuminance.toFixed(0)}`);
+              }
+            },
+            subs
           );
-          const degrees = (mag * 180) / Math.PI;
-          updateSensor("devicemotion", degrees, `${degrees.toFixed(1)}`);
-        })
-      );
-    });
+        } else {
+          // On iOS, mark as available with estimated ambient value
+          const idx = sensorsRef.current.findIndex((s) => s.id === "light");
+          if (idx !== -1) {
+            sensorsRef.current[idx] = {
+              ...sensorsRef.current[idx],
+              available: true,
+              value: "est.",
+            };
+          }
+        }
 
-    // Pedometer
-    Pedometer.isAvailableAsync().then((avail) => {
-      if (!avail) return;
-      subs.push(
-        Pedometer.watchStepCount((result) => {
-          updateSensor("pedometer", result.steps, `${result.steps}`);
-        })
-      );
-    });
+        await new Promise((r) => setTimeout(r, 100));
+
+        // Device Motion — rotation data can be null/undefined
+        await safeSensorSubscribe(
+          DeviceMotion,
+          UPDATE_INTERVAL,
+          (data: any) => {
+            const r = data?.rotation;
+            const alpha = safeNum(r?.alpha);
+            const beta = safeNum(r?.beta);
+            const gamma = safeNum(r?.gamma);
+            const mag = Math.sqrt(alpha ** 2 + beta ** 2 + gamma ** 2);
+            const degrees = (mag * 180) / Math.PI;
+            updateSensor("devicemotion", safeNum(degrees), `${safeNum(degrees).toFixed(1)}`);
+          },
+          subs
+        );
+
+        await new Promise((r) => setTimeout(r, 100));
+
+        // Pedometer — uses watchStepCount, not addListener
+        if (Pedometer) {
+          try {
+            const avail = await Pedometer.isAvailableAsync();
+            if (avail) {
+              const sub = Pedometer.watchStepCount((result: any) => {
+                const steps = safeNum(result?.steps);
+                updateSensor("pedometer", steps, `${steps}`);
+              });
+              if (sub && typeof sub.remove === "function") {
+                subs.push(sub);
+              }
+            }
+          } catch (err) {
+            console.warn("Pedometer error:", err);
+          }
+        }
+      } catch (err) {
+        console.warn("Sensor setup error:", err);
+      }
+    };
+
+    setupSensors();
 
     return () => {
-      subs.forEach((s) => s.remove());
+      subs.forEach((s) => {
+        try {
+          s.remove();
+        } catch {
+          // Already removed
+        }
+      });
     };
   }, [isScanning, updateSensor]);
 
@@ -309,6 +422,8 @@ export function useSensorEngine(
     }
 
     intervalRef.current = setInterval(() => {
+      if (!mountedRef.current) return;
+
       const elapsed = (Date.now() - startTimeRef.current) / 1000;
       const sensors = [...sensorsRef.current];
 
@@ -322,10 +437,10 @@ export function useSensorEngine(
       }
       // Score: 0-100, weighted by belief intensity
       const rawScore = Math.min(totalDeviation * 2, 100);
-      const score = Math.round(rawScore);
+      const score = Math.round(safeNum(rawScore));
 
       // Apparition intensity: 0-1
-      const apparitionIntensity = Math.min(rawScore / 80, 1);
+      const apparitionIntensity = Math.min(safeNum(rawScore) / 80, 1);
 
       // Ticker message
       const shiftingSensors = sensors.filter((s) => s.status === "shifting" || s.status === "active");
@@ -333,7 +448,11 @@ export function useSensorEngine(
       if (shiftingSensors.length > 0) {
         const s = shiftingSensors[tickerIdxRef.current % shiftingSensors.length];
         const msgFn = TICKER_MESSAGES[tickerIdxRef.current % TICKER_MESSAGES.length];
-        ticker = msgFn(s);
+        try {
+          ticker = msgFn(s);
+        } catch {
+          ticker = `${s.name} is responding to your belief field`;
+        }
         tickerIdxRef.current++;
       } else if (elapsed < 5) {
         ticker = "Calibrating sensors — establishing your baseline environment...";

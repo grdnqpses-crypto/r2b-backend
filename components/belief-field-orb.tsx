@@ -156,14 +156,14 @@ export function BeliefFieldOrb({ intensity, score, beliefEmoji, phase, size, the
   const particleSymbols = theme?.ambientSymbols || DEFAULT_SYMBOLS;
   const particleColors = theme?.particleColors || [];
 
-  // Generate particles based on score
-  const particleCount = Math.min(Math.max(Math.floor(score / 8), 3), 16);
+  // Generate particles based on score — limit to 12 max to reduce memory pressure on low-end devices
+  const particleCount = Math.min(Math.max(Math.floor(score / 10), 3), 12);
   const particles = useMemo(() => generateParticles(particleCount, particleSymbols), [particleCount, particleSymbols]);
   const particlesActive = phase === "scanning" || phase === "complete";
 
   useEffect(() => {
     if (phase === "scanning" || phase === "calibrating") {
-      const speed = 2000 - intensity * 1200;
+      const speed = Math.max(2000 - intensity * 1200, 400); // Clamp to minimum 400ms to prevent negative/zero duration
       pulse.value = withRepeat(
         withSequence(
           withTiming(1 + intensity * 0.15, { duration: speed, easing: Easing.inOut(Easing.ease) }),

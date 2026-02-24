@@ -66,13 +66,33 @@ function createWebAudio(): WebAudioEngine | null {
   }
 }
 
-// ---- Native Speech Feedback ----
+// ---- Native Speech Feedback (lazy-loaded with crash protection) ----
 let Speech: typeof import("expo-speech") | null = null;
 if (Platform.OS !== "web") {
   try {
     Speech = require("expo-speech");
   } catch {
     // expo-speech not available
+  }
+}
+
+/** Safe wrapper for Speech.speak that catches TTS engine errors */
+function safeSpeakText(text: string, options?: { rate?: number; pitch?: number; volume?: number }) {
+  if (!Speech || Platform.OS === "web") return;
+  try {
+    Speech.speak(text, options);
+  } catch (err) {
+    console.warn("Speech.speak error:", err);
+  }
+}
+
+/** Safe wrapper for Speech.stop */
+function safeStopSpeech() {
+  if (!Speech || Platform.OS === "web") return;
+  try {
+    Speech.stop();
+  } catch (err) {
+    console.warn("Speech.stop error:", err);
   }
 }
 
@@ -149,11 +169,11 @@ export function useScanAudio() {
     }
 
     // Native speech cues at milestones
-    if (Platform.OS !== "web" && Speech) {
+    if (Platform.OS !== "web") {
       for (let i = SCORE_CUES.length - 1; i >= 0; i--) {
         if (score >= SCORE_CUES[i].threshold && i > lastCueRef.current) {
           lastCueRef.current = i;
-          Speech.speak(SCORE_CUES[i].message, {
+          safeSpeakText(SCORE_CUES[i].message, {
             rate: 0.9,
             pitch: 0.8 + normalized * 0.4,
             volume: 0.6,
@@ -190,9 +210,7 @@ export function useScanAudio() {
       speechIntervalRef.current = null;
     }
 
-    if (Platform.OS !== "web" && Speech) {
-      Speech.stop();
-    }
+    safeStopSpeech();
   }, []);
 
   // Play completion chime
@@ -219,8 +237,8 @@ export function useScanAudio() {
       } catch {
         // Audio not available
       }
-    } else if (Speech) {
-      Speech.speak("Scan complete. Your belief field has been measured.", {
+    } else {
+      safeSpeakText("Scan complete. Your belief field has been measured.", {
         rate: 0.85,
         pitch: 1.1,
         volume: 0.8,
