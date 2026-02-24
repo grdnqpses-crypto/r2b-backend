@@ -69,3 +69,7 @@
 - [x] Ensure all 2026 Google Play Store and Apple App Store requirements are met — documented in BUILD_GUIDE.md
 - [x] Create automated build script (scripts/build.sh) for APK, AAB, and iOS builds
 - [x] Create comprehensive BUILD_GUIDE.md with store listing copy, privacy policy template, billing setup, and troubleshooting
+- [x] Build APK locally (37 MB release APK for testing/sideloading)
+- [x] Build AAB locally (27 MB Android App Bundle for Google Play Store submission)
+- [x] Enable New Architecture (required by Reanimated v4)
+- [x] Install Android SDK 36, build-tools 36.0.0, CMake 3.22.1 for compilation
