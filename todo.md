@@ -75,3 +75,7 @@
 - [x] Install Android SDK 36, build-tools 36.0.0, CMake 3.22.1 for compilation
 - [x] Fix app crash during sensor calibration/scanning phase — app shuts down when all sensors start measuring
 - [x] Fix persistent crash at countdown-to-scan transition — missing Reanimated babel plugin caused worklets to fail in release builds
+- [x] Build self-healing diagnostic engine (auto-checks sensors, animations, audio, haptics, speech)
+- [x] Integrate diagnostic engine into scan flow — auto-disable broken features before scanning
+- [x] Fix sensor-lab crash-prone direct imports (wrap in try-catch like use-sensors.ts)
+- [x] Add runtime self-correction — if a sensor fails mid-scan, gracefully remove it and continue

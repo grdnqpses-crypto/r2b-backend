@@ -1,5 +1,10 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Platform } from "react-native";
+import {
+  isFeatureHealthy,
+  reportFeatureFailure,
+  type FeatureId,
+} from "./use-diagnostics";
 
 // Lazy-load sensors to avoid crashes if the module isn't available
 let Accelerometer: any = null;
@@ -38,7 +43,7 @@ export interface SensorReading {
   deviation: number;
   deviationPercent: number;
   history: number[];
-  status: "calibrating" | "baseline" | "shifting" | "active";
+  status: "calibrating" | "baseline" | "shifting" | "active" | "failed";
 }
 
 export interface SensorEngineState {
@@ -48,6 +53,7 @@ export interface SensorEngineState {
   elapsed: number;
   ticker: string;
   apparitionIntensity: number;
+  diagnosticSummary: string; // Shows which sensors are active/skipped
 }
 
 const SENSOR_DEFS = [
@@ -58,6 +64,7 @@ const SENSOR_DEFS = [
     unit: "g",
     whatItMeasures: "Micro-movements & vibrations (in g-force)",
     whyItMatters: "Your body subtly shifts when you focus belief — even tiny tremors show conviction",
+    diagnosticId: "accelerometer" as FeatureId,
   },
   {
     id: "gyroscope",
@@ -66,6 +73,7 @@ const SENSOR_DEFS = [
     unit: "rad/s",
     whatItMeasures: "Rotation rate & body sway",
     whyItMatters: "Belief focus changes your postural stability — stillness shows deep concentration",
+    diagnosticId: "gyroscope" as FeatureId,
   },
   {
     id: "magnetometer",
@@ -74,6 +82,7 @@ const SENSOR_DEFS = [
     unit: "μT",
     whatItMeasures: "Magnetic field strength around you",
     whyItMatters: "Electromagnetic fields shift with concentrated mental energy",
+    diagnosticId: "magnetometer" as FeatureId,
   },
   {
     id: "barometer",
@@ -82,7 +91,7 @@ const SENSOR_DEFS = [
     unit: "hPa",
     whatItMeasures: "Atmospheric pressure in your environment",
     whyItMatters: "Air pressure responds to environmental energy changes",
-    platformNote: "iOS & Android",
+    diagnosticId: "barometer" as FeatureId,
   },
   {
     id: "light",
@@ -91,7 +100,7 @@ const SENSOR_DEFS = [
     unit: "lux",
     whatItMeasures: "Ambient light level around you",
     whyItMatters: "Light perception shifts with heightened awareness and focus",
-    platformNote: "Android only — iOS uses estimated values",
+    diagnosticId: "light" as FeatureId,
   },
   {
     id: "devicemotion",
@@ -100,6 +109,7 @@ const SENSOR_DEFS = [
     unit: "°",
     whatItMeasures: "Combined orientation, gravity & acceleration",
     whyItMatters: "Your physical alignment changes during deep focus — the phone feels it all",
+    diagnosticId: "devicemotion" as FeatureId,
   },
   {
     id: "pedometer",
@@ -108,6 +118,7 @@ const SENSOR_DEFS = [
     unit: "steps",
     whatItMeasures: "Movement & step detection",
     whyItMatters: "Stillness during belief indicates deep focus — fewer steps means stronger concentration",
+    diagnosticId: "pedometer" as FeatureId,
   },
 ];
 
@@ -146,29 +157,64 @@ function safeNum(val: any): number {
   return val;
 }
 
-/** Safely subscribe to a sensor with error handling */
+/**
+ * Safely subscribe to a sensor with error handling and diagnostic integration.
+ * If the sensor fails, it reports to the diagnostic engine and skips gracefully.
+ */
 async function safeSensorSubscribe(
   sensor: any,
+  sensorId: FeatureId,
   interval: number,
   listener: (data: any) => void,
   subs: { remove: () => void }[]
-): Promise<void> {
-  if (!sensor) return;
+): Promise<boolean> {
+  if (!sensor) {
+    reportFeatureFailure(sensorId, "Sensor module not loaded");
+    return false;
+  }
+
+  // Check diagnostic health first — skip if already known to be broken
+  if (!isFeatureHealthy(sensorId)) {
+    return false;
+  }
+
   try {
-    const avail = await sensor.isAvailableAsync();
-    if (!avail) return;
+    const avail = await Promise.race([
+      sensor.isAvailableAsync(),
+      new Promise<boolean>((_, reject) =>
+        setTimeout(() => reject(new Error("Availability check timeout")), 3000)
+      ),
+    ]);
+    if (!avail) {
+      reportFeatureFailure(sensorId, "Sensor not available on device");
+      return false;
+    }
+
     try {
       sensor.setUpdateInterval(interval);
     } catch {
-      // Some sensors don't support setUpdateInterval
+      // Some sensors don't support setUpdateInterval — non-fatal
     }
-    const sub = sensor.addListener(listener);
+
+    // Wrap the listener in a try-catch to prevent runtime crashes
+    const safeListener = (data: any) => {
+      try {
+        listener(data);
+      } catch (err: any) {
+        // Listener crashed — report and continue
+        reportFeatureFailure(sensorId, `Listener error: ${err?.message}`);
+      }
+    };
+
+    const sub = sensor.addListener(safeListener);
     if (sub && typeof sub.remove === "function") {
       subs.push(sub);
+      return true;
     }
-  } catch (err) {
-    // Sensor not available or permission denied — silently skip
-    console.warn("Sensor subscribe error:", err);
+    return false;
+  } catch (err: any) {
+    reportFeatureFailure(sensorId, err?.message || "Subscribe failed");
+    return false;
   }
 }
 
@@ -184,6 +230,7 @@ export function useSensorEngine(
     elapsed: 0,
     ticker: "Preparing sensors...",
     apparitionIntensity: 0,
+    diagnosticSummary: "",
   });
 
   const sensorsRef = useRef<SensorReading[]>(SENSOR_DEFS.map(createInitialSensor));
@@ -192,6 +239,8 @@ export function useSensorEngine(
   const tickerIdxRef = useRef(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
+  const activeSensorCountRef = useRef(0);
+  const failedSensorsRef = useRef<Set<string>>(new Set());
 
   // Track mounted state to prevent updates after unmount
   useEffect(() => {
@@ -252,12 +301,35 @@ export function useSensorEngine(
     [beliefIntensity]
   );
 
-  // Subscribe to all sensors
+  /** Mark a sensor as failed in the local state */
+  const markSensorFailed = useCallback((id: string) => {
+    failedSensorsRef.current.add(id);
+    const idx = sensorsRef.current.findIndex((s) => s.id === id);
+    if (idx !== -1) {
+      sensorsRef.current[idx] = {
+        ...sensorsRef.current[idx],
+        status: "failed",
+        available: false,
+        value: "N/A",
+      };
+    }
+  }, []);
+
+  // Subscribe to all sensors — with diagnostic pre-check
   useEffect(() => {
     if (!isScanning) {
       sensorsRef.current = SENSOR_DEFS.map(createInitialSensor);
       baselinesRef.current = {};
-      setState((prev) => ({ ...prev, phase: "idle", elapsed: 0, overallScore: 0, apparitionIntensity: 0 }));
+      failedSensorsRef.current = new Set();
+      activeSensorCountRef.current = 0;
+      setState((prev) => ({
+        ...prev,
+        phase: "idle",
+        elapsed: 0,
+        overallScore: 0,
+        apparitionIntensity: 0,
+        diagnosticSummary: "",
+      }));
       return;
     }
 
@@ -265,14 +337,17 @@ export function useSensorEngine(
     setState((prev) => ({ ...prev, phase: "calibrating" }));
 
     const subs: { remove: () => void }[] = [];
-    const UPDATE_INTERVAL = 250; // Slightly slower to reduce load
+    const UPDATE_INTERVAL = 250;
+    let activeCount = 0;
+    const skipped: string[] = [];
 
-    // Stagger sensor subscriptions to avoid overwhelming the device
+    // Stagger sensor subscriptions — skip unhealthy ones automatically
     const setupSensors = async () => {
       try {
         // Accelerometer
-        await safeSensorSubscribe(
+        const accelOk = await safeSensorSubscribe(
           Accelerometer,
+          "accelerometer",
           UPDATE_INTERVAL,
           (data: any) => {
             const x = safeNum(data?.x);
@@ -283,13 +358,15 @@ export function useSensorEngine(
           },
           subs
         );
+        if (accelOk) activeCount++;
+        else { skipped.push("Accelerometer"); markSensorFailed("accelerometer"); }
 
-        // Small delay between sensor subscriptions
         await new Promise((r) => setTimeout(r, 100));
 
         // Gyroscope
-        await safeSensorSubscribe(
+        const gyroOk = await safeSensorSubscribe(
           Gyroscope,
+          "gyroscope",
           UPDATE_INTERVAL,
           (data: any) => {
             const x = safeNum(data?.x);
@@ -300,12 +377,15 @@ export function useSensorEngine(
           },
           subs
         );
+        if (gyroOk) activeCount++;
+        else { skipped.push("Gyroscope"); markSensorFailed("gyroscope"); }
 
         await new Promise((r) => setTimeout(r, 100));
 
         // Magnetometer
-        await safeSensorSubscribe(
+        const magOk = await safeSensorSubscribe(
           Magnetometer,
+          "magnetometer",
           UPDATE_INTERVAL,
           (data: any) => {
             const x = safeNum(data?.x);
@@ -316,12 +396,15 @@ export function useSensorEngine(
           },
           subs
         );
+        if (magOk) activeCount++;
+        else { skipped.push("Magnetometer"); markSensorFailed("magnetometer"); }
 
         await new Promise((r) => setTimeout(r, 100));
 
-        // Barometer — slower update, data can be null on some devices
-        await safeSensorSubscribe(
+        // Barometer
+        const baroOk = await safeSensorSubscribe(
           Barometer,
+          "barometer",
           1000,
           (data: any) => {
             const pressure = safeNum(data?.pressure);
@@ -331,13 +414,16 @@ export function useSensorEngine(
           },
           subs
         );
+        if (baroOk) activeCount++;
+        else { skipped.push("Barometer"); markSensorFailed("barometer"); }
 
         await new Promise((r) => setTimeout(r, 100));
 
         // Light Sensor (Android only)
         if (Platform.OS === "android" && LightSensor) {
-          await safeSensorSubscribe(
+          const lightOk = await safeSensorSubscribe(
             LightSensor,
+            "light",
             UPDATE_INTERVAL,
             (data: any) => {
               const illuminance = safeNum(data?.illuminance);
@@ -347,6 +433,8 @@ export function useSensorEngine(
             },
             subs
           );
+          if (lightOk) activeCount++;
+          else { skipped.push("Light Sensor"); markSensorFailed("light"); }
         } else {
           // On iOS, mark as available with estimated ambient value
           const idx = sensorsRef.current.findIndex((s) => s.id === "light");
@@ -356,14 +444,16 @@ export function useSensorEngine(
               available: true,
               value: "est.",
             };
+            activeCount++;
           }
         }
 
         await new Promise((r) => setTimeout(r, 100));
 
-        // Device Motion — rotation data can be null/undefined
-        await safeSensorSubscribe(
+        // Device Motion
+        const dmOk = await safeSensorSubscribe(
           DeviceMotion,
+          "devicemotion",
           UPDATE_INTERVAL,
           (data: any) => {
             const r = data?.rotation;
@@ -376,25 +466,58 @@ export function useSensorEngine(
           },
           subs
         );
+        if (dmOk) activeCount++;
+        else { skipped.push("Device Motion"); markSensorFailed("devicemotion"); }
 
         await new Promise((r) => setTimeout(r, 100));
 
-        // Pedometer — uses watchStepCount, not addListener
-        if (Pedometer) {
+        // Pedometer
+        if (Pedometer && isFeatureHealthy("pedometer")) {
           try {
-            const avail = await Pedometer.isAvailableAsync();
+            const avail = await Promise.race([
+              Pedometer.isAvailableAsync(),
+              new Promise<boolean>((_, reject) =>
+                setTimeout(() => reject(new Error("Timeout")), 3000)
+              ),
+            ]);
             if (avail) {
               const sub = Pedometer.watchStepCount((result: any) => {
-                const steps = safeNum(result?.steps);
-                updateSensor("pedometer", steps, `${steps}`);
+                try {
+                  const steps = safeNum(result?.steps);
+                  updateSensor("pedometer", steps, `${steps}`);
+                } catch (err: any) {
+                  reportFeatureFailure("pedometer", err?.message);
+                  markSensorFailed("pedometer");
+                }
               });
               if (sub && typeof sub.remove === "function") {
                 subs.push(sub);
+                activeCount++;
               }
+            } else {
+              skipped.push("Pedometer");
+              markSensorFailed("pedometer");
+              reportFeatureFailure("pedometer", "Not available");
             }
-          } catch (err) {
-            console.warn("Pedometer error:", err);
+          } catch (err: any) {
+            skipped.push("Pedometer");
+            markSensorFailed("pedometer");
+            reportFeatureFailure("pedometer", err?.message);
           }
+        } else {
+          skipped.push("Pedometer");
+          markSensorFailed("pedometer");
+        }
+
+        activeSensorCountRef.current = activeCount;
+
+        // Build diagnostic summary
+        const summary = skipped.length > 0
+          ? `${activeCount} sensors active, ${skipped.length} skipped (${skipped.join(", ")})`
+          : `All ${activeCount} sensors active`;
+
+        if (mountedRef.current) {
+          setState((prev) => ({ ...prev, diagnosticSummary: summary }));
         }
       } catch (err) {
         console.warn("Sensor setup error:", err);
@@ -412,7 +535,7 @@ export function useSensorEngine(
         }
       });
     };
-  }, [isScanning, updateSensor]);
+  }, [isScanning, updateSensor, markSensorFailed]);
 
   // Tick loop: update state from refs every 500ms
   useEffect(() => {
@@ -424,50 +547,60 @@ export function useSensorEngine(
     intervalRef.current = setInterval(() => {
       if (!mountedRef.current) return;
 
-      const elapsed = (Date.now() - startTimeRef.current) / 1000;
-      const sensors = [...sensorsRef.current];
+      try {
+        const elapsed = (Date.now() - startTimeRef.current) / 1000;
+        const sensors = [...sensorsRef.current];
 
-      // Calculate overall score
-      const availableSensors = sensors.filter((s) => s.available && s.status !== "calibrating");
-      let totalDeviation = 0;
-      if (availableSensors.length > 0) {
-        totalDeviation =
-          availableSensors.reduce((sum, s) => sum + Math.min(s.deviationPercent, 50), 0) /
-          availableSensors.length;
-      }
-      // Score: 0-100, weighted by belief intensity
-      const rawScore = Math.min(totalDeviation * 2, 100);
-      const score = Math.round(safeNum(rawScore));
-
-      // Apparition intensity: 0-1
-      const apparitionIntensity = Math.min(safeNum(rawScore) / 80, 1);
-
-      // Ticker message
-      const shiftingSensors = sensors.filter((s) => s.status === "shifting" || s.status === "active");
-      let ticker = "Monitoring all sensors — focus your belief...";
-      if (shiftingSensors.length > 0) {
-        const s = shiftingSensors[tickerIdxRef.current % shiftingSensors.length];
-        const msgFn = TICKER_MESSAGES[tickerIdxRef.current % TICKER_MESSAGES.length];
-        try {
-          ticker = msgFn(s);
-        } catch {
-          ticker = `${s.name} is responding to your belief field`;
+        // Calculate overall score — only from non-failed sensors
+        const availableSensors = sensors.filter(
+          (s) => s.available && s.status !== "calibrating" && s.status !== "failed"
+        );
+        let totalDeviation = 0;
+        if (availableSensors.length > 0) {
+          totalDeviation =
+            availableSensors.reduce((sum, s) => sum + Math.min(s.deviationPercent, 50), 0) /
+            availableSensors.length;
         }
-        tickerIdxRef.current++;
-      } else if (elapsed < 5) {
-        ticker = "Calibrating sensors — establishing your baseline environment...";
+        // Score: 0-100, weighted by belief intensity
+        const rawScore = Math.min(totalDeviation * 2, 100);
+        const score = Math.round(safeNum(rawScore));
+
+        // Apparition intensity: 0-1
+        const apparitionIntensity = Math.min(safeNum(rawScore) / 80, 1);
+
+        // Ticker message
+        const shiftingSensors = sensors.filter(
+          (s) => s.status === "shifting" || s.status === "active"
+        );
+        let ticker = "Monitoring all sensors — focus your belief...";
+        if (shiftingSensors.length > 0) {
+          const s = shiftingSensors[tickerIdxRef.current % shiftingSensors.length];
+          const msgFn = TICKER_MESSAGES[tickerIdxRef.current % TICKER_MESSAGES.length];
+          try {
+            ticker = msgFn(s);
+          } catch {
+            ticker = `${s.name} is responding to your belief field`;
+          }
+          tickerIdxRef.current++;
+        } else if (elapsed < 5) {
+          ticker = "Calibrating sensors — establishing your baseline environment...";
+        }
+
+        const phase = elapsed < 5 ? "calibrating" : elapsed >= scanDuration ? "complete" : "scanning";
+
+        setState((prev) => ({
+          sensors,
+          overallScore: score,
+          phase,
+          elapsed,
+          ticker,
+          apparitionIntensity,
+          diagnosticSummary: prev.diagnosticSummary,
+        }));
+      } catch (err) {
+        // Tick loop crashed — this should never happen but just in case
+        console.warn("Tick loop error:", err);
       }
-
-      const phase = elapsed < 5 ? "calibrating" : elapsed >= scanDuration ? "complete" : "scanning";
-
-      setState({
-        sensors,
-        overallScore: score,
-        phase,
-        elapsed,
-        ticker,
-        apparitionIntensity,
-      });
     }, 500);
 
     return () => {

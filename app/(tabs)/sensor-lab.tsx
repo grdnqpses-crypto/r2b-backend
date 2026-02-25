@@ -8,9 +8,26 @@ import {
   Platform,
   Dimensions,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import * as Haptics from "expo-haptics";
-import { Accelerometer, Gyroscope, Magnetometer, Barometer } from "expo-sensors";
+import { isFeatureHealthy, reportFeatureFailure } from "@/hooks/use-diagnostics";
+
+// Safe lazy imports — never crash if a module is missing
+let LinearGradient: any = null;
+try { LinearGradient = require("expo-linear-gradient").LinearGradient; } catch {}
+
+let Haptics: any = null;
+try { Haptics = require("expo-haptics"); } catch {}
+
+let Accelerometer: any = null;
+let Gyroscope: any = null;
+let Magnetometer: any = null;
+let Barometer: any = null;
+try {
+  const sensors = require("expo-sensors");
+  Accelerometer = sensors.Accelerometer;
+  Gyroscope = sensors.Gyroscope;
+  Magnetometer = sensors.Magnetometer;
+  Barometer = sensors.Barometer;
+} catch {}
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 
@@ -103,32 +120,41 @@ export default function SensorLabScreen() {
 
   const startSensors = useCallback(() => {
     const interval = updateRate;
-    Accelerometer.setUpdateInterval(interval);
-    Gyroscope.setUpdateInterval(interval);
-    Magnetometer.setUpdateInterval(interval);
-    Barometer.setUpdateInterval(interval);
+    const subs: Array<{ remove: () => void }> = [];
 
-    const subs = [
-      Accelerometer.addListener((data) => {
-        setAccel(data);
-        const magnitude = Math.sqrt(data.x ** 2 + data.y ** 2 + data.z ** 2);
-        setAccelGraph((prev) => addPoint(prev, magnitude));
-      }),
-      Gyroscope.addListener((data) => {
-        setGyro(data);
-        const magnitude = Math.sqrt(data.x ** 2 + data.y ** 2 + data.z ** 2);
-        setGyroGraph((prev) => addPoint(prev, magnitude));
-      }),
-      Magnetometer.addListener((data) => {
-        setMag(data);
-        const magnitude = Math.sqrt(data.x ** 2 + data.y ** 2 + data.z ** 2);
-        setMagGraph((prev) => addPoint(prev, magnitude));
-      }),
-      Barometer.addListener((data) => {
-        setPressure(data.pressure);
-        setPressureGraph((prev) => addPoint(prev, data.pressure));
-      }),
-    ];
+    // Helper to safely subscribe to a sensor
+    const safeSub = (sensor: any, sensorId: string, listener: (data: any) => void) => {
+      if (!sensor) return;
+      try {
+        sensor.setUpdateInterval(interval);
+        const sub = sensor.addListener((data: any) => {
+          try { listener(data); } catch {}
+        });
+        if (sub && typeof sub.remove === "function") subs.push(sub);
+      } catch (err: any) {
+        reportFeatureFailure(sensorId as any, err?.message);
+      }
+    };
+
+    safeSub(Accelerometer, "accelerometer", (data: any) => {
+      setAccel(data);
+      const magnitude = Math.sqrt((data.x || 0) ** 2 + (data.y || 0) ** 2 + (data.z || 0) ** 2);
+      setAccelGraph((prev) => addPoint(prev, magnitude));
+    });
+    safeSub(Gyroscope, "gyroscope", (data: any) => {
+      setGyro(data);
+      const magnitude = Math.sqrt((data.x || 0) ** 2 + (data.y || 0) ** 2 + (data.z || 0) ** 2);
+      setGyroGraph((prev) => addPoint(prev, magnitude));
+    });
+    safeSub(Magnetometer, "magnetometer", (data: any) => {
+      setMag(data);
+      const magnitude = Math.sqrt((data.x || 0) ** 2 + (data.y || 0) ** 2 + (data.z || 0) ** 2);
+      setMagGraph((prev) => addPoint(prev, magnitude));
+    });
+    safeSub(Barometer, "barometer", (data: any) => {
+      setPressure(data?.pressure || 0);
+      setPressureGraph((prev) => addPoint(prev, data?.pressure || 0));
+    });
 
     subsRef.current = subs;
     setIsRunning(true);
@@ -187,12 +213,14 @@ export default function SensorLabScreen() {
 
   return (
     <ScreenContainer>
-      <LinearGradient
-        colors={["rgba(155,122,255,0.06)", "transparent"]}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 0.3 }}
-      />
+      {LinearGradient ? (
+        <LinearGradient
+          colors={["rgba(155,122,255,0.06)", "transparent"]}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 0.3 }}
+        />
+      ) : null}
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={[styles.title, { color: colors.foreground }]}>Sensor Lab</Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>
@@ -205,8 +233,8 @@ export default function SensorLabScreen() {
             onPress={() => {
               if (isRunning) stopSensors();
               else startSensors();
-              if (Platform.OS !== "web") {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              if (Platform.OS !== "web" && Haptics && isFeatureHealthy("haptics")) {
+                try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}
               }
             }}
             style={({ pressed }) => [
