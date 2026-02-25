@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Platform } from "react-native";
-import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Haptics } from "@/lib/safe-imports";
 
 const DEV_MODE_KEY = "@belief_dev_mode";
 const TAPS_REQUIRED = 11;

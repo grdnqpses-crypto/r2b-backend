@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Platform,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -15,9 +14,8 @@ import Animated, {
   withSequence,
   Easing,
 } from "react-native-reanimated";
-import * as Haptics from "expo-haptics";
-import { useKeepAwake } from "expo-keep-awake";
 import { useColors } from "@/hooks/use-colors";
+import { Haptics, LinearGradient, useKeepAwake } from "@/lib/safe-imports";
 
 interface BeliefTimerProps {
   beliefName: string;

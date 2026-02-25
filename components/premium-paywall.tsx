@@ -1,7 +1,6 @@
 import { View, Text, Pressable, ScrollView, StyleSheet, Platform } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/use-colors";
+import { Haptics, LinearGradient } from "@/lib/safe-imports";
 
 interface PremiumPaywallProps {
   reason: "scan-limit" | "locked-belief" | "locked-feature" | "general";

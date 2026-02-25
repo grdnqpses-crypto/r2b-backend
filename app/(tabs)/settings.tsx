@@ -9,8 +9,6 @@ import {
   Alert,
   Switch,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
@@ -27,6 +25,7 @@ import { PremiumPaywall } from "@/components/premium-paywall";
 import { AchievementsGallery } from "@/components/achievements-gallery";
 import { DeveloperPanel } from "@/components/developer-panel";
 import { getAvailableStoryBeliefIds } from "@/constants/belief-stories";
+import { Haptics, LinearGradient } from "@/lib/safe-imports";
 
 // Settings keys
 const SETTINGS_KEY = "belief-field-settings";

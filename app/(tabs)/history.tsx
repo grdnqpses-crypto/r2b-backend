@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { View, Text, FlatList, Pressable, StyleSheet, Modal, Platform } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useScanHistory, type ScanResult } from "@/hooks/use-scan-history";
@@ -9,6 +7,7 @@ import { ResultsScreen } from "@/components/results-screen";
 import { BedtimeMessage } from "@/components/bedtime-message";
 import { getBeliefById } from "@/constants/beliefs";
 import { JournalEntryModal } from "@/components/journal-entry-modal";
+import { Haptics, LinearGradient } from "@/lib/safe-imports";
 
 export default function HistoryScreen() {
   const colors = useColors();

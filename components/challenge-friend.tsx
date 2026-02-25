@@ -8,12 +8,12 @@ import {
   StyleSheet,
   Platform,
 } from "react-native";
-import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/use-colors";
 import { LiveScanner } from "./live-scanner";
 import { BeliefFieldOrb } from "./belief-field-orb";
 import type { BeliefOption } from "@/constants/beliefs";
 import type { ScanResult } from "@/hooks/use-scan-history";
+import { Haptics } from "@/lib/safe-imports";
 
 interface ChallengeFriendProps {
   belief: BeliefOption;

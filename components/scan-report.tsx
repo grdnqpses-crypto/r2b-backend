@@ -1,11 +1,10 @@
 import { useRef, useCallback, useState } from "react";
 import { View, Text, Pressable, StyleSheet, Platform, ScrollView } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import * as Haptics from "expo-haptics";
 import * as Sharing from "expo-sharing";
 import ViewShot from "react-native-view-shot";
 import { useColors } from "@/hooks/use-colors";
 import type { ScanResult } from "@/hooks/use-scan-history";
+import { Haptics, LinearGradient } from "@/lib/safe-imports";
 
 interface ScanReportProps {
   result: ScanResult;

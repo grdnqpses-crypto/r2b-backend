@@ -7,9 +7,9 @@ import {
   Switch,
   Platform,
 } from "react-native";
-import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/use-colors";
 import type { DevModeData } from "@/hooks/use-developer-mode";
+import { Haptics } from "@/lib/safe-imports";
 
 interface Props {
   devMode: DevModeData;

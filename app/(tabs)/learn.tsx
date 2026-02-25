@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet, Platform } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
+import { Haptics, LinearGradient } from "@/lib/safe-imports";
 
 interface Article {
   id: string;

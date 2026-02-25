@@ -1,11 +1,10 @@
 import { View, Text, ScrollView, Pressable, StyleSheet, Platform } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/use-colors";
 import { useShareResults } from "@/hooks/use-share-results";
 import { BeliefFieldOrb } from "./belief-field-orb";
 import { getBeliefById } from "@/constants/beliefs";
 import type { ScanResult } from "@/hooks/use-scan-history";
+import { Haptics, LinearGradient } from "@/lib/safe-imports";
 
 export interface ResultsScreenProps {
   result: ScanResult;

@@ -79,3 +79,4 @@
 - [x] Integrate diagnostic engine into scan flow — auto-disable broken features before scanning
 - [x] Fix sensor-lab crash-prone direct imports (wrap in try-catch like use-sensors.ts)
 - [x] Add runtime self-correction — if a sensor fails mid-scan, gracefully remove it and continue
+- [x] Fix app crash when scanning Guardian Angel (12345, 53321) — root cause: 17 files had unprotected direct imports of expo-linear-gradient, expo-haptics, expo-keep-awake. Created centralized safe-imports module with fallbacks.

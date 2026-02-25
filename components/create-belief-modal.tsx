@@ -9,9 +9,9 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from "react-native";
-import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/use-colors";
 import { CUSTOM_EMOJI_OPTIONS, createCustomBelief, type BeliefOption } from "@/constants/beliefs";
+import { Haptics } from "@/lib/safe-imports";
 
 interface CreateBeliefModalProps {
   onSave: (belief: BeliefOption) => void;

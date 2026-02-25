@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, Text, Pressable, Dimensions, StyleSheet, ScrollView } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { useColors } from "@/hooks/use-colors";
+import { LinearGradient } from "@/lib/safe-imports";
 
 const { width } = Dimensions.get("window");
 

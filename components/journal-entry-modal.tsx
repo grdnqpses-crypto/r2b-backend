@@ -9,8 +9,8 @@ import {
   KeyboardAvoidingView,
   ScrollView,
 } from "react-native";
-import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/use-colors";
+import { Haptics } from "@/lib/safe-imports";
 
 interface JournalEntryModalProps {
   beliefName: string;

@@ -1,11 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { View, Text, Pressable, StyleSheet, Platform, Animated, Easing } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { useKeepAwake } from "expo-keep-awake";
-import * as Haptics from "expo-haptics";
 import * as Speech from "expo-speech";
 import { useColors } from "@/hooks/use-colors";
 import type { BeliefOption } from "@/constants/beliefs";
+import { Haptics, LinearGradient, useKeepAwake } from "@/lib/safe-imports";
 
 interface BeliefMeditationProps {
   belief: BeliefOption;

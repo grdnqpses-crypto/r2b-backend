@@ -8,14 +8,13 @@ import {
   Modal,
   Platform,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/use-colors";
 import {
   ALL_ACHIEVEMENTS,
   ACHIEVEMENT_CATEGORIES,
   type Achievement,
 } from "@/hooks/use-achievements";
+import { Haptics, LinearGradient } from "@/lib/safe-imports";
 
 interface Props {
   earned: { id: string; earnedAt: string }[];

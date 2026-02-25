@@ -9,8 +9,6 @@ import {
   Platform,
   Modal,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useOnboarding } from "@/hooks/use-onboarding";
@@ -35,6 +33,7 @@ import {
   type BeliefCategory,
 } from "@/constants/beliefs";
 import { getBeliefById } from "@/constants/beliefs";
+import { Haptics, LinearGradient } from "@/lib/safe-imports";
 
 type Screen =
   | "home"

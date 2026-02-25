@@ -1,5 +1,4 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -10,6 +9,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useEffect } from "react";
 import { useColors } from "@/hooks/use-colors";
+import { LinearGradient } from "@/lib/safe-imports";
 
 interface BedtimeMessageProps {
   beliefName: string;
