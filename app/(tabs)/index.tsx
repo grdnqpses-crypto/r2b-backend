@@ -17,6 +17,7 @@ import { useCustomBeliefs } from "@/hooks/use-custom-beliefs";
 import { useBeliefStreak, getStreakMessage, getMilestoneLabel } from "@/hooks/use-belief-streak";
 import { Onboarding } from "@/components/onboarding";
 import { LiveScanner } from "@/components/live-scanner";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { ResultsScreen } from "@/components/results-screen";
 import { BedtimeMessage } from "@/components/bedtime-message";
 import { CreateBeliefModal } from "@/components/create-belief-modal";
@@ -187,108 +188,128 @@ export default function DetectScreen() {
     );
   }
 
-  // Meditation
+  // Meditation — wrapped in ErrorBoundary
   if (screen === "meditation" && selectedBelief) {
     return (
       <Modal visible animationType="fade" statusBarTranslucent>
-        <BeliefMeditation
-          belief={selectedBelief}
-          onComplete={() => setScreen("scanning")}
-          onSkip={() => setScreen("scanning")}
-        />
+        <ErrorBoundary retryable onRetry={() => setScreen("home")}>
+          <BeliefMeditation
+            belief={selectedBelief}
+            onComplete={() => setScreen("scanning")}
+            onSkip={() => setScreen("scanning")}
+          />
+        </ErrorBoundary>
       </Modal>
     );
   }
 
-  // Live Scanner
+  // Live Scanner — wrapped in ErrorBoundary to catch any crash and show retry UI
   if (screen === "scanning" && selectedBelief) {
     return (
       <Modal visible animationType="slide" statusBarTranslucent>
-        <LiveScanner
-          belief={selectedBelief}
-          intensity={intensity}
-          scanDuration={settings.scanDuration}
-          soundEnabled={settings.soundEnabled}
-          storyEnabled={settings.storyNarrationEnabled}
-          onComplete={handleScanComplete}
-          onCancel={() => setScreen("home")}
-        />
+        <ErrorBoundary
+          retryable
+          onRetry={() => setScreen("home")}
+          onError={(error) => {
+            console.warn("[Scanner] Caught crash:", error.message);
+          }}
+        >
+          <LiveScanner
+            belief={selectedBelief}
+            intensity={intensity}
+            scanDuration={settings.scanDuration}
+            soundEnabled={settings.soundEnabled}
+            storyEnabled={settings.storyNarrationEnabled}
+            onComplete={handleScanComplete}
+            onCancel={() => setScreen("home")}
+          />
+        </ErrorBoundary>
       </Modal>
     );
   }
 
-  // Journal entry
+  // Journal entry — wrapped in ErrorBoundary
   if (screen === "journal" && lastResult) {
     return (
       <Modal visible animationType="slide" statusBarTranslucent>
-        <JournalEntryModal
-          beliefName={lastResult.beliefName}
-          beliefEmoji={lastResult.beliefEmoji}
-          score={lastResult.score}
-          existingEntry={lastResult.journalEntry}
-          onSave={handleJournalSave}
-          onSkip={() => setScreen("results")}
-        />
+        <ErrorBoundary retryable onRetry={() => setScreen("home")}>
+          <JournalEntryModal
+            beliefName={lastResult.beliefName}
+            beliefEmoji={lastResult.beliefEmoji}
+            score={lastResult.score}
+            existingEntry={lastResult.journalEntry}
+            onSave={handleJournalSave}
+            onSkip={() => setScreen("results")}
+          />
+        </ErrorBoundary>
       </Modal>
     );
   }
 
-  // Report
+  // Report — wrapped in ErrorBoundary
   if (screen === "report" && lastResult) {
     return (
       <Modal visible animationType="slide" statusBarTranslucent>
-        <ScanReport
-          result={lastResult}
-          onDismiss={() => setScreen("results")}
-        />
+        <ErrorBoundary retryable onRetry={() => setScreen("home")}>
+          <ScanReport
+            result={lastResult}
+            onDismiss={() => setScreen("results")}
+          />
+        </ErrorBoundary>
       </Modal>
     );
   }
 
-  // Results
+  // Results — wrapped in ErrorBoundary
   if (screen === "results" && lastResult) {
     return (
       <Modal visible animationType="slide" statusBarTranslucent>
-        <ResultsScreen
-          result={lastResult}
-          onDismiss={() => setScreen("home")}
-          onBedtime={handleBedtime}
-          onTimer={handleTimer}
-          onJournal={handleJournal}
-          onReport={handleViewReport}
-        />
+        <ErrorBoundary retryable onRetry={() => setScreen("home")}>
+          <ResultsScreen
+            result={lastResult}
+            onDismiss={() => setScreen("home")}
+            onBedtime={handleBedtime}
+            onTimer={handleTimer}
+            onJournal={handleJournal}
+            onReport={handleViewReport}
+          />
+        </ErrorBoundary>
       </Modal>
     );
   }
 
-  // Belief Timer
+  // Belief Timer — wrapped in ErrorBoundary
   if (screen === "timer" && lastResult) {
     return (
       <Modal visible animationType="fade" statusBarTranslucent>
-        <BeliefTimer
-          beliefName={lastResult.beliefName}
-          beliefEmoji={lastResult.beliefEmoji}
-          score={lastResult.score}
-          onDismiss={() => setScreen("home")}
-        />
+        <ErrorBoundary retryable onRetry={() => setScreen("home")}>
+          <BeliefTimer
+            beliefName={lastResult.beliefName}
+            beliefEmoji={lastResult.beliefEmoji}
+            score={lastResult.score}
+            onDismiss={() => setScreen("home")}
+          />
+        </ErrorBoundary>
       </Modal>
     );
   }
 
-  // Bedtime
+  // Bedtime — wrapped in ErrorBoundary
   if (screen === "bedtime" && lastResult) {
     const belief = getBeliefById(lastResult.beliefId);
     const customBelief = customBeliefs.find((b) => b.id === lastResult.beliefId);
     const foundBelief = belief || customBelief;
     return (
       <Modal visible animationType="fade" statusBarTranslucent>
-        <BedtimeMessage
-          beliefName={lastResult.beliefName}
-          beliefEmoji={lastResult.beliefEmoji}
-          message={foundBelief?.bedtimeMessage || "Time for bed! The magic works while you sleep."}
-          score={lastResult.score}
-          onDismiss={() => setScreen("home")}
-        />
+        <ErrorBoundary retryable onRetry={() => setScreen("home")}>
+          <BedtimeMessage
+            beliefName={lastResult.beliefName}
+            beliefEmoji={lastResult.beliefEmoji}
+            message={foundBelief?.bedtimeMessage || "Time for bed! The magic works while you sleep."}
+            score={lastResult.score}
+            onDismiss={() => setScreen("home")}
+          />
+        </ErrorBoundary>
       </Modal>
     );
   }

@@ -1,6 +1,12 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { View, Text, Pressable, StyleSheet, Platform, Animated, Easing } from "react-native";
-import * as Speech from "expo-speech";
+// Safe lazy-load expo-speech to prevent crash if module unavailable
+let Speech: any = null;
+try {
+  Speech = require("expo-speech");
+} catch {
+  Speech = { speak: () => {}, stop: () => {}, isSpeakingAsync: async () => false };
+}
 import { useColors } from "@/hooks/use-colors";
 import type { BeliefOption } from "@/constants/beliefs";
 import { Haptics, LinearGradient, useKeepAwake } from "@/lib/safe-imports";
@@ -103,9 +109,8 @@ const MEDITATION_STEPS = [
 ];
 
 export function BeliefMeditation({ belief, onComplete, onSkip }: BeliefMeditationProps) {
-  if (Platform.OS !== "web") {
-    useKeepAwake();
-  }
+  // Must call unconditionally (Rules of Hooks) — it no-ops on web internally
+  useKeepAwake();
   const colors = useColors();
   const [currentStep, setCurrentStep] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -185,15 +190,19 @@ export function BeliefMeditation({ belief, onComplete, onSkip }: BeliefMeditatio
 
   // Voice guidance
   useEffect(() => {
-    if (currentData.voice) {
-      Speech.speak(currentData.voice, {
-        rate: 0.85,
-        pitch: 1.0,
-        volume: 0.9,
-      });
+    if (currentData.voice && Speech) {
+      try {
+        Speech.speak(currentData.voice, {
+          rate: 0.85,
+          pitch: 1.0,
+          volume: 0.9,
+        });
+      } catch (err) {
+        console.warn("[Meditation] Speech.speak error:", err);
+      }
     }
     return () => {
-      Speech.stop();
+      try { Speech?.stop(); } catch {}
     };
   }, [currentStep]);
 
@@ -341,7 +350,7 @@ export function BeliefMeditation({ belief, onComplete, onSkip }: BeliefMeditatio
       {/* Skip button */}
       <Pressable
         onPress={() => {
-          Speech.stop();
+          try { Speech?.stop(); } catch {}
           onSkip();
         }}
         style={({ pressed }) => [

@@ -5,6 +5,7 @@ import { useSensorEngine } from "@/hooks/use-sensors";
 import { useScanAudio } from "@/hooks/use-scan-audio";
 import { SensorCard } from "./sensor-card";
 import { BeliefFieldOrb } from "./belief-field-orb";
+import { SilentErrorBoundary } from "./error-boundary";
 import type { BeliefOption } from "@/constants/beliefs";
 import type { ScanResult } from "@/hooks/use-scan-history";
 import { generateInterpretation, generateSummary } from "@/hooks/use-scan-history";
@@ -14,51 +15,40 @@ import { useBeliefStory } from "@/hooks/use-belief-story";
 import { isFeatureHealthy, reportFeatureFailure } from "@/hooks/use-diagnostics";
 
 // ─── Safe lazy imports ──────────────────────────────────────────
-// Every optional native module is loaded in a try-catch so a missing
-// or broken module never takes down the whole scanner.
-
-let LinearGradient: any = null;
+let _LinearGradientImpl: any = null;
 try {
-  LinearGradient = require("expo-linear-gradient").LinearGradient;
-} catch {
-  // Will fall back to plain View
-}
+  _LinearGradientImpl = require("expo-linear-gradient").LinearGradient;
+} catch {}
 
-let useKeepAwake: (() => void) | null = null;
+let _useKeepAwakeImpl: (() => void) | null = null;
 try {
-  useKeepAwake = require("expo-keep-awake").useKeepAwake;
-} catch {
-  // Screen may sleep — non-fatal
-}
+  _useKeepAwakeImpl = require("expo-keep-awake").useKeepAwake;
+} catch {}
 
-let Haptics: any = null;
+let _Haptics: any = null;
 try {
-  Haptics = require("expo-haptics");
-} catch {
-  // Haptics unavailable
-}
+  _Haptics = require("expo-haptics");
+} catch {}
 
 // ─── Safe wrappers ──────────────────────────────────────────────
-
 function safeHapticImpact(style?: any) {
-  if (Platform.OS === "web" || !Haptics || !isFeatureHealthy("haptics")) return;
+  if (Platform.OS === "web" || !_Haptics || !isFeatureHealthy("haptics")) return;
   try {
-    Haptics.impactAsync(style || Haptics.ImpactFeedbackStyle.Light);
+    _Haptics.impactAsync(style || _Haptics.ImpactFeedbackStyle.Light);
   } catch (err: any) {
     reportFeatureFailure("haptics", err?.message);
   }
 }
 
 function safeHapticNotification(type?: any) {
-  if (Platform.OS === "web" || !Haptics || !isFeatureHealthy("haptics")) return;
+  if (Platform.OS === "web" || !_Haptics || !isFeatureHealthy("haptics")) return;
   try {
-    Haptics.notificationAsync(type || Haptics.NotificationFeedbackType.Success);
+    _Haptics.notificationAsync(type || _Haptics.NotificationFeedbackType.Success);
   } catch (err: any) {
     reportFeatureFailure("haptics", err?.message);
   }
 }
 
-/** Render a gradient if available, otherwise a plain View */
 function SafeGradient({
   colors: gradColors,
   style,
@@ -72,18 +62,18 @@ function SafeGradient({
   end?: { x: number; y: number };
   children?: React.ReactNode;
 }) {
-  if (LinearGradient && isFeatureHealthy("linear-gradient")) {
+  if (_LinearGradientImpl && isFeatureHealthy("linear-gradient")) {
     try {
+      const LG = _LinearGradientImpl;
       return (
-        <LinearGradient colors={gradColors} style={style} start={start} end={end}>
+        <LG colors={gradColors} style={style} start={start} end={end}>
           {children}
-        </LinearGradient>
+        </LG>
       );
     } catch (err: any) {
       reportFeatureFailure("linear-gradient", err?.message);
     }
   }
-  // Fallback: use first color as solid background
   return (
     <View style={[style, { backgroundColor: gradColors[0] || "transparent" }]}>
       {children}
@@ -91,8 +81,17 @@ function SafeGradient({
   );
 }
 
-// ─── Component ──────────────────────────────────────────────────
+// ─── Warm-up phases ─────────────────────────────────────────────
+// Instead of starting everything at once when countdown hits 0,
+// we stagger the startup to prevent overwhelming the device:
+//
+// Phase 0: "warmup"    — Static orb, no animations, no sensors (0-500ms)
+// Phase 1: "animating" — Orb animations start, still no sensors (500ms-1.5s)
+// Phase 2: "sensors"   — Sensors start subscribing (1.5s+)
+// Phase 3: "audio"     — Audio and speech start (2.5s+)
+type WarmUpPhase = "warmup" | "animating" | "sensors" | "audio" | "ready";
 
+// ─── Component ──────────────────────────────────────────────────
 interface LiveScannerProps {
   belief: BeliefOption;
   intensity: number;
@@ -113,25 +112,25 @@ export function LiveScanner({
   onCancel,
 }: LiveScannerProps) {
   // Always call hooks unconditionally (React Rules of Hooks)
-  // useKeepAwake is safe — if module missing, we just skip
   try {
-    if (useKeepAwake) useKeepAwake();
-  } catch {
-    // Non-fatal
-  }
+    if (_useKeepAwakeImpl) _useKeepAwakeImpl();
+  } catch {}
 
   const colors = useColors();
   const [countdown, setCountdown] = useState(5);
-  const [started, setStarted] = useState(false);
+  const [warmUpPhase, setWarmUpPhase] = useState<WarmUpPhase>("warmup");
   const [showSensors, setShowSensors] = useState(false);
 
-  // Get the theme for this belief's category
+  // Sensors only start when warmUpPhase reaches "sensors"
+  const sensorsReady = warmUpPhase === "sensors" || warmUpPhase === "audio" || warmUpPhase === "ready";
+
   const theme: BeliefTheme = useMemo(
     () => getThemeForBelief(belief.category),
     [belief.category]
   );
 
-  const sensorState = useSensorEngine(started, intensity, scanDuration);
+  // Only pass isScanning=true when sensors are ready
+  const sensorState = useSensorEngine(sensorsReady, intensity, scanDuration);
   const scanAudio = useScanAudio();
   const beliefStory = useBeliefStory();
   const story = useMemo(
@@ -142,30 +141,82 @@ export function LiveScanner({
 
   // 5-second countdown before scan
   useEffect(() => {
-    if (countdown <= 0) {
-      setStarted(true);
-      if (soundEnabled) {
-        try { scanAudio.start(); } catch {}
-      }
-      if (story && isFeatureHealthy("speech")) {
-        try {
-          beliefStory.startStory(story);
-          setStoryActive(true);
-        } catch (err: any) {
-          reportFeatureFailure("speech", err?.message);
-        }
-      }
-      return;
-    }
+    if (countdown <= 0) return; // Countdown done, warm-up takes over
     const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
     return () => clearTimeout(timer);
-  }, [countdown, scanAudio]);
+  }, [countdown]);
+
+  // ─── Phased warm-up after countdown ends ───────────────────────
+  // This is the KEY fix: instead of starting everything at countdown=0,
+  // we gradually bring features online over ~2.5 seconds.
+  useEffect(() => {
+    if (countdown > 0) return; // Still counting down
+
+    // Phase 0: warmup (static orb) — immediate
+    setWarmUpPhase("warmup");
+
+    // Phase 1: start animations after 500ms
+    const t1 = setTimeout(() => {
+      try {
+        setWarmUpPhase("animating");
+      } catch {}
+    }, 500);
+
+    // Phase 2: start sensors after 1500ms
+    const t2 = setTimeout(() => {
+      try {
+        setWarmUpPhase("sensors");
+      } catch {}
+    }, 1500);
+
+    // Phase 3: start audio/speech after 2500ms
+    const t3 = setTimeout(() => {
+      try {
+        setWarmUpPhase("audio");
+
+        // Start audio
+        if (soundEnabled) {
+          try {
+            scanAudio.start();
+          } catch (err: any) {
+            console.warn("[LiveScanner] Audio start error:", err);
+          }
+        }
+
+        // Start story narration
+        if (story && isFeatureHealthy("speech")) {
+          try {
+            beliefStory.startStory(story);
+            setStoryActive(true);
+          } catch (err: any) {
+            reportFeatureFailure("speech", err?.message);
+          }
+        }
+      } catch {}
+    }, 2500);
+
+    // Phase 4: fully ready after 3s
+    const t4 = setTimeout(() => {
+      try {
+        setWarmUpPhase("ready");
+      } catch {}
+    }, 3000);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+    };
+  }, [countdown]); // Only re-run when countdown changes
 
   // Update audio intensity with score and story progress
   useEffect(() => {
-    if (started && sensorState.phase === "scanning") {
+    if (sensorsReady && sensorState.phase === "scanning") {
       if (soundEnabled) {
-        try { scanAudio.updateIntensity(sensorState.overallScore); } catch {}
+        try {
+          scanAudio.updateIntensity(sensorState.overallScore);
+        } catch {}
       }
       if (storyActive) {
         try {
@@ -178,7 +229,7 @@ export function LiveScanner({
     sensorState.overallScore,
     sensorState.phase,
     sensorState.elapsed,
-    started,
+    sensorsReady,
     scanAudio,
     scanDuration,
     beliefStory,
@@ -258,8 +309,12 @@ export function LiveScanner({
 
   // Stop audio on cancel
   const handleCancel = useCallback(() => {
-    try { if (soundEnabled) scanAudio.stop(); } catch {}
-    try { if (storyActive) beliefStory.stopStory(); } catch {}
+    try {
+      if (soundEnabled) scanAudio.stop();
+    } catch {}
+    try {
+      if (storyActive) beliefStory.stopStory();
+    } catch {}
     onCancel();
   }, [scanAudio, onCancel, beliefStory, storyActive, soundEnabled]);
 
@@ -267,11 +322,10 @@ export function LiveScanner({
   const minutes = Math.floor(remaining / 60);
   const seconds = remaining % 60;
 
-  // Themed gradient colors
   const bgGradient = theme.gradientColors;
   const accentColor = theme.accent;
 
-  // Countdown overlay — themed
+  // ─── Countdown screen ─────────────────────────────────────────
   if (countdown > 0) {
     return (
       <View style={[styles.container, { backgroundColor: bgGradient[0] }]}>
@@ -303,6 +357,10 @@ export function LiveScanner({
     );
   }
 
+  // ─── Scan screen ──────────────────────────────────────────────
+  const isWarmingUp = warmUpPhase === "warmup";
+  const orbWarmUp = warmUpPhase === "warmup"; // Static orb during first 500ms
+
   const renderSensorItem = useCallback(
     ({ item }: { item: (typeof sensorState.sensors)[0] }) => (
       <SensorCard sensor={item} />
@@ -310,12 +368,26 @@ export function LiveScanner({
     []
   );
 
-  const audioActive = started && sensorState.phase === "scanning";
+  const audioActive = sensorsReady && sensorState.phase === "scanning";
 
   const ListHeader = (
     <View style={styles.listHeader}>
+      {/* Warm-up indicator */}
+      {isWarmingUp && (
+        <View
+          style={[
+            styles.themeIndicator,
+            { backgroundColor: accentColor + "15", borderColor: accentColor + "40" },
+          ]}
+        >
+          <Text style={[styles.themeIndicatorText, { color: accentColor }]}>
+            ⏳ Initializing scan environment...
+          </Text>
+        </View>
+      )}
+
       {/* Diagnostic summary */}
-      {sensorState.diagnosticSummary ? (
+      {!isWarmingUp && sensorState.diagnosticSummary ? (
         <View
           style={[
             styles.themeIndicator,
@@ -388,15 +460,19 @@ export function LiveScanner({
         </View>
       )}
 
-      {/* Orb — with theme */}
+      {/* Orb — wrapped in SilentErrorBoundary so animation crashes don't kill the app */}
       <View style={styles.orbContainer}>
-        <BeliefFieldOrb
-          intensity={sensorState.apparitionIntensity}
-          score={sensorState.overallScore}
-          beliefEmoji={belief.emoji}
-          phase={sensorState.phase}
-          theme={theme}
-        />
+        <SilentErrorBoundary>
+          <BeliefFieldOrb
+            intensity={sensorState.apparitionIntensity}
+            score={sensorState.overallScore}
+            beliefEmoji={belief.emoji}
+            phase={sensorState.phase}
+            theme={theme}
+            warmUp={orbWarmUp}
+            maxParticles={warmUpPhase === "animating" ? 3 : undefined}
+          />
+        </SilentErrorBoundary>
       </View>
 
       {/* Ticker */}
@@ -407,22 +483,24 @@ export function LiveScanner({
         ]}
       >
         <Text style={[styles.tickerText, { color: "#fff" }]} numberOfLines={2}>
-          {sensorState.ticker}
+          {isWarmingUp ? "Preparing scan environment..." : sensorState.ticker}
         </Text>
       </View>
 
       {/* Toggle */}
-      <Pressable
-        onPress={() => setShowSensors(!showSensors)}
-        style={({ pressed }) => [
-          styles.toggleBtn,
-          { borderColor: accentColor + "50", opacity: pressed ? 0.7 : 1 },
-        ]}
-      >
-        <Text style={[styles.toggleText, { color: accentColor }]}>
-          {showSensors ? "Hide Sensor Details ▲" : "Show All Sensor Details ▼"}
-        </Text>
-      </Pressable>
+      {!isWarmingUp && (
+        <Pressable
+          onPress={() => setShowSensors(!showSensors)}
+          style={({ pressed }) => [
+            styles.toggleBtn,
+            { borderColor: accentColor + "50", opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <Text style={[styles.toggleText, { color: accentColor }]}>
+            {showSensors ? "Hide Sensor Details ▲" : "Show All Sensor Details ▼"}
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 

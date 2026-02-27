@@ -52,11 +52,21 @@ export function BedtimeMessage({ beliefName, beliefEmoji, message, score, onDism
     );
   }, []);
 
-  const star1Style = useAnimatedStyle(() => ({ opacity: twinkle1.value }));
-  const star2Style = useAnimatedStyle(() => ({ opacity: twinkle2.value }));
-  const moonStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: moonFloat.value }],
-  }));
+  const star1Style = useAnimatedStyle(() => {
+    'worklet';
+    const v = typeof twinkle1.value === 'number' && isFinite(twinkle1.value) ? twinkle1.value : 0;
+    return { opacity: v };
+  });
+  const star2Style = useAnimatedStyle(() => {
+    'worklet';
+    const v = typeof twinkle2.value === 'number' && isFinite(twinkle2.value) ? twinkle2.value : 0;
+    return { opacity: v };
+  });
+  const moonStyle = useAnimatedStyle(() => {
+    'worklet';
+    const v = typeof moonFloat.value === 'number' && isFinite(moonFloat.value) ? moonFloat.value : 0;
+    return { transform: [{ translateY: v }] };
+  });
 
   return (
     <View style={styles.container}>

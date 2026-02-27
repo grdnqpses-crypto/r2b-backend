@@ -9,8 +9,7 @@ import {
   Platform,
   Modal,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import * as Haptics from "expo-haptics";
+import { LinearGradient, Haptics } from "@/lib/safe-imports";
 import { useColors } from "@/hooks/use-colors";
 import { type FamilyProfile, PROFILE_EMOJIS } from "@/hooks/use-family-profiles";
 

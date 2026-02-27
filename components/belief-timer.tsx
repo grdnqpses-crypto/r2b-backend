@@ -80,14 +80,26 @@ export function BeliefTimer({ beliefName, beliefEmoji, score, onDismiss }: Belie
     );
   }, []);
 
-  const pulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulse.value }],
-  }));
-  const star1Style = useAnimatedStyle(() => ({ opacity: starTwinkle1.value }));
-  const star2Style = useAnimatedStyle(() => ({ opacity: starTwinkle2.value }));
-  const moonStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: moonFloat.value }],
-  }));
+  const pulseStyle = useAnimatedStyle(() => {
+    'worklet';
+    const v = typeof pulse.value === 'number' && isFinite(pulse.value) ? pulse.value : 1;
+    return { transform: [{ scale: v }] };
+  });
+  const star1Style = useAnimatedStyle(() => {
+    'worklet';
+    const v = typeof starTwinkle1.value === 'number' && isFinite(starTwinkle1.value) ? starTwinkle1.value : 0;
+    return { opacity: v };
+  });
+  const star2Style = useAnimatedStyle(() => {
+    'worklet';
+    const v = typeof starTwinkle2.value === 'number' && isFinite(starTwinkle2.value) ? starTwinkle2.value : 0;
+    return { opacity: v };
+  });
+  const moonStyle = useAnimatedStyle(() => {
+    'worklet';
+    const v = typeof moonFloat.value === 'number' && isFinite(moonFloat.value) ? moonFloat.value : 0;
+    return { transform: [{ translateY: v }] };
+  });
 
   // Countdown logic
   useEffect(() => {

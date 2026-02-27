@@ -113,8 +113,8 @@ export default function SensorLabScreen() {
 
   const addPoint = useCallback((prev: GraphData, value: number): GraphData => {
     const points = [...prev.points, value].slice(-MAX_POINTS);
-    const min = Math.min(...points);
-    const max = Math.max(...points);
+    const min = points.length > 0 ? Math.min(...points) : 0;
+    const max = points.length > 0 ? Math.max(...points) : 0.001;
     return { points, min, max };
   }, []);
 

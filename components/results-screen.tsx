@@ -36,10 +36,14 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
   };
 
   const handleShare = async () => {
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      if (Platform.OS !== "web") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      await shareAsText(result);
+    } catch (err) {
+      console.warn("[ResultsScreen] Share error:", err);
     }
-    await shareAsText(result);
   };
 
   return (

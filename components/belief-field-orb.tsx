@@ -17,11 +17,14 @@ export interface BeliefFieldOrbProps {
   score: number; // 0-100
   beliefEmoji: string;
   phase: "idle" | "calibrating" | "scanning" | "complete";
-  size?: number; // optional size override (default 140)
-  theme?: BeliefTheme; // optional theme for colors/particles
+  size?: number;
+  theme?: BeliefTheme;
+  /** When true, render a static orb with no animations (warm-up phase) */
+  warmUp?: boolean;
+  /** Maximum number of particles to show (for gradual particle loading) */
+  maxParticles?: number;
 }
 
-// Default particle symbols
 const DEFAULT_SYMBOLS = ["✦", "✧", "⋆", "◦", "·", "✵", "❋", "✺"];
 
 interface ParticleConfig {
@@ -68,43 +71,48 @@ function Particle({
   const drift = useSharedValue(0);
 
   useEffect(() => {
-    if (active) {
-      opacity.value = withDelay(
-        config.delay,
-        withRepeat(
-          withSequence(
-            withTiming(0.8, { duration: config.speed * 0.4, easing: Easing.out(Easing.ease) }),
-            withTiming(0, { duration: config.speed * 0.6, easing: Easing.in(Easing.ease) })
-          ),
-          -1,
-          false
-        )
-      );
-      scale.value = withDelay(
-        config.delay,
-        withRepeat(
-          withSequence(
-            withTiming(1, { duration: config.speed * 0.3, easing: Easing.out(Easing.ease) }),
-            withTiming(0.3, { duration: config.speed * 0.7, easing: Easing.in(Easing.ease) })
-          ),
-          -1,
-          false
-        )
-      );
-      drift.value = withDelay(
-        config.delay,
-        withRepeat(
-          withSequence(
-            withTiming(1, { duration: config.speed, easing: Easing.out(Easing.ease) }),
-            withTiming(0, { duration: 0 })
-          ),
-          -1,
-          false
-        )
-      );
-    } else {
-      opacity.value = withTiming(0, { duration: 300 });
-      scale.value = withTiming(0.3, { duration: 300 });
+    try {
+      if (active) {
+        opacity.value = withDelay(
+          config.delay,
+          withRepeat(
+            withSequence(
+              withTiming(0.8, { duration: config.speed * 0.4, easing: Easing.out(Easing.ease) }),
+              withTiming(0, { duration: config.speed * 0.6, easing: Easing.in(Easing.ease) })
+            ),
+            -1,
+            false
+          )
+        );
+        scale.value = withDelay(
+          config.delay,
+          withRepeat(
+            withSequence(
+              withTiming(1, { duration: config.speed * 0.3, easing: Easing.out(Easing.ease) }),
+              withTiming(0.3, { duration: config.speed * 0.7, easing: Easing.in(Easing.ease) })
+            ),
+            -1,
+            false
+          )
+        );
+        drift.value = withDelay(
+          config.delay,
+          withRepeat(
+            withSequence(
+              withTiming(1, { duration: config.speed, easing: Easing.out(Easing.ease) }),
+              withTiming(0, { duration: 0 })
+            ),
+            -1,
+            false
+          )
+        );
+      } else {
+        opacity.value = withTiming(0, { duration: 300 });
+        scale.value = withTiming(0.3, { duration: 300 });
+      }
+    } catch (err) {
+      // Animation setup failed — particle just won't animate
+      console.warn("[Particle] Animation error:", err);
     }
   }, [active]);
 
@@ -112,14 +120,20 @@ function Particle({
   const baseX = Math.cos(angleRad) * containerRadius * config.distance;
   const baseY = Math.sin(angleRad) * containerRadius * config.distance;
 
-  const animStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [
-      { translateX: baseX + drift.value * Math.cos(angleRad) * 20 },
-      { translateY: baseY + drift.value * Math.sin(angleRad) * 20 - drift.value * 15 },
-      { scale: scale.value },
-    ],
-  }));
+  const animStyle = useAnimatedStyle(() => {
+    'worklet';
+    const o = typeof opacity.value === 'number' && isFinite(opacity.value) ? opacity.value : 0;
+    const d = typeof drift.value === 'number' && isFinite(drift.value) ? drift.value : 0;
+    const s = typeof scale.value === 'number' && isFinite(scale.value) ? scale.value : 0.3;
+    return {
+      opacity: o,
+      transform: [
+        { translateX: baseX + d * Math.cos(angleRad) * 20 },
+        { translateY: baseY + d * Math.sin(angleRad) * 20 - d * 15 },
+        { scale: s },
+      ],
+    };
+  });
 
   return (
     <Animated.Text
@@ -140,7 +154,16 @@ function Particle({
   );
 }
 
-export function BeliefFieldOrb({ intensity, score, beliefEmoji, phase, size, theme }: BeliefFieldOrbProps) {
+export function BeliefFieldOrb({
+  intensity,
+  score,
+  beliefEmoji,
+  phase,
+  size,
+  theme,
+  warmUp = false,
+  maxParticles,
+}: BeliefFieldOrbProps) {
   const colors = useColors();
   const orbSize = size || 140;
   const scaleF = orbSize / 140;
@@ -152,65 +175,98 @@ export function BeliefFieldOrb({ intensity, score, beliefEmoji, phase, size, the
   const glow = useSharedValue(0);
   const rotate = useSharedValue(0);
 
-  // Use themed symbols or defaults
   const particleSymbols = theme?.ambientSymbols || DEFAULT_SYMBOLS;
   const particleColors = theme?.particleColors || [];
 
-  // Generate particles based on score — limit to 12 max to reduce memory pressure on low-end devices
-  const particleCount = Math.min(Math.max(Math.floor(score / 10), 3), 12);
-  const particles = useMemo(() => generateParticles(particleCount, particleSymbols), [particleCount, particleSymbols]);
-  const particlesActive = phase === "scanning" || phase === "complete";
+  // Limit particle count — use maxParticles prop for gradual loading
+  const rawParticleCount = Math.min(Math.max(Math.floor(score / 10), 3), 12);
+  const particleCount = maxParticles != null ? Math.min(rawParticleCount, maxParticles) : rawParticleCount;
+  const particles = useMemo(
+    () => generateParticles(particleCount, particleSymbols),
+    [particleCount, particleSymbols]
+  );
+  // Only show particles when NOT in warm-up mode
+  const particlesActive = !warmUp && (phase === "scanning" || phase === "complete");
 
   useEffect(() => {
-    if (phase === "scanning" || phase === "calibrating") {
-      const speed = Math.max(2000 - intensity * 1200, 400); // Clamp to minimum 400ms to prevent negative/zero duration
-      pulse.value = withRepeat(
-        withSequence(
-          withTiming(1 + intensity * 0.15, { duration: speed, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1, { duration: speed, easing: Easing.inOut(Easing.ease) })
-        ),
-        -1,
-        true
-      );
-      glow.value = withRepeat(
-        withSequence(
-          withTiming(1, { duration: speed * 1.5, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0.3, { duration: speed * 1.5, easing: Easing.inOut(Easing.ease) })
-        ),
-        -1,
-        true
-      );
-      rotate.value = withRepeat(
-        withTiming(360, { duration: 20000 - intensity * 12000, easing: Easing.linear }),
-        -1,
-        false
-      );
-    } else {
-      pulse.value = withTiming(1, { duration: 500 });
-      glow.value = withTiming(phase === "complete" ? 0.6 : 0, { duration: 500 });
+    try {
+      // In warm-up mode, don't start any animations
+      if (warmUp) {
+        pulse.value = 1;
+        glow.value = 0;
+        rotate.value = 0;
+        return;
+      }
+
+      if (phase === "scanning" || phase === "calibrating") {
+        const speed = Math.max(2000 - intensity * 1200, 400);
+        pulse.value = withRepeat(
+          withSequence(
+            withTiming(1 + intensity * 0.15, { duration: speed, easing: Easing.inOut(Easing.ease) }),
+            withTiming(1, { duration: speed, easing: Easing.inOut(Easing.ease) })
+          ),
+          -1,
+          true
+        );
+        glow.value = withRepeat(
+          withSequence(
+            withTiming(1, { duration: speed * 1.5, easing: Easing.inOut(Easing.ease) }),
+            withTiming(0.3, { duration: speed * 1.5, easing: Easing.inOut(Easing.ease) })
+          ),
+          -1,
+          true
+        );
+        const rotateDuration = Math.max(20000 - intensity * 12000, 5000);
+        rotate.value = withRepeat(
+          withTiming(360, { duration: rotateDuration, easing: Easing.linear }),
+          -1,
+          false
+        );
+      } else {
+        pulse.value = withTiming(1, { duration: 500 });
+        glow.value = withTiming(phase === "complete" ? 0.6 : 0, { duration: 500 });
+      }
+    } catch (err) {
+      // Animation setup failed — orb just won't animate
+      console.warn("[BeliefFieldOrb] Animation error:", err);
     }
-  }, [phase, intensity]);
+  }, [phase, intensity, warmUp]);
 
-  const orbStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulse.value }],
-  }));
+  const orbStyle = useAnimatedStyle(() => {
+    'worklet';
+    const s = typeof pulse.value === 'number' && isFinite(pulse.value) ? pulse.value : 1;
+    return { transform: [{ scale: s }] };
+  });
 
-  const ring1Style = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + glow.value * 0.3 }, { rotate: `${rotate.value}deg` }],
-    opacity: 0.15 + glow.value * 0.35,
-  }));
+  const ring1Style = useAnimatedStyle(() => {
+    'worklet';
+    const g = typeof glow.value === 'number' && isFinite(glow.value) ? glow.value : 0;
+    const r = typeof rotate.value === 'number' && isFinite(rotate.value) ? rotate.value : 0;
+    return {
+      transform: [{ scale: 1 + g * 0.3 }, { rotate: `${r}deg` }],
+      opacity: 0.15 + g * 0.35,
+    };
+  });
 
-  const ring2Style = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + glow.value * 0.5 }, { rotate: `${-rotate.value * 0.7}deg` }],
-    opacity: 0.1 + glow.value * 0.2,
-  }));
+  const ring2Style = useAnimatedStyle(() => {
+    'worklet';
+    const g = typeof glow.value === 'number' && isFinite(glow.value) ? glow.value : 0;
+    const r = typeof rotate.value === 'number' && isFinite(rotate.value) ? rotate.value : 0;
+    return {
+      transform: [{ scale: 1 + g * 0.5 }, { rotate: `${-r * 0.7}deg` }],
+      opacity: 0.1 + g * 0.2,
+    };
+  });
 
-  const ring3Style = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + glow.value * 0.7 }],
-    opacity: 0.05 + glow.value * 0.15,
-  }));
+  const ring3Style = useAnimatedStyle(() => {
+    'worklet';
+    const g = typeof glow.value === 'number' && isFinite(glow.value) ? glow.value : 0;
+    return {
+      transform: [{ scale: 1 + g * 0.7 }],
+      opacity: 0.05 + g * 0.15,
+    };
+  });
 
-  // Use theme colors or fall back to score-based colors
   const getOrbColor = () => {
     if (theme) return theme.orbGlow;
     if (score >= 70) return colors.success;
@@ -231,74 +287,131 @@ export function BeliefFieldOrb({ intensity, score, beliefEmoji, phase, size, the
 
   return (
     <View style={[styles.container, { width: ring3, height: ring3 }]}>
-      {/* Outer rings */}
-      <Animated.View
-        style={[
-          styles.ring,
-          { width: ring3, height: ring3, borderRadius: ring3 / 2 },
-          ring3Style,
-          { borderColor: ringColor },
-        ]}
-      />
-      <Animated.View
-        style={[
-          styles.ring,
-          { width: ring2, height: ring2, borderRadius: ring2 / 2 },
-          ring2Style,
-          { borderColor: ringColor },
-        ]}
-      />
-      <Animated.View
-        style={[
-          styles.ring,
-          { width: ring1, height: ring1, borderRadius: ring1 / 2 },
-          ring1Style,
-          { borderColor: ringColor },
-        ]}
-      />
-
-      {/* Themed particles */}
-      {particles.map((p) => {
-        const pColor = particleColors.length > 0
-          ? particleColors[p.colorIndex % particleColors.length]
-          : orbColor;
-        return (
-          <Particle
-            key={p.id}
-            config={p}
-            particleColor={pColor}
-            containerRadius={ring2 / 2}
-            active={particlesActive}
+      {/* Outer rings — only render when NOT in warm-up */}
+      {!warmUp && (
+        <>
+          <Animated.View
+            style={[
+              styles.ring,
+              { width: ring3, height: ring3, borderRadius: ring3 / 2 },
+              ring3Style,
+              { borderColor: ringColor },
+            ]}
           />
-        );
-      })}
+          <Animated.View
+            style={[
+              styles.ring,
+              { width: ring2, height: ring2, borderRadius: ring2 / 2 },
+              ring2Style,
+              { borderColor: ringColor },
+            ]}
+          />
+          <Animated.View
+            style={[
+              styles.ring,
+              { width: ring1, height: ring1, borderRadius: ring1 / 2 },
+              ring1Style,
+              { borderColor: ringColor },
+            ]}
+          />
+        </>
+      )}
+
+      {/* Static rings during warm-up */}
+      {warmUp && (
+        <>
+          <View
+            style={[
+              styles.ring,
+              { width: ring3, height: ring3, borderRadius: ring3 / 2, opacity: 0.15, borderColor: ringColor },
+            ]}
+          />
+          <View
+            style={[
+              styles.ring,
+              { width: ring2, height: ring2, borderRadius: ring2 / 2, opacity: 0.1, borderColor: ringColor },
+            ]}
+          />
+          <View
+            style={[
+              styles.ring,
+              { width: ring1, height: ring1, borderRadius: ring1 / 2, opacity: 0.15, borderColor: ringColor },
+            ]}
+          />
+        </>
+      )}
+
+      {/* Particles — only when not in warm-up */}
+      {!warmUp &&
+        particles.map((p) => {
+          const pColor =
+            particleColors.length > 0
+              ? particleColors[p.colorIndex % particleColors.length]
+              : orbColor;
+          return (
+            <Particle
+              key={p.id}
+              config={p}
+              particleColor={pColor}
+              containerRadius={ring2 / 2}
+              active={particlesActive}
+            />
+          );
+        })}
 
       {/* Core orb */}
-      <Animated.View
-        style={[
-          styles.orb,
-          {
-            width: orbSize,
-            height: orbSize,
-            borderRadius: orbSize / 2,
-          },
-          orbStyle,
-          {
-            backgroundColor: orbColor,
-            shadowColor: orbColor,
-          },
-        ]}
-      >
-        <Text style={[styles.emoji, { fontSize: emojiSize }]}>{beliefEmoji}</Text>
-        {phase !== "idle" && (
-          <Text style={[styles.score, { fontSize: scoreSize }]}>{score}</Text>
-        )}
-      </Animated.View>
+      {warmUp ? (
+        <View
+          style={[
+            styles.orb,
+            {
+              width: orbSize,
+              height: orbSize,
+              borderRadius: orbSize / 2,
+              backgroundColor: orbColor,
+              shadowColor: orbColor,
+            },
+          ]}
+        >
+          <Text style={[styles.emoji, { fontSize: emojiSize }]}>{beliefEmoji}</Text>
+          {phase !== "idle" && (
+            <Text style={[styles.score, { fontSize: scoreSize }]}>{score}</Text>
+          )}
+        </View>
+      ) : (
+        <Animated.View
+          style={[
+            styles.orb,
+            {
+              width: orbSize,
+              height: orbSize,
+              borderRadius: orbSize / 2,
+            },
+            orbStyle,
+            {
+              backgroundColor: orbColor,
+              shadowColor: orbColor,
+            },
+          ]}
+        >
+          <Text style={[styles.emoji, { fontSize: emojiSize }]}>{beliefEmoji}</Text>
+          {phase !== "idle" && (
+            <Text style={[styles.score, { fontSize: scoreSize }]}>{score}</Text>
+          )}
+        </Animated.View>
+      )}
 
-      {/* Label — show theme atmosphere label during scan */}
+      {/* Label */}
       {phase !== "idle" && (
-        <Text style={[styles.label, { color: theme?.accent || colors.muted, fontSize: Math.round(12 * scaleF) }]}>
-          {phase === "calibrating"
+        <Text
+          style={[
+            styles.label,
+            { color: theme?.accent || colors.muted, fontSize: Math.round(12 * scaleF) },
+          ]}
+        >
+          {warmUp
+            ? "Initializing..."
+            : phase === "calibrating"
             ? "Calibrating sensors..."
             : phase === "complete"
             ? "Scan Complete"

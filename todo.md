@@ -80,3 +80,9 @@
 - [x] Fix sensor-lab crash-prone direct imports (wrap in try-catch like use-sensors.ts)
 - [x] Add runtime self-correction — if a sensor fails mid-scan, gracefully remove it and continue
 - [x] Fix app crash when scanning Guardian Angel (12345, 53321) — root cause: 17 files had unprotected direct imports of expo-linear-gradient, expo-haptics, expo-keep-awake. Created centralized safe-imports module with fallbacks.
+- [x] CRITICAL: Full systematic audit — phased warm-up (staggered startup over 3s), ErrorBoundary on all 8 modal screens, SilentErrorBoundary on BeliefFieldOrb, worklet safety clamps on all 17 useAnimatedStyle calls, safe-imports for all native modules across all 18 files
+- [x] Audit: Traced exact code path from countdown=0 to scan start — added 4-phase warm-up (warmup→animating→sensors→audio→ready)
+- [x] Audit: All useAnimatedStyle worklets have 'worklet' directive and NaN/undefined safety clamps
+- [x] Audit: All native modules (LinearGradient, Haptics, KeepAwake, Speech) go through safe-imports with try-catch
+- [x] Audit: All modal screens wrapped in ErrorBoundary — crash shows retry UI instead of killing app
+- [x] Audit: BeliefFieldOrb wrapped in SilentErrorBoundary — animation crash doesn't kill scan
