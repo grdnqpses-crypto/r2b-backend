@@ -86,3 +86,4 @@
 - [x] Audit: All native modules (LinearGradient, Haptics, KeepAwake, Speech) go through safe-imports with try-catch
 - [x] Audit: All modal screens wrapped in ErrorBoundary — crash shows retry UI instead of killing app
 - [x] Audit: BeliefFieldOrb wrapped in SilentErrorBoundary — animation crash doesn't kill scan
+- [x] Fix "Rendered more hooks than during the previous render" error in LiveScanner — useCallback(renderSensorItem) was after early return at line 329, moved before it

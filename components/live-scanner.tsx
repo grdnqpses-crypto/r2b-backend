@@ -325,6 +325,14 @@ export function LiveScanner({
   const bgGradient = theme.gradientColors;
   const accentColor = theme.accent;
 
+  // MUST be called before any early return to maintain consistent hook count
+  const renderSensorItem = useCallback(
+    ({ item }: { item: (typeof sensorState.sensors)[0] }) => (
+      <SensorCard sensor={item} />
+    ),
+    []
+  );
+
   // ─── Countdown screen ─────────────────────────────────────────
   if (countdown > 0) {
     return (
@@ -360,13 +368,6 @@ export function LiveScanner({
   // ─── Scan screen ──────────────────────────────────────────────
   const isWarmingUp = warmUpPhase === "warmup";
   const orbWarmUp = warmUpPhase === "warmup"; // Static orb during first 500ms
-
-  const renderSensorItem = useCallback(
-    ({ item }: { item: (typeof sensorState.sensors)[0] }) => (
-      <SensorCard sensor={item} />
-    ),
-    []
-  );
 
   const audioActive = sensorsReady && sensorState.phase === "scanning";
 
