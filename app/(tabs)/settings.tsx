@@ -13,7 +13,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useCustomBeliefs } from "@/hooks/use-custom-beliefs";
-import { useScanHistory } from "@/hooks/use-scan-history";
+import { useScanHistoryContext } from "@/lib/scan-history-provider";
 import { useBeliefStreak } from "@/hooks/use-belief-streak";
 import { useFamilyProfiles } from "@/hooks/use-family-profiles";
 import { usePremium } from "@/hooks/use-premium";
@@ -24,6 +24,7 @@ import { FamilyProfilesScreen } from "@/components/family-profiles";
 import { PremiumPaywall } from "@/components/premium-paywall";
 import { AchievementsGallery } from "@/components/achievements-gallery";
 import { DeveloperPanel } from "@/components/developer-panel";
+import { ShareReferral } from "@/components/share-referral";
 import { getAvailableStoryBeliefIds } from "@/constants/belief-stories";
 import { Haptics, LinearGradient } from "@/lib/safe-imports";
 
@@ -73,13 +74,13 @@ export function useAppSettings() {
   return { settings, updateSettings, loaded };
 }
 
-type SubScreen = "main" | "profiles" | "paywall" | "achievements" | "developer";
+type SubScreen = "main" | "profiles" | "paywall" | "achievements" | "developer" | "share";
 
 export default function SettingsScreen() {
   const colors = useColors();
   const { settings, updateSettings, loaded } = useAppSettings();
   const { customBeliefs, removeBelief } = useCustomBeliefs();
-  const { history } = useScanHistory();
+  const { history, clearHistory } = useScanHistoryContext();
   const { streak } = useBeliefStreak();
   const familyProfiles = useFamilyProfiles();
   const premium = usePremium();
@@ -113,7 +114,7 @@ export default function SettingsScreen() {
 
   const handleClearHistory = useCallback(() => {
     if (Platform.OS === "web") {
-      AsyncStorage.removeItem("belief-scan-history");
+      clearHistory();
       return;
     }
     Alert.alert(
@@ -125,7 +126,7 @@ export default function SettingsScreen() {
           text: "Clear All",
           style: "destructive",
           onPress: () => {
-            AsyncStorage.removeItem("belief-scan-history");
+            clearHistory();
           },
         },
       ]
@@ -192,6 +193,17 @@ export default function SettingsScreen() {
     );
   }
 
+  if (subScreen === "share") {
+    return (
+      <ScreenContainer>
+        <ShareReferral
+          onDismiss={() => setSubScreen("main")}
+          onFreeWeekEarned={() => setSubScreen("main")}
+        />
+      </ScreenContainer>
+    );
+  }
+
   if (subScreen === "developer") {
     return (
       <ScreenContainer>
@@ -221,6 +233,34 @@ export default function SettingsScreen() {
             Customize how the Belief Field Detector works for you
           </Text>
         </View>
+
+        {/* SHARE & EARN */}
+        <Pressable
+          onPress={() => setSubScreen("share")}
+          style={({ pressed }) => [{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 14,
+            padding: 16,
+            borderRadius: 18,
+            borderWidth: 1,
+            marginBottom: 12,
+            backgroundColor: colors.surface,
+            borderColor: "rgba(155,122,255,0.4)",
+            opacity: pressed ? 0.8 : 1,
+          }]}
+        >
+          <Text style={{ fontSize: 32 }}>🎁</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[{ fontSize: 16, fontWeight: "800", color: colors.foreground }]}>
+              Share & Earn Free Week
+            </Text>
+            <Text style={[{ fontSize: 12, color: colors.muted, marginTop: 2 }]}>
+              Invite friends — you both get 1 week free
+            </Text>
+          </View>
+          <Text style={[{ fontSize: 18, color: colors.primary }]}>→</Text>
+        </Pressable>
 
         {/* ACHIEVEMENTS */}
         <Pressable

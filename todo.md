@@ -87,3 +87,10 @@
 - [x] Audit: All modal screens wrapped in ErrorBoundary — crash shows retry UI instead of killing app
 - [x] Audit: BeliefFieldOrb wrapped in SilentErrorBoundary — animation crash doesn't kill scan
 - [x] Fix "Rendered more hooks than during the previous render" error in LiveScanner — useCallback(renderSensorItem) was after early return at line 329, moved before it
+- [x] Fix history saving — scan sessions must persist to AsyncStorage and display in History tab
+- [x] Build belief strength tracker — visual progress showing belief getting stronger over time
+- [x] Build onboarding tutorial — screenshot-based walkthrough on first app open (already existed, confirmed working)
+- [x] Build group beliefs tab — group session functionality in the app
+- [x] Build share & earn system — share button with referral tracking, 1 free week reward for referrer
+- [x] Build Google Play billing — $0.99/week subscription with 3-day free trial (integration guide in docs/google-play-billing.md)
+- [x] Build paywall — gate content behind subscription after free trial ends (updated pricing: $0.99/week, 3-day free trial)

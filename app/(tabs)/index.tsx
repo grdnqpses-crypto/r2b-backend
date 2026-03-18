@@ -12,7 +12,8 @@ import {
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useOnboarding } from "@/hooks/use-onboarding";
-import { useScanHistory, type ScanResult } from "@/hooks/use-scan-history";
+import { useScanHistoryContext } from "@/lib/scan-history-provider";
+import type { ScanResult } from "@/hooks/use-scan-history";
 import { useCustomBeliefs } from "@/hooks/use-custom-beliefs";
 import { useBeliefStreak, getStreakMessage, getMilestoneLabel } from "@/hooks/use-belief-streak";
 import { Onboarding } from "@/components/onboarding";
@@ -51,7 +52,7 @@ type Screen =
 export default function DetectScreen() {
   const colors = useColors();
   const onboarding = useOnboarding();
-  const { history, saveScan, updateJournal } = useScanHistory();
+  const { history, saveScan, updateJournal } = useScanHistoryContext();
   const { customBeliefs, addBelief } = useCustomBeliefs();
   const { streak, scannedToday, newMilestones, recordScan, clearNewMilestones } = useBeliefStreak();
   const { settings } = useAppSettings();

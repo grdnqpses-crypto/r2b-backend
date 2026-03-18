@@ -47,6 +47,7 @@ const MAPPING: Record<string, MaterialIconName> = {
   "scope": "biotech",
   "person.2.fill": "people",
   "crown.fill": "workspace-premium",
+  "group.fill": "groups",
 };
 
 type IconSymbolName = keyof typeof MAPPING;

@@ -2,19 +2,22 @@ import { useState } from "react";
 import { View, Text, FlatList, Pressable, StyleSheet, Modal, Platform } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
-import { useScanHistory, type ScanResult } from "@/hooks/use-scan-history";
+import { useScanHistoryContext } from "@/lib/scan-history-provider";
+import type { ScanResult } from "@/hooks/use-scan-history";
 import { ResultsScreen } from "@/components/results-screen";
 import { BedtimeMessage } from "@/components/bedtime-message";
 import { getBeliefById } from "@/constants/beliefs";
 import { JournalEntryModal } from "@/components/journal-entry-modal";
+import { BeliefStrengthTracker } from "@/components/belief-strength-tracker";
 import { Haptics, LinearGradient } from "@/lib/safe-imports";
 
 export default function HistoryScreen() {
   const colors = useColors();
-  const { history, getStats, updateJournal } = useScanHistory();
+  const { history, getStats, updateJournal } = useScanHistoryContext();
   const [showJournal, setShowJournal] = useState(false);
   const [selectedScan, setSelectedScan] = useState<ScanResult | null>(null);
   const [showBedtime, setShowBedtime] = useState(false);
+  const [showTracker, setShowTracker] = useState(false);
 
   const stats = getStats();
 
@@ -24,6 +27,17 @@ export default function HistoryScreen() {
     if (score >= 20) return colors.warning;
     return colors.muted;
   };
+
+  if (showTracker) {
+    return (
+      <Modal visible animationType="slide" statusBarTranslucent>
+        <BeliefStrengthTracker
+          history={history}
+          onDismiss={() => setShowTracker(false)}
+        />
+      </Modal>
+    );
+  }
 
   if (selectedScan && showBedtime) {
     const belief = getBeliefById(selectedScan.beliefId);
@@ -137,6 +151,36 @@ export default function HistoryScreen() {
             <Text style={[styles.statLabel, { color: colors.muted }]}>Strongest</Text>
           </View>
         </View>
+      )}
+
+      {/* Belief Strength Tracker button */}
+      {history.length > 0 && (
+        <Pressable
+          onPress={() => setShowTracker(true)}
+          style={({ pressed }) => [{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+            padding: 14,
+            borderRadius: 16,
+            borderWidth: 1,
+            marginBottom: 16,
+            backgroundColor: colors.surface,
+            borderColor: colors.primary + "40",
+            opacity: pressed ? 0.8 : 1,
+          }]}
+        >
+          <Text style={{ fontSize: 28 }}>📈</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[{ fontSize: 15, fontWeight: "700", color: colors.foreground }]}>
+              Belief Strength Tracker
+            </Text>
+            <Text style={[{ fontSize: 12, color: colors.muted, marginTop: 2 }]}>
+              See how your belief grows stronger over time
+            </Text>
+          </View>
+          <Text style={[{ fontSize: 18, color: colors.primary }]}>→</Text>
+        </Pressable>
       )}
 
       {history.length === 0 && (
