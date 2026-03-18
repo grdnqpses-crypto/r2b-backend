@@ -20,6 +20,7 @@ import { trpc, createTRPCClient } from "@/lib/trpc";
 import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
 import { runDiagnostic } from "@/hooks/use-diagnostics";
 import { ScanHistoryProvider } from "@/lib/scan-history-provider";
+import { initSentry, Sentry } from "@/lib/sentry";
 
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -40,12 +41,20 @@ export default function RootLayout() {
     initManusRuntime();
   }, []);
 
+  // Initialize Sentry crash reporting
+  useEffect(() => {
+    initSentry().catch(() => {
+      // Sentry init should never crash the app
+    });
+  }, []);
+
   // Run self-healing diagnostic engine on app startup
   // This checks all sensors, animations, audio, haptics, speech
   // and caches results so the scan flow knows what to skip
   useEffect(() => {
-    runDiagnostic().catch(() => {
+    runDiagnostic().catch((err) => {
       // Diagnostic itself should never crash the app
+      Sentry.captureException(err, { context: "runDiagnostic" });
     });
   }, []);
 
@@ -91,6 +100,7 @@ export default function RootLayout() {
 
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* Sentry error boundary wraps the entire app to catch unhandled errors */}
       <ScanHistoryProvider>
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>

@@ -1,4 +1,6 @@
+import React, { useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet, Platform } from "react-native";
+import { Celebration } from "./celebration";
 import { useColors } from "@/hooks/use-colors";
 import { useShareResults } from "@/hooks/use-share-results";
 import { BeliefFieldOrb } from "./belief-field-orb";
@@ -19,6 +21,7 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
   const colors = useColors();
   const belief = getBeliefById(result.beliefId);
   const { shareAsText } = useShareResults();
+  const [showCelebration, setShowCelebration] = useState(result.score >= 40);
 
   const getScoreLabel = (score: number) => {
     if (score >= 80) return "Extraordinary";
@@ -48,6 +51,13 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Celebration overlay — fires once on mount for high scores */}
+      <Celebration
+        score={result.score}
+        beliefEmoji={result.beliefEmoji}
+        visible={showCelebration}
+        onComplete={() => setShowCelebration(false)}
+      />
       <LinearGradient
         colors={["rgba(155,122,255,0.15)", "transparent"]}
         style={StyleSheet.absoluteFill}

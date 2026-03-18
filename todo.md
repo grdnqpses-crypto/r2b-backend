@@ -94,3 +94,5 @@
 - [x] Build share & earn system — share button with referral tracking, 1 free week reward for referrer
 - [x] Build Google Play billing — $0.99/week subscription with 3-day free trial (integration guide in docs/google-play-billing.md)
 - [x] Build paywall — gate content behind subscription after free trial ends (updated pricing: $0.99/week, 3-day free trial)
+- [x] Add celebration animations — confetti/fireworks/sparkles when scan completes with high belief score
+- [x] Integrate Sentry crash reporting — automatic error tracking, breadcrumbs, and performance monitoring
