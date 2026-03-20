@@ -98,6 +98,23 @@ export default function DetectScreen() {
   // Sticky CTA bar animation
   const ctaBarY = useRef(new Animated.Value(120)).current;
   const ctaBarOpacity = useRef(new Animated.Value(0)).current;
+
+  // Scroll hint arrow — bounces to tell user to scroll down
+  const scrollHintOpacity = useRef(new Animated.Value(1)).current;
+  const scrollHintBounce = useRef(new Animated.Value(0)).current;
+  const [scrollHintVisible, setScrollHintVisible] = useState(true);
+
+  useEffect(() => {
+    if (!scrollHintVisible) return;
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scrollHintBounce, { toValue: 8, duration: 500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(scrollHintBounce, { toValue: 0, duration: 500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [scrollHintVisible]);
   const ctaPulse = useRef(new Animated.Value(1)).current;
   const ctaPulseAnim = useRef<Animated.CompositeAnimation | null>(null);
 
@@ -634,9 +651,14 @@ export default function DetectScreen() {
       )}
 
       {!filteredBeliefs && (
-        <Text style={[styles.sectionLabel, { color: colors.muted }]}>
-          CHOOSE YOUR BELIEF
-        </Text>
+        <View style={styles.sectionLabelRow}>
+          <Text style={[styles.sectionLabel, { color: colors.muted }]}>
+            CHOOSE YOUR BELIEF
+          </Text>
+          <Text style={[styles.sectionScrollHint, { color: colors.muted }]}>
+            scroll to see all ↓
+          </Text>
+        </View>
       )}
     </View>
   );
@@ -755,6 +777,11 @@ export default function DetectScreen() {
         </View>
       )}
 
+      {/* Scroll to top hint at bottom of list */}
+      <View style={[styles.endOfListHint, { borderTopColor: colors.border + "60" }]}>
+        <Text style={[styles.endOfListText, { color: colors.muted }]}>✨ That's all the beliefs — scroll back up to select one</Text>
+      </View>
+
       <View style={{ height: 40 }} />
     </View>
   );
@@ -775,7 +802,33 @@ export default function DetectScreen() {
         ListFooterComponent={ListFooter}
         contentContainerStyle={[styles.listContent, selectedBelief ? { paddingBottom: 110 + insets.bottom } : { paddingBottom: 20 }]}
         showsVerticalScrollIndicator={false}
+        onScroll={(e) => {
+          if (e.nativeEvent.contentOffset.y > 60 && scrollHintVisible) {
+            setScrollHintVisible(false);
+            Animated.timing(scrollHintOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start();
+          }
+        }}
+        scrollEventThrottle={16}
       />
+
+      {/* Scroll hint arrow — visible until user scrolls */}
+      {scrollHintVisible && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.scrollHint,
+            {
+              opacity: scrollHintOpacity,
+              transform: [{ translateY: scrollHintBounce }],
+              bottom: selectedBelief ? 90 + insets.bottom : 24 + insets.bottom,
+            },
+          ]}
+        >
+          <View style={[styles.scrollHintBubble, { backgroundColor: colors.primary + "22", borderColor: colors.primary + "55" }]}>
+            <Text style={[styles.scrollHintText, { color: colors.primary }]}>Scroll for more beliefs ↓</Text>
+          </View>
+        </Animated.View>
+      )}
 
       {/* Sticky CTA bar — slides up when a belief is selected */}
       <Animated.View
@@ -885,6 +938,18 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     marginBottom: 12,
     marginTop: 8,
+  },
+  sectionLabelRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  sectionScrollHint: {
+    fontSize: 11,
+    fontWeight: "600",
+    opacity: 0.7,
   },
   categorySection: { marginBottom: 8 },
   categoryHeader: {
@@ -1005,4 +1070,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   stickyBtnText: { color: "#fff", fontSize: 15, fontWeight: "800" },
+  scrollHint: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  scrollHintBubble: {
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  scrollHintText: { fontSize: 13, fontWeight: "700" },
+  endOfListHint: {
+    borderTopWidth: 1,
+    paddingTop: 20,
+    paddingBottom: 4,
+    alignItems: "center",
+  },
+  endOfListText: { fontSize: 12, fontWeight: "500", textAlign: "center" },
 });

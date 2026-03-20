@@ -137,3 +137,10 @@
 - [x] Replace paywall with mandatory first-launch subscription consent screen — shown after onboarding, before home screen, with clear trial + billing terms and one "Agree & Start Free Trial" button
 - [x] Remove all trial banner UI from home screen (subscription status banner, showPaywall state)
 - [x] Remove Paywall component import from index.tsx
+- [ ] Build signed AAB for Play Store submission
+- [ ] Create/verify app listing in Play Console
+- [ ] Create $0.99/week subscription product with 3-day free trial in Play Console
+- [ ] Upload AAB and submit for review
+- [x] Rename app to "Believe" in app.config.ts and Play Console
+- [x] Add animated scroll-down indicator on home screen to show more content below
+- [x] Add scroll indicator on beliefs list screen to show more beliefs below
