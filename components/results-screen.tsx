@@ -24,12 +24,100 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
   const [showCelebration, setShowCelebration] = useState(result.score >= 40);
 
   const getScoreLabel = (score: number) => {
-    if (score >= 80) return "Extraordinary";
-    if (score >= 60) return "Powerful";
-    if (score >= 40) return "Strong";
-    if (score >= 20) return "Growing";
-    return "Emerging";
+    if (score >= 80) return "EXTRAORDINARY";
+    if (score >= 60) return "POWERFUL";
+    if (score >= 40) return "STRONG";
+    if (score >= 20) return "GROWING";
+    return "EMERGING";
   };
+
+  const getEmotionalMessage = (score: number) => {
+    if (score >= 80) return {
+      headline: "Your belief just moved the world.",
+      body: "The sensors didn't lie. Your conviction created a measurable field of energy around you. This is what it feels like to truly believe — and your phone just proved it.",
+      cta: "🏆 Don't stop now. You're at the top.",
+    };
+    if (score >= 60) return {
+      headline: "You can feel it, can't you?",
+      body: "Something real happened just now. Your body changed. The air around you changed. Multiple sensors detected it. That feeling in your chest? That's your belief field — and it's powerful.",
+      cta: "🔥 Push to 80. You're almost there.",
+    };
+    if (score >= 40) return {
+      headline: "Your belief is waking up.",
+      body: "The sensors picked it up. Your belief is real and it's building. Every scan makes it stronger — like a muscle you're training. You can feel the difference already.",
+      cta: "⚡ Scan again. Push it higher.",
+    };
+    if (score >= 20) return {
+      headline: "Something is stirring.",
+      body: "The sensors caught a flicker. Your belief is there — it just needs more focus. Close your eyes next time. Breathe deeper. Picture it more vividly. The field is forming.",
+      cta: "💪 Don't stop. It gets stronger with practice.",
+    };
+    return {
+      headline: "Every legend starts here.",
+      body: "Even the smallest reading means something happened. Your belief field is just getting started. The more you practice, the stronger it grows — just like a muscle on day one.",
+      cta: "✨ Try again. Focus harder. Believe deeper.",
+    };
+  };
+
+  const getTangibleAnalogy = (score: number) => {
+    if (score >= 80) return "⚡ That's like a heartbeat — your belief field is as strong as your own pulse.";
+    if (score >= 60) return "🌊 That's like a wave — your belief is creating real ripples in the physical world.";
+    if (score >= 40) return "🕯️ That's like a candle flame — visible, warm, and real.";
+    if (score >= 20) return "🌱 That's like a seed sprouting — something real is growing.";
+    return "💧 That's like a single drop — every ocean started this way.";
+  };
+
+  const getWhatThisMeans = (score: number) => {
+    if (score >= 80) return {
+      title: "What This Score Means",
+      points: [
+        "🧠 Your brain was in a state of peak conviction — the same state documented in elite athletes and deep meditators",
+        "🔬 Multiple sensors showed simultaneous deviation, which scientists call \"correlated response\" — the strongest possible reading",
+        "💪 Your body physically changed during this scan. That change was real, measurable, and documented here",
+        "🎵 Don't stop believing — you're in rare company",
+      ],
+    };
+    if (score >= 60) return {
+      title: "What This Score Means",
+      points: [
+        "🧠 Your brain entered a focused belief state — similar to what researchers see during prayer and deep visualization",
+        "🔬 Your body's electromagnetic field showed measurable fluctuation during the scan",
+        "💪 This score puts you in the top tier of belief field strength",
+        "🎵 You can feel it. The sensors confirmed it. Keep going.",
+      ],
+    };
+    if (score >= 40) return {
+      title: "What This Score Means",
+      points: [
+        "🧠 Your brain produced measurable focus — the kind that changes how your body holds itself",
+        "🔬 The sensors detected real physical changes, not random noise",
+        "💪 Like a muscle on day 3 of training — you can already feel the difference",
+        "🎵 Scan daily. Watch this number climb. The field is building.",
+      ],
+    };
+    if (score >= 20) return {
+      title: "What This Score Means",
+      points: [
+        "🧠 Your brain showed early signs of focused intention — the foundation of stronger belief",
+        "🔬 The sensors caught something real — subtle, but there",
+        "💪 Every expert started exactly here. The path forward is clear: practice.",
+        "🎵 Close your eyes next time. Breathe deeper. Picture it more vividly.",
+      ],
+    };
+    return {
+      title: "What This Score Means",
+      points: [
+        "🧠 Your brain is learning a new skill — focused belief takes practice, just like any skill",
+        "🔬 Even at this level, the sensors detected something. That something is real.",
+        "💪 The placebo effect starts at 0% belief and grows with repetition. So does your field.",
+        "🎵 Don't stop. Day 1 is always the hardest. Come back tomorrow.",
+      ],
+    };
+  };
+
+  const emotional = getEmotionalMessage(result.score);
+  const analogy = getTangibleAnalogy(result.score);
+  const whatThisMeans = getWhatThisMeans(result.score);
 
   const getScoreColor = (score: number) => {
     if (score >= 70) return colors.success;
@@ -66,7 +154,8 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
       />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <Text style={[styles.header, { color: colors.foreground }]}>Scan Results</Text>
+        <Text style={[styles.dontStopTagline, { color: colors.primary }]}>🎵 DON'T STOP BELIEVING</Text>
+        <Text style={[styles.header, { color: colors.foreground }]}>Your Results</Text>
 
         {/* Orb */}
         <View style={styles.orbSection}>
@@ -81,7 +170,7 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
         {/* Score */}
         <View style={styles.scoreSection}>
           <Text style={[styles.scoreLabel, { color: getScoreColor(result.score) }]}>
-            {getScoreLabel(result.score)} Belief Field
+            {getScoreLabel(result.score)} BELIEF FIELD
           </Text>
           <Text style={[styles.beliefTitle, { color: colors.foreground }]}>
             {result.beliefEmoji} {result.beliefName}
@@ -89,6 +178,38 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
           <Text style={[styles.intensityLabel, { color: colors.muted }]}>
             Belief intensity: {result.intensity}/10
           </Text>
+          <Text style={[styles.scoreNumber, { color: getScoreColor(result.score) }]}>
+            {result.score}
+          </Text>
+          <Text style={[styles.scoreNumberLabel, { color: colors.muted }]}>out of 100</Text>
+        </View>
+
+        {/* Emotional message card */}
+        <View style={[styles.emotionalCard, { backgroundColor: getScoreColor(result.score) + "12", borderColor: getScoreColor(result.score) + "40" }]}>
+          <Text style={[styles.emotionalHeadline, { color: colors.foreground }]}>
+            {emotional.headline}
+          </Text>
+          <Text style={[styles.emotionalBody, { color: colors.muted }]}>
+            {emotional.body}
+          </Text>
+          <Text style={[styles.emotionalAnalogy, { color: getScoreColor(result.score) }]}>
+            {analogy}
+          </Text>
+          <Text style={[styles.emotionalCta, { color: getScoreColor(result.score) }]}>
+            {emotional.cta}
+          </Text>
+        </View>
+
+        {/* What This Means card */}
+        <View style={[styles.whatMeansCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.whatMeansTitle, { color: colors.foreground }]}>
+            💡 {whatThisMeans.title}
+          </Text>
+          {whatThisMeans.points.map((point, i) => (
+            <Text key={i} style={[styles.whatMeansPoint, { color: colors.muted }]}>
+              {point}
+            </Text>
+          ))}
         </View>
 
         {/* Share button */}
@@ -142,13 +263,13 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
           </Pressable>
         )}
 
-        {/* Summary */}
+        {/* Summary — science layer */}
         <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.summaryTitle, { color: colors.foreground }]}>📋 What This Means</Text>
+          <Text style={[styles.summaryTitle, { color: colors.foreground }]}>🔬 The Science Behind Your Score</Text>
           <Text style={[styles.summaryText, { color: colors.muted }]}>{result.summary}</Text>
         </View>
 
-        {/* Encouragement */}
+        {/* Encouragement + challenge CTA */}
         {belief && (
           <View style={[styles.encourageCard, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "40" }]}>
             <Text style={[styles.encourageText, { color: colors.primary }]}>
@@ -157,10 +278,21 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
           </View>
         )}
 
+        {/* Scan again CTA */}
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            onDismiss();
+          }}
+          style={({ pressed }) => [styles.scanAgainBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] }]}
+        >
+          <Text style={styles.scanAgainText}>🔄 Scan Again — Beat Your Score</Text>
+        </Pressable>
+
         {/* Sensor Breakdown */}
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Sensor Breakdown</Text>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>📊 Sensor Breakdown</Text>
         <Text style={[styles.sectionSubtitle, { color: colors.muted }]}>
-          How each sensor contributed to your belief field score
+          Your phone's 7 scientific instruments detected these real, measurable changes in your body and environment during your belief focus:
         </Text>
 
         {result.sensorBreakdown.map((sensor) => {
@@ -407,4 +539,17 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   doneBtnText: { fontSize: 16, fontWeight: "700", color: "#fff" },
+  dontStopTagline: { fontSize: 10, fontWeight: "700", letterSpacing: 2, textTransform: "uppercase", textAlign: "center", marginBottom: 4 },
+  scoreNumber: { fontSize: 72, fontWeight: "900", marginTop: 8 },
+  scoreNumberLabel: { fontSize: 13, fontWeight: "600", marginTop: -4, marginBottom: 4 },
+  emotionalCard: { borderRadius: 20, borderWidth: 1, padding: 20, marginBottom: 16 },
+  emotionalHeadline: { fontSize: 22, fontWeight: "900", marginBottom: 10, lineHeight: 28 },
+  emotionalBody: { fontSize: 15, lineHeight: 24, marginBottom: 12 },
+  emotionalAnalogy: { fontSize: 14, fontWeight: "700", marginBottom: 10 },
+  emotionalCta: { fontSize: 15, fontWeight: "800" },
+  scanAgainBtn: { paddingVertical: 18, borderRadius: 16, alignItems: "center", marginBottom: 20 },
+  scanAgainText: { fontSize: 17, fontWeight: "800", color: "#fff" },
+  whatMeansCard: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 16, gap: 10 },
+  whatMeansTitle: { fontSize: 16, fontWeight: "800", marginBottom: 4 },
+  whatMeansPoint: { fontSize: 13, lineHeight: 20 },
 });

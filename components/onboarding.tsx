@@ -11,11 +11,12 @@ interface OnboardingProps {
 
 const SLIDES = [
   {
-    emoji: "📱",
-    title: "Your Phone Is a Lab",
-    subtitle: "7 Scientific Instruments in Your Pocket",
-    body: "Your phone contains the same kinds of sensors used in real scientific laboratories — an accelerometer, gyroscope, magnetometer, barometer, light sensor, motion detector, and pedometer. Each one measures a different physical force in the world around you. Together, they can detect things you can't see with your eyes.",
-    highlight: null,
+    emoji: "🎵",
+    title: "Don't Stop\nBelieving",
+    subtitle: "Your belief is about to become visible",
+    body: "You've always felt it. That deep knowing in your chest when you believe in something. That warmth when you think about what matters most to you. That certainty that some things are real, even when you can't see them.\n\nNow, for the first time, you can actually SEE it.",
+    highlight:
+      "Your phone has 7 scientific instruments. When you believe, they respond. This is your belief — measured, proven, and real.",
     sensors: [
       "📊 Accelerometer",
       "🔄 Gyroscope",
@@ -29,37 +30,37 @@ const SLIDES = [
   {
     emoji: "🧠",
     title: "Your Brain Can't Tell\nthe Difference",
-    subtitle: "Neuroscience of Belief",
-    body: "Here's something remarkable that neuroscientists have proven: when you vividly imagine something — truly picture it in your mind — your brain activates the exact same regions as when you actually see it. To your brain, a vividly imagined experience and a real experience are physically identical.",
+    subtitle: "Neuroscience of Belief — The Science Is Real",
+    body: "Here's what neuroscientists have proven: when you vividly imagine something — truly picture it in your mind — your brain activates the EXACT same regions as when you actually see it.\n\nClose your eyes and picture a lemon. Your mouth just watered. That's not imagination — that's your brain making it real.",
     highlight:
-      "This means when you deeply believe in something, your brain is literally experiencing it as real. That's not imagination — that's neuroscience.",
+      "When you deeply believe in something, your brain is literally experiencing it as real. That's not wishful thinking — that's peer-reviewed neuroscience.",
     sensors: [],
   },
   {
     emoji: "💊",
-    title: "Belief Changes\nYour Body",
-    subtitle: "The Placebo Effect Is Real Science",
-    body: "Doctors have documented for decades that when people believe a sugar pill is real medicine, their bodies respond with measurable physical changes — reduced pain, lower blood pressure, stronger immune response. This is called the placebo effect, and it proves that belief alone can change your physical reality.",
+    title: "Belief Physically\nChanges Your Body",
+    subtitle: "The Placebo Effect — Proven for Decades",
+    body: "Doctors have documented this for 70 years: when people believe a sugar pill is real medicine, their bodies respond with measurable physical changes — reduced pain, lower blood pressure, stronger immune response, even tumor shrinkage.\n\nThink about that. A SUGAR PILL. Just because they believed.",
     highlight:
-      "If belief can heal the body, what else can it do? Your phone's sensors are about to find out.",
+      "If belief can heal the body, what else can it do? Your phone's sensors are about to answer that question — for YOUR belief, right now.",
     sensors: [],
   },
   {
     emoji: "🌊",
-    title: "Belief Leaves a\nPhysical Footprint",
-    subtitle: "Your Conviction Changes the Air Around You",
-    body: "When you believe deeply, your body responds in ways you can't feel but sensors can detect. Your muscles produce micro-tremors. Your breathing shifts atmospheric pressure. Your body's electromagnetic field fluctuates. Even the way you hold your phone changes. Every sensor in your phone can pick up these subtle, real, physical shifts.",
+    title: "Belief Leaves a\nReal Footprint",
+    subtitle: "Your Conviction Changes the World Around You",
+    body: "When you believe deeply, your body changes in ways you can't feel — but sensors can.\n\n• Your muscles produce micro-tremors (accelerometer catches them)\n• Your breathing shifts air pressure (barometer detects it)\n• Your body's electromagnetic field fluctuates (magnetometer reads it)\n• Even how you hold your phone changes (gyroscope tracks it)",
     highlight:
-      "We're not proving what you believe in exists. We're measuring the real, scientific footprint that your belief leaves on the physical world.",
+      "We're not proving what you believe in exists. We're measuring the real, scientific footprint that your belief leaves on the physical world. And that footprint is real.",
     sensors: [],
   },
   {
-    emoji: "✨",
-    title: "Measure Your\nBelief Field",
-    subtitle: "See It. Feel It. Know It's Real.",
-    body: "Choose what you believe in — Santa Claus, the Tooth Fairy, the Holy Spirit, guardian angels, or anything else. Focus your mind. Believe as hard as you can. And watch as every sensor in your phone responds to your conviction.",
+    emoji: "🏆",
+    title: "This Is Your\nChallenge",
+    subtitle: "See It. Feel It. Prove It. Don't Stop.",
+    body: "Choose what you believe in. Focus your mind. Believe as hard as you can. Watch every sensor respond.\n\nThen do it again tomorrow. And the next day. Watch your score climb. Watch your belief field grow stronger. Track your progress. Challenge your friends.\n\nBecause belief, like a muscle, gets stronger every time you use it.",
     highlight:
-      "The stronger you believe, the stronger the field. This is your belief, measured scientifically.",
+      "Your first scan is waiting. Don't stop believing — and never stop growing. 🎵",
     sensors: [],
   },
 ];

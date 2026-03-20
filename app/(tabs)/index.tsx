@@ -36,6 +36,7 @@ import {
 } from "@/constants/beliefs";
 import { getBeliefById } from "@/constants/beliefs";
 import { Haptics, LinearGradient } from "@/lib/safe-imports";
+import { DailyChallenge } from "@/components/daily-challenge";
 
 type Screen =
   | "home"
@@ -386,66 +387,46 @@ export default function DetectScreen() {
     );
   };
 
+  // Get today's best score from history
+  const todaysBestScore = useMemo(() => {
+    const today = new Date().toDateString();
+    const todayScans = history.filter(h => new Date(h.date).toDateString() === today);
+    return todayScans.length > 0 ? Math.max(...todayScans.map(h => h.score)) : 0;
+  }, [history]);
+
   const ListHeader = (
     <View>
       {/* Hero */}
       <View style={styles.hero}>
+        <Text style={[styles.heroTagline, { color: colors.primary }]}>
+          🎵 DON'T STOP BELIEVING
+        </Text>
         <Text style={[styles.heroTitle, { color: colors.foreground }]}>
           Belief Field{"\n"}Detector
         </Text>
         <Text style={[styles.heroSub, { color: colors.muted }]}>
-          Choose what you believe in, focus your mind, and watch your phone's sensors respond
+          Your phone has 7 scientific sensors. When you believe deeply, they respond. Focus your mind — and watch the proof appear.
         </Text>
+        <View style={[styles.heroBadge, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "30" }]}>
+          <Text style={[styles.heroBadgeText, { color: colors.primary }]}>
+            ⚗️ Real sensors. Real data. Real belief.
+          </Text>
+        </View>
       </View>
 
-      {/* Belief Streak */}
-      {streak.totalScans > 0 && (
-        <View style={[styles.streakCard, { backgroundColor: colors.surface, borderColor: colors.primary + "40" }]}>
-          <View style={styles.streakRow}>
-            <View style={styles.streakItem}>
-              <Text style={[styles.streakNumber, { color: colors.primary }]}>
-                {streak.currentStreak}
-              </Text>
-              <Text style={[styles.streakLabel, { color: colors.muted }]}>Day Streak</Text>
-            </View>
-            <View style={[styles.streakDivider, { backgroundColor: colors.border }]} />
-            <View style={styles.streakItem}>
-              <Text style={[styles.streakNumber, { color: colors.primary }]}>
-                {streak.personalBest}
-              </Text>
-              <Text style={[styles.streakLabel, { color: colors.muted }]}>Best Score</Text>
-            </View>
-            <View style={[styles.streakDivider, { backgroundColor: colors.border }]} />
-            <View style={styles.streakItem}>
-              <Text style={[styles.streakNumber, { color: colors.primary }]}>
-                {streak.totalScans}
-              </Text>
-              <Text style={[styles.streakLabel, { color: colors.muted }]}>Total Scans</Text>
-            </View>
-          </View>
-          <Text style={[styles.streakMessage, { color: colors.foreground }]}>
-            {getStreakMessage(streak.currentStreak)}
-          </Text>
-          {scannedToday && (
-            <Text style={[styles.scannedToday, { color: colors.success }]}>
-              ✅ You've scanned today!
-            </Text>
-          )}
-          {streak.milestones.length > 0 && (
-            <View style={styles.milestoneRow}>
-              {streak.milestones.slice(-5).map((m) => {
-                const { emoji, label } = getMilestoneLabel(m);
-                return (
-                  <View key={m} style={[styles.milestoneBadge, { backgroundColor: colors.primary + "15" }]}>
-                    <Text style={styles.milestoneEmoji}>{emoji}</Text>
-                    <Text style={[styles.milestoneText, { color: colors.primary }]}>{label}</Text>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-        </View>
-      )}
+      {/* Daily Challenge — always shown */}
+      <DailyChallenge
+        currentStreak={streak.currentStreak}
+        totalScans={streak.totalScans}
+        personalBest={streak.personalBest}
+        scannedToday={scannedToday}
+        todaysBestScore={todaysBestScore}
+        onStartChallenge={() => {
+          if (selectedBelief) {
+            setScreen("meditation");
+          }
+        }}
+      />
 
       {/* New milestone notification */}
       {newMilestones.length > 0 && (
@@ -855,4 +836,7 @@ const styles = StyleSheet.create({
   },
   milestoneNotifText: { fontSize: 14, fontWeight: "700" },
   milestoneNotifSub: { fontSize: 11, marginTop: 4 },
+  heroTagline: { fontSize: 11, fontWeight: "700", letterSpacing: 1.5, marginBottom: 6, textTransform: "uppercase" },
+  heroBadge: { borderRadius: 20, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 6, marginTop: 8 },
+  heroBadgeText: { fontSize: 12, fontWeight: "600" },
 });
