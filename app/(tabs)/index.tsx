@@ -57,6 +57,23 @@ type Screen =
 export default function DetectScreen() {
   const colors = useColors();
   const onboarding = useOnboarding();
+
+  // Deferred mount guard: wait one frame after onboarding completes before
+  // rendering heavy home screen content. This prevents a crash on Android
+  // where simultaneous AsyncStorage reads from multiple hooks on first mount
+  // can race with the Modal unmount animation.
+  // For returning users (onboarding.done already true), we skip the delay.
+  const [homeReady, setHomeReady] = useState(false);
+  useEffect(() => {
+    if (onboarding.done === true) {
+      // requestAnimationFrame gives the JS thread one idle frame before mounting.
+      // This only fires once (when done transitions from null/false to true).
+      const raf = requestAnimationFrame(() => setHomeReady(true));
+      return () => cancelAnimationFrame(raf);
+    } else if (onboarding.done === null) {
+      // Still loading from AsyncStorage — keep homeReady false
+    }
+  }, [onboarding.done]);
   const { history, saveScan, updateJournal } = useScanHistoryContext();
   const { customBeliefs, addBelief } = useCustomBeliefs();
   const { streak, scannedToday, newMilestones, recordScan, clearNewMilestones } = useBeliefStreak();
@@ -232,10 +249,22 @@ export default function DetectScreen() {
   if (!onboarding.done) {
     return (
       <Modal visible animationType="fade" statusBarTranslucent>
-        <Onboarding onComplete={onboarding.complete} />
+        <Onboarding
+          onComplete={() => {
+            // Delay completing onboarding until after the Modal fade-out animation
+            // finishes (~300ms). Without this delay, the Modal unmount and home screen
+            // mount race on Android, causing a crash as all hooks initialize simultaneously.
+            setTimeout(() => {
+              onboarding.complete();
+            }, 350);
+          }}
+        />
       </Modal>
     );
   }
+
+  // Wait one frame after onboarding completes before mounting the heavy home screen
+  if (!homeReady) return null;
 
   // Create Belief
   if (screen === "create-belief") {

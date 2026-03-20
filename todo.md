@@ -118,3 +118,10 @@
 - [x] Fix screenshot crash — add safe guard around screenshot-triggered state changes
 - [x] Add Sentry device-based user identification on app startup
 - [x] Enable Sentry Session Replay for crash sessions (replaysOnErrorSampleRate: 1.0)
+- [ ] Build subscription/paywall with RevenueCat — $0.99/week auto-renewing + 3-day free trial
+- [ ] Generate Play Store screenshots and feature graphic
+- [ ] Create and host privacy policy page
+- [ ] Set up Play Console listing and upload AAB
+- [ ] Create subscription product in Play Console
+- [ ] Configure Google Cloud Pub/Sub for subscription notifications
+- [x] Fix crash after viewing instructional screenshots (onboarding slides) — app closes when transitioning to main screen
