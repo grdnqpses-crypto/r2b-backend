@@ -531,7 +531,7 @@ export default function DetectScreen() {
       </View>
 
       {/* Trial status banner */}
-      {subscription.isTrialing && subscription.daysLeftInTrial <= 1 && (
+      {subscription.status === "trial" && subscription.trialDaysRemaining <= 1 && (
         <Pressable
           onPress={() => setShowPaywall(true)}
           style={({ pressed }) => [{
@@ -546,7 +546,7 @@ export default function DetectScreen() {
           }]}
         >
           <Text style={{ color: colors.warning, fontWeight: "700", fontSize: 13 }}>
-            ⏰ {subscription.daysLeftInTrial === 0 ? "Trial ends today" : "1 day left in your free trial"} — Subscribe to keep access
+            ⏰ {subscription.trialDaysRemaining === 0 ? "Trial ends today" : "1 day left in your free trial"} — Subscribe to keep access
           </Text>
         </Pressable>
       )}

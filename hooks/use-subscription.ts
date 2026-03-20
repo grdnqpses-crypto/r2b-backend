@@ -1,267 +1,311 @@
 /**
  * use-subscription.ts
  *
- * RevenueCat subscription hook for Belief Field Detector.
- * Manages the $0.99/week auto-renewing subscription with 3-day free trial.
+ * Native Google Play Billing subscription hook using react-native-iap.
+ * No third-party middleware — connects directly to Google Play Billing Library.
  *
- * Usage:
- *   const { isSubscribed, isTrialing, daysLeftInTrial, purchase, restore, loading } = useSubscription();
+ * Subscription product: belief_weekly_099
+ *   - $0.99 / week, auto-renewing
+ *   - 3-day free trial (configured in Play Console → Monetization → Subscriptions)
+ *
+ * Flow:
+ *  1. App starts → initConnection()
+ *  2. fetchProducts(['belief_weekly_099']) → get offer token
+ *  3. User taps "Start Free Trial" → requestPurchase() with offerToken
+ *  4. purchaseUpdatedListener fires → finishTransaction()
+ *  5. Status persisted in AsyncStorage for offline reads
  */
 
-import { useState, useEffect, useCallback } from "react";
-import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Platform } from "react-native";
 
-// RevenueCat product/entitlement IDs — must match what you create in RevenueCat dashboard
-export const RC_ENTITLEMENT_ID = "premium";
-export const RC_WEEKLY_PRODUCT_ID = "belief_weekly_099";
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-// Trial duration in days
+/** Product ID — must match exactly what you create in Play Console → Monetization → Subscriptions */
+export const SUBSCRIPTION_SKU = "belief_weekly_099";
+
+/** Trial duration in days (enforced locally; Play Store enforces the billing trial) */
 export const TRIAL_DAYS = 3;
 
-// AsyncStorage keys
-const STORAGE_KEY_TRIAL_START = "@belief_trial_start";
-const STORAGE_KEY_SUBSCRIBED = "@belief_subscribed";
-const STORAGE_KEY_SUBSCRIPTION_EXPIRY = "@belief_subscription_expiry";
+const STORAGE_STATUS_KEY = "@belief_subscription_status";
+const STORAGE_TRIAL_START_KEY = "@belief_trial_start";
 
-export type SubscriptionStatus = "loading" | "trial" | "subscribed" | "expired" | "none";
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export type SubscriptionStatus =
+  | "loading"    // initial async check in progress
+  | "none"       // never subscribed, no trial started
+  | "trial"      // within 3-day free trial window
+  | "active"     // paid subscription active
+  | "expired"    // trial or subscription lapsed
+  | "cancelled"; // user cancelled but still within paid period
 
 export interface SubscriptionState {
+  /** True if the user has access (trial or active subscription) */
+  hasAccess: boolean;
   status: SubscriptionStatus;
-  isSubscribed: boolean;    // true if active paid subscription
-  isTrialing: boolean;      // true if within 3-day free trial
-  hasAccess: boolean;       // true if subscribed OR trialing
-  daysLeftInTrial: number;  // 0-3
-  trialEndDate: Date | null;
+  /** Days remaining in trial (0 if not in trial) */
+  trialDaysRemaining: number;
+  /** Whether the IAP connection is initializing */
   loading: boolean;
+  /** Start the 3-day free trial */
+  startTrial: () => Promise<void>;
+  /** Initiate a purchase via Google Play Billing */
+  purchase: () => Promise<void>;
+  /** Restore previous purchases */
+  restore: () => Promise<void>;
+  /** Refresh subscription status from Play Store */
+  refresh: () => Promise<void>;
+  /** Error message if something went wrong */
   error: string | null;
 }
 
-export interface UseSubscriptionReturn extends SubscriptionState {
-  purchase: () => Promise<boolean>;
-  restore: () => Promise<boolean>;
-  startTrial: () => Promise<void>;
-  refresh: () => Promise<void>;
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function computeTrialDaysRemaining(trialStartMs: number): number {
+  const THREE_DAYS_MS = TRIAL_DAYS * 24 * 60 * 60 * 1000;
+  const elapsed = Date.now() - trialStartMs;
+  const remaining = THREE_DAYS_MS - elapsed;
+  return Math.max(0, Math.ceil(remaining / (24 * 60 * 60 * 1000)));
 }
 
-// Safe RevenueCat import — gracefully degrades if native module not available (web/simulator)
-let Purchases: typeof import("react-native-purchases").default | null = null;
+// ─── Hook ─────────────────────────────────────────────────────────────────────
 
-try {
-  const rc = require("react-native-purchases");
-  Purchases = rc.default;
-} catch {
-  // RevenueCat not available (web preview) — use local trial fallback
-}
+export function useSubscription(): SubscriptionState {
+  const [status, setStatus] = useState<SubscriptionStatus>("loading");
+  const [loading, setLoading] = useState(true);
+  const [trialDaysRemaining, setTrialDaysRemaining] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [offerToken, setOfferToken] = useState<string | null>(null);
+  const connectionRef = useRef(false);
+  const purchaseListenerRef = useRef<{ remove: () => void } | null>(null);
+  const errorListenerRef = useRef<{ remove: () => void } | null>(null);
 
-const RC_API_KEY_ANDROID = process.env.EXPO_PUBLIC_RC_API_KEY_ANDROID ?? "";
-const RC_API_KEY_IOS = process.env.EXPO_PUBLIC_RC_API_KEY_IOS ?? "";
-
-let rcInitialized = false;
-
-async function initRevenueCat(): Promise<boolean> {
-  if (rcInitialized || !Purchases) return false;
-  const apiKey = Platform.OS === "ios" ? RC_API_KEY_IOS : RC_API_KEY_ANDROID;
-  if (!apiKey) return false;
-  try {
-    Purchases.configure({ apiKey });
-    rcInitialized = true;
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function checkRCEntitlement(): Promise<{ active: boolean; expiry: Date | null }> {
-  if (!Purchases || !rcInitialized) return { active: false, expiry: null };
-  try {
-    const info = await Purchases.getCustomerInfo();
-    const entitlement = info.entitlements.active[RC_ENTITLEMENT_ID];
-    if (entitlement) {
-      const expiry = entitlement.expirationDate ? new Date(entitlement.expirationDate) : null;
-      return { active: true, expiry };
-    }
-    return { active: false, expiry: null };
-  } catch {
-    return { active: false, expiry: null };
-  }
-}
-
-export function useSubscription(): UseSubscriptionReturn {
-  const [state, setState] = useState<SubscriptionState>({
-    status: "loading",
-    isSubscribed: false,
-    isTrialing: false,
-    hasAccess: false,
-    daysLeftInTrial: 0,
-    trialEndDate: null,
-    loading: true,
-    error: null,
-  });
-
-  const computeState = useCallback(async (): Promise<SubscriptionState> => {
-    // 1. Try RevenueCat first
-    await initRevenueCat();
-    const { active, expiry } = await checkRCEntitlement();
-
-    if (active) {
-      return {
-        status: "subscribed",
-        isSubscribed: true,
-        isTrialing: false,
-        hasAccess: true,
-        daysLeftInTrial: 0,
-        trialEndDate: null,
-        loading: false,
-        error: null,
-      };
-    }
-
-    // 2. Fall back to local trial tracking
-    const [trialStartRaw, subscribedRaw] = await Promise.all([
-      AsyncStorage.getItem(STORAGE_KEY_TRIAL_START),
-      AsyncStorage.getItem(STORAGE_KEY_SUBSCRIBED),
-    ]);
-
-    // Check locally stored subscription (for offline scenarios)
-    if (subscribedRaw === "true") {
-      return {
-        status: "subscribed",
-        isSubscribed: true,
-        isTrialing: false,
-        hasAccess: true,
-        daysLeftInTrial: 0,
-        trialEndDate: null,
-        loading: false,
-        error: null,
-      };
-    }
-
-    // Check trial
-    if (trialStartRaw) {
-      const trialStart = new Date(trialStartRaw);
-      const trialEnd = new Date(trialStart.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
-      const now = new Date();
-      const msLeft = trialEnd.getTime() - now.getTime();
-      const daysLeft = Math.max(0, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
-
-      if (now < trialEnd) {
-        return {
-          status: "trial",
-          isSubscribed: false,
-          isTrialing: true,
-          hasAccess: true,
-          daysLeftInTrial: daysLeft,
-          trialEndDate: trialEnd,
-          loading: false,
-          error: null,
-        };
-      } else {
-        return {
-          status: "expired",
-          isSubscribed: false,
-          isTrialing: false,
-          hasAccess: false,
-          daysLeftInTrial: 0,
-          trialEndDate: trialEnd,
-          loading: false,
-          error: null,
-        };
+  // ── Determine status from persisted data + Play Store ──────────────────────
+  const refreshStatus = useCallback(async () => {
+    try {
+      // 1. Check for active Play Store purchases (Android only)
+      if (Platform.OS === "android" && connectionRef.current) {
+        try {
+          const { getAvailablePurchases } = await import("react-native-iap");
+          const purchases = await getAvailablePurchases();
+          const activeSub = purchases.find(
+            (p) => p.productId === SUBSCRIPTION_SKU && p.purchaseToken
+          );
+          if (activeSub) {
+            await AsyncStorage.setItem(STORAGE_STATUS_KEY, "active");
+            setStatus("active");
+            setTrialDaysRemaining(0);
+            setLoading(false);
+            return;
+          }
+        } catch {
+          // getAvailablePurchases failed — fall through to local check
+        }
       }
-    }
 
-    // No trial started yet
-    return {
-      status: "none",
-      isSubscribed: false,
-      isTrialing: false,
-      hasAccess: false,
-      daysLeftInTrial: 0,
-      trialEndDate: null,
-      loading: false,
-      error: null,
-    };
+      // 2. Check locally stored subscription status
+      const [storedStatus, trialStartStr] = await Promise.all([
+        AsyncStorage.getItem(STORAGE_STATUS_KEY),
+        AsyncStorage.getItem(STORAGE_TRIAL_START_KEY),
+      ]);
+
+      if (storedStatus === "active") {
+        setStatus("active");
+        setTrialDaysRemaining(0);
+      } else if (trialStartStr) {
+        const trialStart = parseInt(trialStartStr, 10);
+        const daysLeft = computeTrialDaysRemaining(trialStart);
+        if (daysLeft > 0) {
+          setStatus("trial");
+          setTrialDaysRemaining(daysLeft);
+        } else {
+          setStatus("expired");
+          setTrialDaysRemaining(0);
+        }
+      } else {
+        setStatus("none");
+        setTrialDaysRemaining(0);
+      }
+    } catch {
+      // On web or simulator, default to trial mode for development
+      setStatus("trial");
+      setTrialDaysRemaining(TRIAL_DAYS);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const refresh = useCallback(async () => {
-    setState((s) => ({ ...s, loading: true }));
-    const next = await computeState();
-    setState(next);
-  }, [computeState]);
-
+  // ── Initialize IAP connection ───────────────────────────────────────────────
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    let mounted = true;
+
+    const init = async () => {
+      try {
+        if (Platform.OS === "web") {
+          await refreshStatus();
+          return;
+        }
+
+        const { initConnection, fetchProducts, purchaseUpdatedListener, purchaseErrorListener, finishTransaction } =
+          await import("react-native-iap");
+
+        await initConnection();
+        connectionRef.current = true;
+
+        // Fetch the subscription product to get the offer token
+        try {
+          const products = await fetchProducts({ skus: [SUBSCRIPTION_SKU] });
+          if (mounted && products && products.length > 0) {
+            const sub = products[0] as {
+              subscriptionOfferDetailsAndroid?: Array<{
+                offerToken: string;
+                pricingPhases?: Array<{ formattedPrice?: string; priceAmountMicros?: string }>;
+              }>;
+            };
+            const offerDetails = sub.subscriptionOfferDetailsAndroid;
+            if (offerDetails && offerDetails.length > 0) {
+              // Prefer the offer that has a free trial phase (price = 0)
+              const trialOffer = offerDetails.find((o) =>
+                o.pricingPhases?.some(
+                  (p) => p.formattedPrice === "Free" || p.priceAmountMicros === "0"
+                )
+              );
+              setOfferToken(trialOffer?.offerToken ?? offerDetails[0].offerToken ?? null);
+            }
+          }
+        } catch {
+          // Product fetch failed — purchase will still work without offer token
+        }
+
+        // Set up purchase success listener
+        purchaseListenerRef.current = purchaseUpdatedListener(async (purchase) => {
+          if (purchase.productId === SUBSCRIPTION_SKU) {
+            try {
+              await finishTransaction({ purchase, isConsumable: false });
+              await AsyncStorage.setItem(STORAGE_STATUS_KEY, "active");
+              if (mounted) {
+                setStatus("active");
+                setTrialDaysRemaining(0);
+                setError(null);
+              }
+            } catch {
+              // Transaction finish failed — will retry on next app open
+            }
+          }
+        });
+
+        // Set up purchase error listener
+        errorListenerRef.current = purchaseErrorListener((err) => {
+          if (mounted) {
+            // Ignore user-cancelled errors
+            if (err.code !== "user-cancelled") {
+              setError(err.message ?? "Purchase failed. Please try again.");
+            }
+          }
+        });
+
+        await refreshStatus();
+      } catch {
+        // IAP not available (simulator, web, etc.) — allow trial mode
+        if (mounted) {
+          await refreshStatus();
+        }
+      }
+    };
+
+    init();
+
+    return () => {
+      mounted = false;
+      purchaseListenerRef.current?.remove();
+      errorListenerRef.current?.remove();
+      if (connectionRef.current) {
+        import("react-native-iap")
+          .then(({ endConnection }) => endConnection())
+          .catch(() => {});
+        connectionRef.current = false;
+      }
+    };
+  }, [refreshStatus]);
+
+  // ── Actions ────────────────────────────────────────────────────────────────
 
   const startTrial = useCallback(async () => {
-    const existing = await AsyncStorage.getItem(STORAGE_KEY_TRIAL_START);
-    if (!existing) {
-      await AsyncStorage.setItem(STORAGE_KEY_TRIAL_START, new Date().toISOString());
-    }
-    await refresh();
-  }, [refresh]);
-
-  const purchase = useCallback(async (): Promise<boolean> => {
     try {
-      await initRevenueCat();
-
-      if (Purchases && rcInitialized) {
-        // Real RevenueCat purchase
-        const offerings = await Purchases.getOfferings();
-        const pkg = offerings.current?.availablePackages.find(
-          (p) => p.product.identifier === RC_WEEKLY_PRODUCT_ID
-        ) ?? offerings.current?.weekly ?? offerings.current?.availablePackages[0];
-
-        if (!pkg) {
-          setState((s) => ({ ...s, error: "No subscription package available." }));
-          return false;
-        }
-
-        const { customerInfo } = await Purchases.purchasePackage(pkg);
-        const active = !!customerInfo.entitlements.active[RC_ENTITLEMENT_ID];
-
-        if (active) {
-          await AsyncStorage.setItem(STORAGE_KEY_SUBSCRIBED, "true");
-          await refresh();
-          return true;
-        }
-        return false;
-      } else {
-        // Simulator/web fallback: simulate successful purchase
-        await AsyncStorage.setItem(STORAGE_KEY_SUBSCRIBED, "true");
-        await refresh();
-        return true;
-      }
-    } catch (err: unknown) {
-      // User cancelled — not an error (RevenueCat sets userCancelled on the error object)
-      if (err && typeof err === "object" && (err as { userCancelled?: boolean }).userCancelled) {
-        return false;
-      }
-      setState((s) => ({ ...s, error: "Purchase failed. Please try again." }));
-      return false;
-    }
-  }, [refresh]);
-
-  const restore = useCallback(async (): Promise<boolean> => {
-    try {
-      await initRevenueCat();
-
-      if (Purchases && rcInitialized) {
-        const info = await Purchases.restorePurchases();
-        const active = !!info.entitlements.active[RC_ENTITLEMENT_ID];
-        if (active) {
-          await AsyncStorage.setItem(STORAGE_KEY_SUBSCRIBED, "true");
-          await refresh();
-          return true;
-        }
-        return false;
-      }
-      return false;
+      const existing = await AsyncStorage.getItem(STORAGE_TRIAL_START_KEY);
+      if (existing) return; // Already started — idempotent
+      await AsyncStorage.setItem(STORAGE_TRIAL_START_KEY, Date.now().toString());
+      setStatus("trial");
+      setTrialDaysRemaining(TRIAL_DAYS);
     } catch {
-      setState((s) => ({ ...s, error: "Restore failed. Please try again." }));
-      return false;
+      // Ignore storage errors
     }
-  }, [refresh]);
+  }, []);
 
-  return { ...state, purchase, restore, startTrial, refresh };
+  const purchase = useCallback(async () => {
+    if (Platform.OS === "web") {
+      setError("Subscriptions are only available on Android devices.");
+      return;
+    }
+    if (!connectionRef.current) {
+      setError("Store connection not ready. Please try again.");
+      return;
+    }
+    try {
+      setError(null);
+      const { requestPurchase } = await import("react-native-iap");
+      await requestPurchase({
+        type: "subs",
+        request: {
+          google: {
+            skus: [SUBSCRIPTION_SKU],
+            ...(offerToken
+              ? { subscriptionOffers: [{ sku: SUBSCRIPTION_SKU, offerToken }] }
+              : {}),
+          },
+        },
+      });
+      // Result handled by purchaseUpdatedListener above
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Purchase failed.";
+      if (!msg.toLowerCase().includes("cancel")) {
+        setError(msg);
+      }
+    }
+  }, [offerToken]);
+
+  const restore = useCallback(async () => {
+    if (Platform.OS === "web") return;
+    try {
+      setError(null);
+      const { getAvailablePurchases } = await import("react-native-iap");
+      const purchases = await getAvailablePurchases();
+      const activeSub = purchases.find((p) => p.productId === SUBSCRIPTION_SKU);
+      if (activeSub) {
+        await AsyncStorage.setItem(STORAGE_STATUS_KEY, "active");
+        setStatus("active");
+        setTrialDaysRemaining(0);
+      } else {
+        setError("No active subscription found for this account.");
+      }
+    } catch {
+      setError("Could not restore purchases. Please try again.");
+    }
+  }, []);
+
+  const hasAccess = status === "trial" || status === "active";
+
+  return {
+    hasAccess,
+    status,
+    trialDaysRemaining,
+    loading,
+    startTrial,
+    purchase,
+    restore,
+    refresh: refreshStatus,
+    error,
+  };
 }

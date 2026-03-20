@@ -118,7 +118,7 @@
 - [x] Fix screenshot crash — add safe guard around screenshot-triggered state changes
 - [x] Add Sentry device-based user identification on app startup
 - [x] Enable Sentry Session Replay for crash sessions (replaysOnErrorSampleRate: 1.0)
-- [ ] Build subscription/paywall with RevenueCat — $0.99/week auto-renewing + 3-day free trial
+- [x] Build subscription/paywall with RevenueCat — replaced with native react-native-iap
 - [ ] Generate Play Store screenshots and feature graphic
 - [ ] Create and host privacy policy page
 - [ ] Set up Play Console listing and upload AAB
@@ -126,8 +126,9 @@
 - [ ] Configure Google Cloud Pub/Sub for subscription notifications
 - [x] Fix crash after viewing instructional screenshots (onboarding slides) — app closes when transitioning to main screen
 - [x] CRITICAL: App STILL crashes immediately after onboarding instructions — definitive fix needed (moved startTrial from render path into useEffect above all early returns)
-- [ ] Install react-native-purchases (RevenueCat) and set up provider
-- [ ] Build paywall screen with 3-day free trial CTA, $0.99/week pricing, and feature list
-- [ ] Gate app features behind subscription status
-- [ ] Add restore purchases functionality
-- [ ] Wire RevenueCat API key via secrets
+- [x] Remove RevenueCat, install react-native-iap with native Google Play Billing 8.3.0
+- [x] Rebuild subscription hook using native IAP (no third-party middleware)
+- [x] Rebuild paywall screen using native IAP purchase flow
+- [ ] Create app in Play Console and set up closed testing track
+- [ ] Create $0.99/week subscription product in Play Console Monetization tab
+- [ ] Set up Google Cloud Pub/Sub topic and link to Play Console

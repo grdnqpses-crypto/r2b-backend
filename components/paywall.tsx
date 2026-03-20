@@ -20,10 +20,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/use-colors";
 import { Haptics } from "@/lib/safe-imports";
-import type { UseSubscriptionReturn } from "@/hooks/use-subscription";
+import type { SubscriptionState } from "@/hooks/use-subscription";
 
 interface PaywallProps {
-  subscription: UseSubscriptionReturn;
+  subscription: SubscriptionState;
   onDismiss?: () => void;
   /** If true, user cannot dismiss — they must subscribe or the app is unusable */
   required?: boolean;
@@ -78,16 +78,20 @@ export function Paywall({ subscription, onDismiss, required = false }: PaywallPr
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
     try {
-      const success = await subscription.purchase();
-      if (success) {
-        if (Platform.OS !== "web") {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await subscription.purchase();
+      // purchaseUpdatedListener in use-subscription handles success
+      // Check if status changed after purchase
+      setTimeout(() => {
+        if (subscription.status === "active") {
+          if (Platform.OS !== "web") {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+          setMessage("🎉 Welcome! Subscription activated.");
+          setTimeout(() => onDismiss?.(), 1500);
+        } else if (subscription.error) {
+          setMessage(subscription.error);
         }
-        setMessage("🎉 Welcome! Your 3-day free trial has started.");
-        setTimeout(() => onDismiss?.(), 1500);
-      } else {
-        setMessage(subscription.error ?? "Purchase cancelled.");
-      }
+      }, 500);
     } finally {
       setPurchasing(false);
     }
@@ -98,16 +102,18 @@ export function Paywall({ subscription, onDismiss, required = false }: PaywallPr
     setRestoring(true);
     setMessage(null);
     try {
-      const success = await subscription.restore();
-      if (success) {
-        if (Platform.OS !== "web") {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await subscription.restore();
+      setTimeout(() => {
+        if (subscription.status === "active") {
+          if (Platform.OS !== "web") {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+          setMessage("✅ Subscription restored!");
+          setTimeout(() => onDismiss?.(), 1500);
+        } else {
+          setMessage(subscription.error ?? "No active subscription found.");
         }
-        setMessage("✅ Subscription restored!");
-        setTimeout(() => onDismiss?.(), 1500);
-      } else {
-        setMessage("No active subscription found.");
-      }
+      }, 500);
     } finally {
       setRestoring(false);
     }
