@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { View, Text, FlatList, Pressable, StyleSheet, Platform } from "react-native";
+import { View, Text, FlatList, Pressable, StyleSheet, Platform, Animated, Easing } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { useSensorEngine } from "@/hooks/use-sensors";
 import { useScanAudio } from "@/hooks/use-scan-audio";
@@ -138,6 +138,20 @@ export function LiveScanner({
     [belief.id, storyEnabled]
   );
   const [storyActive, setStoryActive] = useState(false);
+
+  // Live score pulse animation — fires whenever overallScore changes
+  const scorePulse = useRef(new Animated.Value(1)).current;
+  const prevScoreRef = useRef(0);
+  useEffect(() => {
+    const newScore = sensorState.overallScore;
+    if (newScore !== prevScoreRef.current && sensorState.phase === "scanning") {
+      prevScoreRef.current = newScore;
+      Animated.sequence([
+        Animated.timing(scorePulse, { toValue: 1.18, duration: 120, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+        Animated.timing(scorePulse, { toValue: 1, duration: 200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ]).start();
+    }
+  }, [sensorState.overallScore, sensorState.phase]);
 
   // 5-second countdown before scan
   useEffect(() => {
@@ -518,6 +532,18 @@ export function LiveScanner({
         </SilentErrorBoundary>
       </View>
 
+      {/* Live score preview — only shown once scanning starts */}
+      {sensorState.phase === "scanning" && (
+        <Animated.View style={[styles.liveScoreRow, { transform: [{ scale: scorePulse }] }]}>
+          <View style={[styles.liveScoreBadge, { backgroundColor: accentColor + "20", borderColor: accentColor + "60" }]}>
+            <Text style={[styles.liveScoreNumber, { color: accentColor }]}>
+              {Math.round(sensorState.overallScore)}
+            </Text>
+            <Text style={[styles.liveScoreLabel, { color: accentColor + "BB" }]}>LIVE SCORE</Text>
+          </View>
+        </Animated.View>
+      )}
+
       {/* Ticker */}
       <View
         style={[
@@ -715,4 +741,29 @@ const styles = StyleSheet.create({
   stopBtnText: { fontSize: 17, fontWeight: "800", letterSpacing: 0.3 },
   cancelSmallBtn: { paddingVertical: 8, paddingHorizontal: 20 },
   cancelSmallText: { fontSize: 14, fontWeight: "600" },
+  liveScoreRow: {
+    alignItems: "center",
+    marginBottom: 10,
+    marginTop: -4,
+  },
+  liveScoreBadge: {
+    borderWidth: 1.5,
+    borderRadius: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    alignItems: "center",
+    minWidth: 120,
+  },
+  liveScoreNumber: {
+    fontSize: 42,
+    fontWeight: "900",
+    lineHeight: 46,
+    fontVariant: ["tabular-nums"],
+  },
+  liveScoreLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 2,
+    marginTop: 2,
+  },
 });
