@@ -422,8 +422,19 @@ export default function DetectScreen() {
         scannedToday={scannedToday}
         todaysBestScore={todaysBestScore}
         onStartChallenge={() => {
-          if (selectedBelief) {
+          // Auto-pick a belief if none is selected yet
+          const beliefToUse = selectedBelief ?? allBeliefs[0] ?? null;
+          if (!beliefToUse) return;
+          if (!selectedBelief) {
+            setSelectedBelief(beliefToUse);
+          }
+          if (Platform.OS !== "web") {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          }
+          if (settings.meditationEnabled) {
             setScreen("meditation");
+          } else {
+            setScreen("scanning");
           }
         }}
       />

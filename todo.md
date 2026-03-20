@@ -104,3 +104,4 @@
 - [x] Build ImpactReveal component — full-screen animated score reveal with particles, pulses, screen flash
 - [x] Add intensity-based sound effects on results screen (low hum → powerful chime → explosive burst)
 - [x] Wire ImpactReveal into ResultsScreen so it fires on scan completion
+- [x] Fix "Start Today's Challenge" button — does nothing when pressed
