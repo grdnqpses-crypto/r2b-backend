@@ -133,3 +133,4 @@
 - [ ] Create $0.99/week subscription product in Play Console Monetization tab
 - [ ] Set up Google Cloud Pub/Sub topic and link to Play Console
 - [x] CRITICAL: App STILL crashes after tutorial screens — FIXED: replaced Modal-based onboarding with full-screen overlay that fades out, home screen mounts underneath
+- [x] CRITICAL: App crashes immediately on open — FIXED: added isIAPAvailable() guard so react-native-iap is never imported when native module is absent (Expo Go, simulators, web)

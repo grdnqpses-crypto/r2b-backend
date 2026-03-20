@@ -18,7 +18,19 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Platform } from "react-native";
+import { NativeModules, Platform } from "react-native";
+
+/**
+ * Returns true only when the react-native-iap native module is actually linked
+ * and available in the current build. Returns false in Expo Go, simulators,
+ * web, iOS, and any build where the native module wasn't compiled in.
+ * This check is synchronous and safe to call at module scope.
+ */
+function isIAPAvailable(): boolean {
+  if (Platform.OS !== "android") return false;
+  // react-native-iap registers its native module as RNIapModule
+  return !!NativeModules.RNIapModule;
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -143,7 +155,10 @@ export function useSubscription(): SubscriptionState {
 
     const init = async () => {
       try {
-        if (Platform.OS === "web") {
+        // Guard: only attempt IAP on Android builds that have the native module linked.
+        // On Expo Go, simulators, iOS, and web the native module is absent and any
+        // import/call would throw a fatal "Native module cannot be null" error.
+        if (!isIAPAvailable()) {
           await refreshStatus();
           return;
         }
