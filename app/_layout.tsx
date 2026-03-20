@@ -21,6 +21,8 @@ import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-run
 import { runDiagnostic } from "@/hooks/use-diagnostics";
 import { ScanHistoryProvider } from "@/lib/scan-history-provider";
 import { initSentry, Sentry } from "@/lib/sentry";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ScreenCapture from "expo-screen-capture";
 
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -41,11 +43,48 @@ export default function RootLayout() {
     initManusRuntime();
   }, []);
 
-  // Initialize Sentry crash reporting
+  // Initialize Sentry crash reporting + device user ID
   useEffect(() => {
-    initSentry().catch(() => {
-      // Sentry init should never crash the app
-    });
+    const setup = async () => {
+      await initSentry().catch(() => {});
+
+      // Set a stable anonymous device ID so crashes can be grouped by device
+      try {
+        let deviceId = await AsyncStorage.getItem("@sentry_device_id");
+        if (!deviceId) {
+          // Generate a random stable ID (no PII)
+          deviceId = `device_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`;
+          await AsyncStorage.setItem("@sentry_device_id", deviceId);
+        }
+        Sentry.setDeviceUser(deviceId);
+      } catch {
+        // Never block startup for analytics
+      }
+    };
+    setup();
+  }, []);
+
+  // Screenshot listener — log breadcrumb so screenshot crashes appear in Sentry trail
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    let subscription: { remove: () => void } | null = null;
+    const addListener = async () => {
+      try {
+        subscription = ScreenCapture.addScreenshotListener(() => {
+          Sentry.addBreadcrumb({
+            message: "User took a screenshot",
+            category: "ui.screenshot",
+            level: "info",
+          });
+        });
+      } catch {
+        // Screenshot listener is optional — never crash for this
+      }
+    };
+    addListener();
+    return () => {
+      subscription?.remove();
+    };
   }, []);
 
   // Run self-healing diagnostic engine on app startup

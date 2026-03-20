@@ -71,8 +71,8 @@ export async function initSentry(): Promise<void> {
       tracesSampleRate: __DEV__ ? 1.0 : 0.2,
 
       // Session replay — capture 10% of sessions, 100% on error
-      // replaysSessionSampleRate: 0.1,
-      // replaysOnErrorSampleRate: 1.0,
+      replaysSessionSampleRate: 0.1,
+      replaysOnErrorSampleRate: 1.0,
 
       // Enable automatic breadcrumbs for navigation, console, and HTTP
       enableAutoSessionTracking: true,
@@ -234,6 +234,20 @@ export const Sentry = {
       return () => {};
     } catch {
       return () => {};
+    }
+  },
+
+  /**
+   * Set a device-based anonymous user ID so crashes can be grouped by device.
+   * Call once at app startup — uses a stable device identifier.
+   */
+  setDeviceUser(deviceId: string): void {
+    if (!_initialized || !_sentry) return;
+    try {
+      _sentry.setUser({ id: deviceId });
+      _sentry.setTag("device_id", deviceId);
+    } catch {
+      // Never let Sentry crash the app
     }
   },
 
