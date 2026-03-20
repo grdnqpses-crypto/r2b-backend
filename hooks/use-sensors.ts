@@ -586,7 +586,8 @@ export function useSensorEngine(
           ticker = "Calibrating sensors — establishing your baseline environment...";
         }
 
-        const phase = elapsed < 5 ? "calibrating" : elapsed >= scanDuration ? "complete" : "scanning";
+        // scanDuration === 0 means "manual stop" mode — never auto-complete
+        const phase = elapsed < 5 ? "calibrating" : (scanDuration > 0 && elapsed >= scanDuration) ? "complete" : "scanning";
 
         setState((prev) => ({
           sensors,

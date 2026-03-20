@@ -106,3 +106,8 @@
 - [x] Wire ImpactReveal into ResultsScreen so it fires on scan completion
 - [x] Fix "Start Today's Challenge" button — does nothing when pressed
 - [x] Add sticky bottom CTA bar that appears after belief is selected — auto-scrolls to it and pulses to draw attention
+- [x] Add haptic "lock in" thud (Medium impact) when sticky CTA bar fully slides up
+- [x] Remove fixed scan duration cap — let scan run indefinitely until user stops it
+- [x] Add elapsed time counter display during scan
+- [x] Add "Stop & Reveal" button so user controls when scan ends
+- [x] Keep a minimum warm-up period (15s) before Stop button becomes active

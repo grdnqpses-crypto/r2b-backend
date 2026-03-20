@@ -318,9 +318,51 @@ export function LiveScanner({
     onCancel();
   }, [scanAudio, onCancel, beliefStory, storyActive, soundEnabled]);
 
-  const remaining = Math.max(0, scanDuration - Math.floor(sensorState.elapsed));
-  const minutes = Math.floor(remaining / 60);
-  const seconds = remaining % 60;
+  // Elapsed time display (counts up)
+  const elapsed = Math.floor(sensorState.elapsed);
+  const elapsedMinutes = Math.floor(elapsed / 60);
+  const elapsedSeconds = elapsed % 60;
+
+  // Minimum warm-up before Stop button unlocks (15s after sensors start)
+  const MIN_SCAN_SECONDS = 15;
+  const canStop = sensorState.phase === "scanning" && elapsed >= MIN_SCAN_SECONDS;
+
+  // Manual stop handler — triggers the same completion flow as auto-complete
+  const handleStop = useCallback(() => {
+    if (!canStop) return;
+    safeHapticNotification();
+    if (soundEnabled) {
+      try { scanAudio.stop(); scanAudio.playComplete(); } catch {}
+    }
+    if (storyActive) {
+      try { beliefStory.stopStory(); } catch {}
+      setStoryActive(false);
+    }
+    const breakdown = sensorState.sensors
+      .filter((s) => s.available)
+      .map((s) => ({
+        sensorId: s.id,
+        sensorName: s.name,
+        baseline: s.baseline,
+        peak: s.history.length > 0 ? Math.max(...s.history, s.current) : s.current,
+        deviation: s.deviation,
+        deviationPercent: s.deviationPercent,
+        unit: s.unit,
+        interpretation: generateInterpretation(s.name, s.deviationPercent, s.unit, s.deviation),
+      }));
+    const result: ScanResult = {
+      id: Date.now().toString(),
+      beliefId: belief.id,
+      beliefName: belief.name,
+      beliefEmoji: belief.emoji,
+      intensity,
+      score: sensorState.overallScore,
+      date: new Date().toISOString(),
+      sensorBreakdown: breakdown,
+      summary: generateSummary(sensorState.overallScore, belief.name),
+    };
+    setTimeout(() => onComplete(result), 300);
+  }, [canStop, sensorState, belief, intensity, soundEnabled, storyActive, scanAudio, beliefStory, onComplete]);
 
   const bgGradient = theme.gradientColors;
   const accentColor = theme.accent;
@@ -425,10 +467,10 @@ export function LiveScanner({
         </View>
         <View style={styles.timerContainer}>
           <Text style={[styles.timer, { color: accentColor }]}>
-            {minutes}:{seconds.toString().padStart(2, "0")}
+            {elapsedMinutes}:{elapsedSeconds.toString().padStart(2, "0")}
           </Text>
           <Text style={[styles.timerLabel, { color: accentColor + "AA" }]}>
-            remaining
+            elapsed
           </Text>
         </View>
       </View>
@@ -531,20 +573,36 @@ export function LiveScanner({
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Cancel button */}
-      <Pressable
-        onPress={handleCancel}
-        style={({ pressed }) => [
-          styles.cancelBtn,
-          {
-            backgroundColor: bgGradient[1],
-            borderColor: accentColor + "40",
-            opacity: pressed ? 0.7 : 1,
-          },
-        ]}
-      >
-        <Text style={[styles.cancelText, { color: "#FF6B6B" }]}>End Scan</Text>
-      </Pressable>
+      {/* Stop & Reveal button (unlocks after 15s) */}
+      <View style={styles.bottomBar}>
+        <Pressable
+          onPress={canStop ? handleStop : undefined}
+          style={({ pressed }) => [
+            styles.stopBtn,
+            {
+              backgroundColor: canStop ? accentColor : accentColor + "30",
+              borderColor: canStop ? accentColor + "80" : accentColor + "30",
+              opacity: canStop ? (pressed ? 0.85 : 1) : 0.6,
+              transform: [{ scale: canStop && pressed ? 0.97 : 1 }],
+            },
+          ]}
+        >
+          <Text style={[styles.stopBtnText, { color: canStop ? "#fff" : accentColor + "80" }]}>
+            {canStop
+              ? "⚡ Stop & Reveal My Score"
+              : `🔒 Hold for ${Math.max(0, MIN_SCAN_SECONDS - elapsed)}s more...`}
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={handleCancel}
+          style={({ pressed }) => [
+            styles.cancelSmallBtn,
+            { opacity: pressed ? 0.6 : 1 },
+          ]}
+        >
+          <Text style={[styles.cancelSmallText, { color: "#FF6B6B" }]}>Cancel</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -636,4 +694,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cancelText: { fontSize: 16, fontWeight: "600" },
+  bottomBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingBottom: 40,
+    paddingTop: 12,
+    gap: 8,
+    alignItems: "center",
+  },
+  stopBtn: {
+    width: "100%",
+    paddingVertical: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    alignItems: "center",
+  },
+  stopBtnText: { fontSize: 17, fontWeight: "800", letterSpacing: 0.3 },
+  cancelSmallBtn: { paddingVertical: 8, paddingHorizontal: 20 },
+  cancelSmallText: { fontSize: 14, fontWeight: "600" },
 });

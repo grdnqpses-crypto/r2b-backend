@@ -83,6 +83,10 @@ export default function DetectScreen() {
         Animated.timing(ctaBarY, { toValue: 0, duration: 320, easing: Easing.out(Easing.back(1.4)), useNativeDriver: true }),
         Animated.timing(ctaBarOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
       ]).start(() => {
+        // Haptic "lock in" thud when bar fully arrives
+        if (Platform.OS !== "web") {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        }
         // Pulse the button 3 times to draw attention
         ctaPulseAnim.current = Animated.loop(
           Animated.sequence([
@@ -255,7 +259,7 @@ export default function DetectScreen() {
           <LiveScanner
             belief={selectedBelief}
             intensity={intensity}
-            scanDuration={settings.scanDuration}
+            scanDuration={0}
             soundEnabled={settings.soundEnabled}
             storyEnabled={settings.storyNarrationEnabled}
             onComplete={handleScanComplete}
