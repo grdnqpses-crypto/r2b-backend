@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,10 @@ import {
   StyleSheet,
   Platform,
   Modal,
+  Animated,
+  Easing,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useOnboarding } from "@/hooks/use-onboarding";
@@ -59,12 +62,45 @@ export default function DetectScreen() {
   const { settings } = useAppSettings();
   const achievements = useAchievements();
 
+  const insets = useSafeAreaInsets();
   const [screen, setScreen] = useState<Screen>("home");
   const [selectedBelief, setSelectedBelief] = useState<BeliefOption | null>(null);
   const [intensity, setIntensity] = useState(7);
   const [searchText, setSearchText] = useState("");
   const [expandedCategory, setExpandedCategory] = useState<string | null>("childhood");
   const [lastResult, setLastResult] = useState<ScanResult | null>(null);
+
+  // Sticky CTA bar animation
+  const ctaBarY = useRef(new Animated.Value(120)).current;
+  const ctaBarOpacity = useRef(new Animated.Value(0)).current;
+  const ctaPulse = useRef(new Animated.Value(1)).current;
+  const ctaPulseAnim = useRef<Animated.CompositeAnimation | null>(null);
+
+  useEffect(() => {
+    if (selectedBelief) {
+      // Slide up + fade in
+      Animated.parallel([
+        Animated.timing(ctaBarY, { toValue: 0, duration: 320, easing: Easing.out(Easing.back(1.4)), useNativeDriver: true }),
+        Animated.timing(ctaBarOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+      ]).start(() => {
+        // Pulse the button 3 times to draw attention
+        ctaPulseAnim.current = Animated.loop(
+          Animated.sequence([
+            Animated.timing(ctaPulse, { toValue: 1.04, duration: 500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+            Animated.timing(ctaPulse, { toValue: 1, duration: 500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          ]),
+          { iterations: 3 }
+        );
+        ctaPulseAnim.current.start();
+      });
+    } else {
+      ctaPulseAnim.current?.stop();
+      Animated.parallel([
+        Animated.timing(ctaBarY, { toValue: 120, duration: 220, easing: Easing.in(Easing.ease), useNativeDriver: true }),
+        Animated.timing(ctaBarOpacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [selectedBelief]);
 
   // Combine built-in + custom beliefs for display
   const allCategories: BeliefCategory[] = useMemo(() => {
@@ -684,9 +720,49 @@ export default function DetectScreen() {
         renderItem={renderCategory}
         ListHeaderComponent={ListHeader}
         ListFooterComponent={ListFooter}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, selectedBelief ? { paddingBottom: 110 + insets.bottom } : { paddingBottom: 20 }]}
         showsVerticalScrollIndicator={false}
       />
+
+      {/* Sticky CTA bar — slides up when a belief is selected */}
+      <Animated.View
+        style={[
+          styles.stickyBar,
+          {
+            backgroundColor: colors.background,
+            borderTopColor: colors.border,
+            paddingBottom: Math.max(insets.bottom, 12),
+            transform: [{ translateY: ctaBarY }],
+            opacity: ctaBarOpacity,
+          },
+        ]}
+        pointerEvents={selectedBelief ? "auto" : "none"}
+      >
+        <View style={styles.stickyBarInner}>
+          <View style={styles.stickyBeliefInfo}>
+            <Text style={styles.stickyEmoji}>{selectedBelief?.emoji ?? ""}</Text>
+            <View>
+              <Text style={[styles.stickyBeliefName, { color: colors.foreground }]} numberOfLines={1}>
+                {selectedBelief?.name ?? ""}
+              </Text>
+              <Text style={[styles.stickyBeliefSub, { color: colors.muted }]}>
+                Intensity {intensity}/10 · {settings.scanDuration}s scan
+              </Text>
+            </View>
+          </View>
+          <Animated.View style={{ transform: [{ scale: ctaPulse }] }}>
+            <Pressable
+              onPress={handleStartScan}
+              style={({ pressed }) => [
+                styles.stickyBtn,
+                { backgroundColor: colors.primary, opacity: pressed ? 0.88 : 1 },
+              ]}
+            >
+              <Text style={styles.stickyBtnText}>⚡ Begin Scan</Text>
+            </Pressable>
+          </Animated.View>
+        </View>
+      </Animated.View>
     </ScreenContainer>
   );
 }
@@ -850,4 +926,36 @@ const styles = StyleSheet.create({
   heroTagline: { fontSize: 11, fontWeight: "700", letterSpacing: 1.5, marginBottom: 6, textTransform: "uppercase" },
   heroBadge: { borderRadius: 20, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 6, marginTop: 8 },
   heroBadgeText: { fontSize: 12, fontWeight: "600" },
+  stickyBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopWidth: 0.5,
+    paddingTop: 12,
+    paddingHorizontal: 16,
+  },
+  stickyBarInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  stickyBeliefInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  stickyEmoji: { fontSize: 32 },
+  stickyBeliefName: { fontSize: 15, fontWeight: "700" },
+  stickyBeliefSub: { fontSize: 12, marginTop: 1 },
+  stickyBtn: {
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stickyBtnText: { color: "#fff", fontSize: 15, fontWeight: "800" },
 });

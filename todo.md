@@ -105,3 +105,4 @@
 - [x] Add intensity-based sound effects on results screen (low hum → powerful chime → explosive burst)
 - [x] Wire ImpactReveal into ResultsScreen so it fires on scan completion
 - [x] Fix "Start Today's Challenge" button — does nothing when pressed
+- [x] Add sticky bottom CTA bar that appears after belief is selected — auto-scrolls to it and pulses to draw attention
