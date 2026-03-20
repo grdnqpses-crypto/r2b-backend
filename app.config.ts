@@ -95,6 +95,7 @@ const config: ExpoConfig = {
   },
   plugins: [
     "expo-router",
+    "react-native-iap",
     [
       "expo-sensors",
       {

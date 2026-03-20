@@ -1,52 +1,64 @@
 /**
  * use-subscription.ts
  *
- * Native Google Play Billing subscription hook using react-native-iap.
- * No third-party middleware — connects directly to Google Play Billing Library.
+ * Native Google Play Billing subscription hook using react-native-iap v14 (Nitro Modules).
  *
- * Subscription product: belief_weekly_099
+ * CRASH PREVENTION STRATEGY:
+ * react-native-iap v14 uses react-native-nitro-modules (JSI). When the native Nitro
+ * module is absent (Expo Go, any build without native linking), importing the library
+ * throws a fatal error that cannot be caught with try/catch because it happens at
+ * module evaluation time (TurboModuleRegistry.getEnforcing throws synchronously).
+ *
+ * Guard: check global.NitroModulesProxy before any dynamic import of react-native-iap.
+ * This is the actual object Nitro installs into the JS global — if it's null/undefined,
+ * the native module is not linked and we must not import the library at all.
+ *
+ * Fallback: pure AsyncStorage-based trial tracking (no billing calls).
+ * The app works normally; real billing only activates in production EAS builds.
+ *
+ * Subscription product: belief_field_weekly_099
  *   - $0.99 / week, auto-renewing
  *   - 3-day free trial (configured in Play Console → Monetization → Subscriptions)
- *
- * Flow:
- *  1. App starts → initConnection()
- *  2. fetchProducts(['belief_weekly_099']) → get offer token
- *  3. User taps "Start Free Trial" → requestPurchase() with offerToken
- *  4. purchaseUpdatedListener fires → finishTransaction()
- *  5. Status persisted in AsyncStorage for offline reads
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { NativeModules, Platform } from "react-native";
+import { Platform } from "react-native";
+
+// ─── Native module availability check ─────────────────────────────────────────
 
 /**
- * Returns true only when the react-native-iap native module is actually linked
- * and available in the current build. Returns false in Expo Go, simulators,
- * web, iOS, and any build where the native module wasn't compiled in.
- * This check is synchronous and safe to call at module scope.
+ * Returns true ONLY when:
+ *  1. We are on Android (IAP is Android-only in this app)
+ *  2. The Nitro runtime is installed (global.NitroModulesProxy exists)
+ *
+ * This is the correct guard for react-native-iap v14 which uses Nitro Modules.
+ * Checking NativeModules.RNIapModule (old API) is WRONG for v14 — it will always
+ * be undefined even in production builds, causing the guard to fail.
+ *
+ * Safe to call synchronously at any point — reads only from the JS global.
  */
 function isIAPAvailable(): boolean {
   if (Platform.OS !== "android") return false;
-  // react-native-iap registers its native module as RNIapModule
-  return !!NativeModules.RNIapModule;
+  // NitroModulesProxy is installed into global by react-native-nitro-modules
+  // when the native TurboModule is linked. If it's absent, any import of
+  // react-native-iap will throw a fatal ModuleNotFoundError.
+  return typeof (global as Record<string, unknown>).NitroModulesProxy !== "undefined";
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-/** Product ID — must match exactly what you create in Play Console → Monetization → Subscriptions */
-export const SUBSCRIPTION_SKU = "belief_weekly_099";
-
-/** Trial duration in days (enforced locally; Play Store enforces the billing trial) */
+export const SUBSCRIPTION_SKU = "belief_field_weekly_099";
 export const TRIAL_DAYS = 3;
 
 const STORAGE_STATUS_KEY = "@belief_subscription_status";
 const STORAGE_TRIAL_START_KEY = "@belief_trial_start";
+const STORAGE_CONSENT_KEY = "@belief_subscription_consented";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type SubscriptionStatus =
-  | "loading"    // initial async check in progress
+  | "loading"
   | "none"       // never subscribed, no trial started
   | "trial"      // within 3-day free trial window
   | "active"     // paid subscription active
@@ -54,14 +66,13 @@ export type SubscriptionStatus =
   | "cancelled"; // user cancelled but still within paid period
 
 export interface SubscriptionState {
-  /** True if the user has access (trial or active subscription) */
   hasAccess: boolean;
   status: SubscriptionStatus;
-  /** Days remaining in trial (0 if not in trial) */
   trialDaysRemaining: number;
-  /** Whether the IAP connection is initializing */
   loading: boolean;
-  /** Start the 3-day free trial */
+  /** Whether the user has seen and agreed to the subscription consent screen */
+  hasConsented: boolean;
+  /** Start the 3-day free trial (records consent + trial start) */
   startTrial: () => Promise<void>;
   /** Initiate a purchase via Google Play Billing */
   purchase: () => Promise<void>;
@@ -69,7 +80,6 @@ export interface SubscriptionState {
   restore: () => Promise<void>;
   /** Refresh subscription status from Play Store */
   refresh: () => Promise<void>;
-  /** Error message if something went wrong */
   error: string | null;
 }
 
@@ -88,6 +98,7 @@ export function useSubscription(): SubscriptionState {
   const [status, setStatus] = useState<SubscriptionStatus>("loading");
   const [loading, setLoading] = useState(true);
   const [trialDaysRemaining, setTrialDaysRemaining] = useState(0);
+  const [hasConsented, setHasConsented] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offerToken, setOfferToken] = useState<string | null>(null);
   const connectionRef = useRef(false);
@@ -97,8 +108,8 @@ export function useSubscription(): SubscriptionState {
   // ── Determine status from persisted data + Play Store ──────────────────────
   const refreshStatus = useCallback(async () => {
     try {
-      // 1. Check for active Play Store purchases (Android only)
-      if (Platform.OS === "android" && connectionRef.current) {
+      // 1. Check for active Play Store purchases (Android + Nitro only)
+      if (isIAPAvailable() && connectionRef.current) {
         try {
           const { getAvailablePurchases } = await import("react-native-iap");
           const purchases = await getAvailablePurchases();
@@ -118,10 +129,13 @@ export function useSubscription(): SubscriptionState {
       }
 
       // 2. Check locally stored subscription status
-      const [storedStatus, trialStartStr] = await Promise.all([
+      const [storedStatus, trialStartStr, consentedStr] = await Promise.all([
         AsyncStorage.getItem(STORAGE_STATUS_KEY),
         AsyncStorage.getItem(STORAGE_TRIAL_START_KEY),
+        AsyncStorage.getItem(STORAGE_CONSENT_KEY),
       ]);
+
+      setHasConsented(consentedStr === "true");
 
       if (storedStatus === "active") {
         setStatus("active");
@@ -144,32 +158,36 @@ export function useSubscription(): SubscriptionState {
       // On web or simulator, default to trial mode for development
       setStatus("trial");
       setTrialDaysRemaining(TRIAL_DAYS);
+      setHasConsented(true);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // ── Initialize IAP connection ───────────────────────────────────────────────
+  // ── Initialize IAP connection (only when Nitro is available) ───────────────
   useEffect(() => {
     let mounted = true;
 
     const init = async () => {
       try {
-        // Guard: only attempt IAP on Android builds that have the native module linked.
-        // On Expo Go, simulators, iOS, and web the native module is absent and any
-        // import/call would throw a fatal "Native module cannot be null" error.
         if (!isIAPAvailable()) {
+          // Nitro not available — use local trial tracking only
           await refreshStatus();
           return;
         }
 
-        const { initConnection, fetchProducts, purchaseUpdatedListener, purchaseErrorListener, finishTransaction } =
-          await import("react-native-iap");
+        const {
+          initConnection,
+          fetchProducts,
+          purchaseUpdatedListener,
+          purchaseErrorListener,
+          finishTransaction,
+        } = await import("react-native-iap");
 
         await initConnection();
         connectionRef.current = true;
 
-        // Fetch the subscription product to get the offer token
+        // Fetch subscription product to get the offer token
         try {
           const products = await fetchProducts({ skus: [SUBSCRIPTION_SKU] });
           if (mounted && products && products.length > 0) {
@@ -181,7 +199,6 @@ export function useSubscription(): SubscriptionState {
             };
             const offerDetails = sub.subscriptionOfferDetailsAndroid;
             if (offerDetails && offerDetails.length > 0) {
-              // Prefer the offer that has a free trial phase (price = 0)
               const trialOffer = offerDetails.find((o) =>
                 o.pricingPhases?.some(
                   (p) => p.formattedPrice === "Free" || p.priceAmountMicros === "0"
@@ -194,7 +211,7 @@ export function useSubscription(): SubscriptionState {
           // Product fetch failed — purchase will still work without offer token
         }
 
-        // Set up purchase success listener
+        // Purchase success listener
         purchaseListenerRef.current = purchaseUpdatedListener(async (purchase) => {
           if (purchase.productId === SUBSCRIPTION_SKU) {
             try {
@@ -211,19 +228,16 @@ export function useSubscription(): SubscriptionState {
           }
         });
 
-        // Set up purchase error listener
+        // Purchase error listener
         errorListenerRef.current = purchaseErrorListener((err) => {
-          if (mounted) {
-            // Ignore user-cancelled errors
-            if (err.code !== "user-cancelled") {
-              setError(err.message ?? "Purchase failed. Please try again.");
-            }
+          if (mounted && err.code !== "user-cancelled") {
+            setError(err.message ?? "Purchase failed. Please try again.");
           }
         });
 
         await refreshStatus();
       } catch {
-        // IAP not available (simulator, web, etc.) — allow trial mode
+        // IAP init failed — fall back to local trial tracking
         if (mounted) {
           await refreshStatus();
         }
@@ -247,24 +261,66 @@ export function useSubscription(): SubscriptionState {
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
+  /**
+   * Record user consent and start the 3-day free trial.
+   * On Android production builds with Nitro available, this also triggers
+   * the Google Play subscription purchase flow (which includes the trial).
+   */
   const startTrial = useCallback(async () => {
     try {
+      // Record consent
+      await AsyncStorage.setItem(STORAGE_CONSENT_KEY, "true");
+      setHasConsented(true);
+
+      // On production Android with Nitro available, trigger the Play Billing flow
+      if (isIAPAvailable() && connectionRef.current) {
+        try {
+          const { requestPurchase } = await import("react-native-iap");
+          await requestPurchase({
+            type: "subs",
+            request: {
+              google: {
+                skus: [SUBSCRIPTION_SKU],
+                ...(offerToken
+                  ? { subscriptionOffers: [{ sku: SUBSCRIPTION_SKU, offerToken }] }
+                  : {}),
+              },
+            },
+          });
+          // Purchase result handled by purchaseUpdatedListener
+          return;
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : "";
+          if (msg.toLowerCase().includes("cancel")) {
+            // User cancelled — don't start local trial, let them retry
+            await AsyncStorage.removeItem(STORAGE_CONSENT_KEY);
+            setHasConsented(false);
+            return;
+          }
+          // Other error — fall through to local trial as fallback
+        }
+      }
+
+      // Fallback: local trial tracking (Expo Go, dev builds, non-Android)
       const existing = await AsyncStorage.getItem(STORAGE_TRIAL_START_KEY);
-      if (existing) return; // Already started — idempotent
-      await AsyncStorage.setItem(STORAGE_TRIAL_START_KEY, Date.now().toString());
+      if (!existing) {
+        await AsyncStorage.setItem(STORAGE_TRIAL_START_KEY, Date.now().toString());
+      }
       setStatus("trial");
       setTrialDaysRemaining(TRIAL_DAYS);
     } catch {
-      // Ignore storage errors
+      // Never block the user for storage errors
+      setStatus("trial");
+      setTrialDaysRemaining(TRIAL_DAYS);
     }
-  }, []);
+  }, [offerToken]);
 
   const purchase = useCallback(async () => {
     if (Platform.OS === "web") {
       setError("Subscriptions are only available on Android devices.");
       return;
     }
-    if (!connectionRef.current) {
+    if (!isIAPAvailable() || !connectionRef.current) {
       setError("Store connection not ready. Please try again.");
       return;
     }
@@ -282,7 +338,6 @@ export function useSubscription(): SubscriptionState {
           },
         },
       });
-      // Result handled by purchaseUpdatedListener above
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Purchase failed.";
       if (!msg.toLowerCase().includes("cancel")) {
@@ -292,7 +347,7 @@ export function useSubscription(): SubscriptionState {
   }, [offerToken]);
 
   const restore = useCallback(async () => {
-    if (Platform.OS === "web") return;
+    if (!isIAPAvailable()) return;
     try {
       setError(null);
       const { getAvailablePurchases } = await import("react-native-iap");
@@ -317,6 +372,7 @@ export function useSubscription(): SubscriptionState {
     status,
     trialDaysRemaining,
     loading,
+    hasConsented,
     startTrial,
     purchase,
     restore,

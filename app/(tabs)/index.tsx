@@ -42,7 +42,7 @@ import { Haptics, LinearGradient } from "@/lib/safe-imports";
 import { DailyChallenge } from "@/components/daily-challenge";
 import { Sentry } from "@/lib/sentry";
 import { useSubscription } from "@/hooks/use-subscription";
-import { Paywall } from "@/components/paywall";
+import { SubscriptionConsent } from "@/components/subscription-consent";
 
 type Screen =
   | "home"
@@ -67,19 +67,17 @@ export default function DetectScreen() {
   const [homeReady, setHomeReady] = useState(false);
   useEffect(() => {
     if (onboarding.done !== null) {
-      // AsyncStorage load complete — mount the home screen.
-      // Use requestAnimationFrame to give the JS thread one idle frame first.
       const raf = requestAnimationFrame(() => setHomeReady(true));
       return () => cancelAnimationFrame(raf);
     }
   }, [onboarding.done]);
+
   const { history, saveScan, updateJournal } = useScanHistoryContext();
   const { customBeliefs, addBelief } = useCustomBeliefs();
   const { streak, scannedToday, newMilestones, recordScan, clearNewMilestones } = useBeliefStreak();
   const { settings } = useAppSettings();
   const achievements = useAchievements();
   const subscription = useSubscription();
-  const [showPaywall, setShowPaywall] = useState(false);
 
   const insets = useSafeAreaInsets();
   const [screen, setScreen] = useState<Screen>("home");
@@ -93,25 +91,25 @@ export default function DetectScreen() {
   const [onboardingVisible, setOnboardingVisible] = useState(!onboarding.done);
   const onboardingOpacity = useRef(new Animated.Value(onboarding.done ? 0 : 1)).current;
 
+  // Consent overlay state — shown after onboarding completes, before home screen is usable
+  const [consentVisible, setConsentVisible] = useState(false);
+  const consentOpacity = useRef(new Animated.Value(0)).current;
+
   // Sticky CTA bar animation
   const ctaBarY = useRef(new Animated.Value(120)).current;
   const ctaBarOpacity = useRef(new Animated.Value(0)).current;
   const ctaPulse = useRef(new Animated.Value(1)).current;
   const ctaPulseAnim = useRef<Animated.CompositeAnimation | null>(null);
-  const trialStartedRef = useRef(false);
 
   useEffect(() => {
     if (selectedBelief) {
-      // Slide up + fade in
       Animated.parallel([
         Animated.timing(ctaBarY, { toValue: 0, duration: 320, easing: Easing.out(Easing.back(1.4)), useNativeDriver: true }),
         Animated.timing(ctaBarOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
       ]).start(() => {
-        // Haptic "lock in" thud when bar fully arrives
         if (Platform.OS !== "web") {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }
-        // Pulse the button 3 times to draw attention
         ctaPulseAnim.current = Animated.loop(
           Animated.sequence([
             Animated.timing(ctaPulse, { toValue: 1.04, duration: 500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
@@ -130,15 +128,21 @@ export default function DetectScreen() {
     }
   }, [selectedBelief]);
 
-  // Start the 3-day free trial automatically on first launch after onboarding
-  // MUST be above all early returns — hooks cannot be called after conditional returns
+  // After subscription loads: if user has not yet consented and onboarding is done,
+  // show the consent overlay. This runs once when subscription state resolves.
   useEffect(() => {
-    if (trialStartedRef.current) return;
-    if (!subscription.loading && subscription.status === "none") {
-      trialStartedRef.current = true;
-      subscription.startTrial().catch(() => {});
+    if (subscription.loading) return;
+    if (!onboarding.done) return; // onboarding overlay is still showing
+    if (!subscription.hasConsented) {
+      // Show consent screen
+      setConsentVisible(true);
+      Animated.timing(consentOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
     }
-  }, [subscription.loading, subscription.status]);
+  }, [subscription.loading, subscription.hasConsented, onboarding.done]);
 
   // Combine built-in + custom beliefs for display
   const allCategories: BeliefCategory[] = useMemo(() => {
@@ -188,7 +192,7 @@ export default function DetectScreen() {
     } else {
       setScreen("scanning");
     }
-  }, [selectedBelief, settings.meditationEnabled]);
+  }, [selectedBelief, settings.meditationEnabled, intensity]);
 
   const handleScanComplete = useCallback(
     async (result: ScanResult) => {
@@ -201,7 +205,6 @@ export default function DetectScreen() {
       setLastResult(result);
       await saveScan(result);
       await recordScan(result.score, result.beliefName);
-      // Check achievements after scan
       const totalScans = history.length + 1;
       const uniqueBeliefs = [...new Set([...history.map(h => h.beliefId), result.beliefId])];
       const uniqueCategories = [...new Set(uniqueBeliefs.map(id => {
@@ -222,21 +225,10 @@ export default function DetectScreen() {
     [saveScan, recordScan, history, streak, achievements, settings.meditationEnabled]
   );
 
-  const handleBedtime = useCallback(() => {
-    setScreen("bedtime");
-  }, []);
-
-  const handleTimer = useCallback(() => {
-    setScreen("timer");
-  }, []);
-
-  const handleViewReport = useCallback(() => {
-    setScreen("report");
-  }, []);
-
-  const handleJournal = useCallback(() => {
-    setScreen("journal");
-  }, []);
+  const handleBedtime = useCallback(() => setScreen("bedtime"), []);
+  const handleTimer = useCallback(() => setScreen("timer"), []);
+  const handleViewReport = useCallback(() => setScreen("report"), []);
+  const handleJournal = useCallback(() => setScreen("journal"), []);
 
   const handleJournalSave = useCallback(
     async (entry: string) => {
@@ -259,9 +251,7 @@ export default function DetectScreen() {
     [addBelief]
   );
 
-
   const handleOnboardingComplete = useCallback(() => {
-    // Fade out the overlay over 400ms, then mark onboarding done
     Animated.timing(onboardingOpacity, {
       toValue: 0,
       duration: 400,
@@ -269,29 +259,42 @@ export default function DetectScreen() {
     }).start(() => {
       setOnboardingVisible(false);
       onboarding.complete();
+      // After onboarding fades out, show consent if not yet given
+      if (!subscription.hasConsented) {
+        setConsentVisible(true);
+        Animated.timing(consentOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      }
     });
-  }, [onboarding, onboardingOpacity]);
+  }, [onboarding, onboardingOpacity, subscription.hasConsented, consentOpacity]);
 
-  // Show loading spinner until AsyncStorage check completes
+  const handleConsentAgree = useCallback(async () => {
+    await subscription.startTrial();
+    // Fade out consent overlay
+    Animated.timing(consentOpacity, {
+      toValue: 0,
+      duration: 350,
+      useNativeDriver: true,
+    }).start(() => {
+      setConsentVisible(false);
+    });
+  }, [subscription, consentOpacity]);
+
+  // todaysBestScore MUST be above all early returns (Rules of Hooks)
+  const todaysBestScore = useMemo(() => {
+    const today = new Date().toDateString();
+    const todayScans = history.filter(h => new Date(h.date).toDateString() === today);
+    return todayScans.length > 0 ? Math.max(...todayScans.map(h => h.score)) : 0;
+  }, [history]);
+
+  // Show nothing until AsyncStorage check completes
   if (onboarding.done === null) return null;
-
-  // Wait one frame after onboarding completes before mounting the heavy home screen
   if (!homeReady) return null;
 
-  // Paywall gate — show paywall if trial expired and not subscribed
-  if (!subscription.loading && !subscription.hasAccess && subscription.status === "expired") {
-    return (
-      <Modal visible animationType="slide" statusBarTranslucent>
-        <Paywall
-          subscription={subscription}
-          required
-          onDismiss={() => subscription.refresh()}
-        />
-      </Modal>
-    );
-  }
-
-  // Create Belief
+  // Modal screens
   if (screen === "create-belief") {
     return (
       <Modal visible animationType="slide" statusBarTranslucent>
@@ -303,7 +306,6 @@ export default function DetectScreen() {
     );
   }
 
-  // Meditation — wrapped in ErrorBoundary
   if (screen === "meditation" && selectedBelief) {
     return (
       <Modal visible animationType="fade" statusBarTranslucent>
@@ -318,7 +320,6 @@ export default function DetectScreen() {
     );
   }
 
-  // Live Scanner — wrapped in ErrorBoundary to catch any crash and show retry UI
   if (screen === "scanning" && selectedBelief) {
     return (
       <Modal visible animationType="slide" statusBarTranslucent>
@@ -343,7 +344,6 @@ export default function DetectScreen() {
     );
   }
 
-  // Journal entry — wrapped in ErrorBoundary
   if (screen === "journal" && lastResult) {
     return (
       <Modal visible animationType="slide" statusBarTranslucent>
@@ -361,7 +361,6 @@ export default function DetectScreen() {
     );
   }
 
-  // Report — wrapped in ErrorBoundary
   if (screen === "report" && lastResult) {
     return (
       <Modal visible animationType="slide" statusBarTranslucent>
@@ -375,7 +374,6 @@ export default function DetectScreen() {
     );
   }
 
-  // Results — wrapped in ErrorBoundary
   if (screen === "results" && lastResult) {
     return (
       <Modal visible animationType="slide" statusBarTranslucent>
@@ -393,7 +391,6 @@ export default function DetectScreen() {
     );
   }
 
-  // Belief Timer — wrapped in ErrorBoundary
   if (screen === "timer" && lastResult) {
     return (
       <Modal visible animationType="fade" statusBarTranslucent>
@@ -409,7 +406,6 @@ export default function DetectScreen() {
     );
   }
 
-  // Bedtime — wrapped in ErrorBoundary
   if (screen === "bedtime" && lastResult) {
     const belief = getBeliefById(lastResult.beliefId);
     const customBelief = customBeliefs.find((b) => b.id === lastResult.beliefId);
@@ -428,7 +424,6 @@ export default function DetectScreen() {
       </Modal>
     );
   }
-
 
   // Filter beliefs by search
   const filteredBeliefs = searchText.trim()
@@ -500,13 +495,6 @@ export default function DetectScreen() {
     );
   };
 
-  // Get today's best score from history
-  const todaysBestScore = useMemo(() => {
-    const today = new Date().toDateString();
-    const todayScans = history.filter(h => new Date(h.date).toDateString() === today);
-    return todayScans.length > 0 ? Math.max(...todayScans.map(h => h.score)) : 0;
-  }, [history]);
-
   const ListHeader = (
     <View>
       {/* Hero */}
@@ -527,28 +515,7 @@ export default function DetectScreen() {
         </View>
       </View>
 
-      {/* Trial status banner */}
-      {subscription.status === "trial" && subscription.trialDaysRemaining <= 1 && (
-        <Pressable
-          onPress={() => setShowPaywall(true)}
-          style={({ pressed }) => [{
-            marginHorizontal: 16,
-            marginBottom: 12,
-            padding: 12,
-            borderRadius: 12,
-            backgroundColor: colors.warning + "20",
-            borderWidth: 1,
-            borderColor: colors.warning + "50",
-            opacity: pressed ? 0.8 : 1,
-          }]}
-        >
-          <Text style={{ color: colors.warning, fontWeight: "700", fontSize: 13 }}>
-            ⏰ {subscription.trialDaysRemaining === 0 ? "Trial ends today" : "1 day left in your free trial"} — Subscribe to keep access
-          </Text>
-        </Pressable>
-      )}
-
-      {/* Daily Challenge — always shown */}
+      {/* Daily Challenge */}
       <DailyChallenge
         currentStreak={streak.currentStreak}
         totalScans={streak.totalScans}
@@ -556,7 +523,6 @@ export default function DetectScreen() {
         scannedToday={scannedToday}
         todaysBestScore={todaysBestScore}
         onStartChallenge={() => {
-          // Auto-pick a belief if none is selected yet
           const beliefToUse = selectedBelief ?? allBeliefs[0] ?? null;
           if (!beliefToUse) return;
           if (!selectedBelief) {
@@ -605,7 +571,6 @@ export default function DetectScreen() {
 
       {/* Action buttons row */}
       <View style={styles.actionRow}>
-        {/* Create custom belief */}
         <Pressable
           onPress={() => {
             if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -624,8 +589,6 @@ export default function DetectScreen() {
           <Text style={[styles.actionBtnTitle, { color: colors.primary }]}>Create Belief</Text>
           <Text style={[styles.actionBtnSub, { color: colors.muted }]}>Make your own</Text>
         </Pressable>
-
-
       </View>
 
       {/* Search results */}
@@ -678,12 +641,10 @@ export default function DetectScreen() {
     </View>
   );
 
-  // Count journal entries
   const journalCount = history.filter((h) => h.journalEntry).length;
 
   const ListFooter = (
     <View>
-      {/* Selected belief detail */}
       {selectedBelief && (
         <View style={[styles.selectedCard, { backgroundColor: colors.surface, borderColor: colors.primary + "60" }]}>
           <Text style={styles.selectedEmoji}>{selectedBelief.emoji}</Text>
@@ -694,7 +655,6 @@ export default function DetectScreen() {
             {selectedBelief.description}
           </Text>
 
-          {/* Intensity slider */}
           <View style={styles.intensitySection}>
             <Text style={[styles.intensityLabel, { color: colors.foreground }]}>
               Belief Intensity: {intensity}/10
@@ -724,7 +684,6 @@ export default function DetectScreen() {
             </View>
           </View>
 
-          {/* Begin Scan */}
           <Pressable
             onPress={handleStartScan}
             style={({ pressed }) => [
@@ -739,12 +698,9 @@ export default function DetectScreen() {
             <Text style={styles.scanBtnText}>Begin Scan</Text>
             <Text style={styles.scanBtnSub}>{settings.scanDuration}-second belief field detection{settings.soundEnabled ? ' with audio' : ''}</Text>
           </Pressable>
-
-
         </View>
       )}
 
-      {/* Journal preview */}
       {journalCount > 0 && (
         <View style={styles.journalPreview}>
           <Text style={[styles.sectionLabel, { color: colors.muted }]}>BELIEF JOURNAL</Text>
@@ -775,7 +731,6 @@ export default function DetectScreen() {
         </View>
       )}
 
-      {/* Recent scans */}
       {history.length > 0 && (
         <View style={styles.recentSection}>
           <Text style={[styles.sectionLabel, { color: colors.muted }]}>RECENT SCANS</Text>
@@ -861,19 +816,8 @@ export default function DetectScreen() {
           </Animated.View>
         </View>
       </Animated.View>
-      {/* Paywall modal — shown when user taps trial banner */}
-      <Modal visible={showPaywall} animationType="slide" statusBarTranslucent>
-        <Paywall
-          subscription={subscription}
-          onDismiss={() => {
-            setShowPaywall(false);
-            subscription.refresh();
-          }}
-        />
-      </Modal>
 
-      {/* Onboarding overlay — rendered on top of home screen, fades out on complete.
-          This avoids the Modal unmount race condition that caused crashes on Android. */}
+      {/* Onboarding overlay — fades out on complete, home screen is already mounted underneath */}
       {onboardingVisible && (
         <Animated.View
           style={[
@@ -883,6 +827,23 @@ export default function DetectScreen() {
           pointerEvents={onboardingVisible ? "auto" : "none"}
         >
           <Onboarding onComplete={handleOnboardingComplete} />
+        </Animated.View>
+      )}
+
+      {/* Subscription consent overlay — shown once after onboarding, before home is usable.
+          No skip button. User must agree to the 3-day trial + $0.99/week auto-renew terms. */}
+      {consentVisible && (
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            { opacity: consentOpacity, zIndex: 998, backgroundColor: colors.background },
+          ]}
+          pointerEvents={consentVisible ? "auto" : "none"}
+        >
+          <SubscriptionConsent
+            onAgree={handleConsentAgree}
+            error={subscription.error}
+          />
         </Animated.View>
       )}
     </ScreenContainer>
@@ -971,7 +932,6 @@ const styles = StyleSheet.create({
   },
   scanBtnText: { fontSize: 18, fontWeight: "800", color: "#fff" },
   scanBtnSub: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 2 },
-
   journalPreview: { marginTop: 24 },
   journalCard: {
     borderRadius: 14,
@@ -1001,41 +961,6 @@ const styles = StyleSheet.create({
   recentDate: { fontSize: 12, marginTop: 2 },
   recentScore: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
   recentScoreText: { fontSize: 18, fontWeight: "800" },
-  streakCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 16,
-  },
-  streakRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    marginBottom: 10,
-  },
-  streakItem: { alignItems: "center", flex: 1 },
-  streakNumber: { fontSize: 28, fontWeight: "900" },
-  streakLabel: { fontSize: 11, fontWeight: "600", marginTop: 2, textTransform: "uppercase", letterSpacing: 0.5 },
-  streakDivider: { width: 1, height: 36 },
-  streakMessage: { fontSize: 13, fontWeight: "600", textAlign: "center", marginTop: 4 },
-  scannedToday: { fontSize: 12, fontWeight: "600", textAlign: "center", marginTop: 6 },
-  milestoneRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 6,
-    marginTop: 10,
-  },
-  milestoneBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-    gap: 4,
-  },
-  milestoneEmoji: { fontSize: 14 },
-  milestoneText: { fontSize: 11, fontWeight: "600" },
   milestoneNotif: {
     borderRadius: 14,
     borderWidth: 1,
