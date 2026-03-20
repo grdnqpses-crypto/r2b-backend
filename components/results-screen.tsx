@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet, Platform } from "react-native";
 import { Celebration } from "./celebration";
+import { ImpactReveal } from "./impact-reveal";
 import { useColors } from "@/hooks/use-colors";
 import { useShareResults } from "@/hooks/use-share-results";
 import { BeliefFieldOrb } from "./belief-field-orb";
@@ -21,7 +22,8 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
   const colors = useColors();
   const belief = getBeliefById(result.beliefId);
   const { shareAsText } = useShareResults();
-  const [showCelebration, setShowCelebration] = useState(result.score >= 40);
+  const [showImpact, setShowImpact] = useState(true);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const getScoreLabel = (score: number) => {
     if (score >= 80) return "EXTRAORDINARY";
@@ -139,7 +141,19 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Celebration overlay — fires once on mount for high scores */}
+      {/* ImpactReveal — fires immediately on mount for ALL scores */}
+      <ImpactReveal
+        score={result.score}
+        beliefEmoji={result.beliefEmoji}
+        visible={showImpact}
+        onComplete={() => {
+          setShowImpact(false);
+          // After impact, fire confetti for high scores
+          if (result.score >= 40) setShowCelebration(true);
+        }}
+      />
+
+      {/* Confetti celebration — fires after impact reveal for high scores */}
       <Celebration
         score={result.score}
         beliefEmoji={result.beliefEmoji}

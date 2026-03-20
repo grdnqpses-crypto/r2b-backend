@@ -101,3 +101,6 @@
 - [x] Enhance results screen with emotional feedback and Don't Stop Believing energy
 - [x] Update onboarding to be exciting, personal, and goal-setting
 - [x] Add tangible real-world meaning to belief scores
+- [x] Build ImpactReveal component — full-screen animated score reveal with particles, pulses, screen flash
+- [x] Add intensity-based sound effects on results screen (low hum → powerful chime → explosive burst)
+- [x] Wire ImpactReveal into ResultsScreen so it fires on scan completion
