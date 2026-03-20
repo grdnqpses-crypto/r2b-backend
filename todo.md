@@ -125,3 +125,9 @@
 - [ ] Create subscription product in Play Console
 - [ ] Configure Google Cloud Pub/Sub for subscription notifications
 - [x] Fix crash after viewing instructional screenshots (onboarding slides) — app closes when transitioning to main screen
+- [x] CRITICAL: App STILL crashes immediately after onboarding instructions — definitive fix needed (moved startTrial from render path into useEffect above all early returns)
+- [ ] Install react-native-purchases (RevenueCat) and set up provider
+- [ ] Build paywall screen with 3-day free trial CTA, $0.99/week pricing, and feature list
+- [ ] Gate app features behind subscription status
+- [ ] Add restore purchases functionality
+- [ ] Wire RevenueCat API key via secrets

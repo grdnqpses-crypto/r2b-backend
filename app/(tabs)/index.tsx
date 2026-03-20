@@ -41,6 +41,8 @@ import { getBeliefById } from "@/constants/beliefs";
 import { Haptics, LinearGradient } from "@/lib/safe-imports";
 import { DailyChallenge } from "@/components/daily-challenge";
 import { Sentry } from "@/lib/sentry";
+import { useSubscription } from "@/hooks/use-subscription";
+import { Paywall } from "@/components/paywall";
 
 type Screen =
   | "home"
@@ -79,6 +81,8 @@ export default function DetectScreen() {
   const { streak, scannedToday, newMilestones, recordScan, clearNewMilestones } = useBeliefStreak();
   const { settings } = useAppSettings();
   const achievements = useAchievements();
+  const subscription = useSubscription();
+  const [showPaywall, setShowPaywall] = useState(false);
 
   const insets = useSafeAreaInsets();
   const [screen, setScreen] = useState<Screen>("home");
@@ -93,6 +97,7 @@ export default function DetectScreen() {
   const ctaBarOpacity = useRef(new Animated.Value(0)).current;
   const ctaPulse = useRef(new Animated.Value(1)).current;
   const ctaPulseAnim = useRef<Animated.CompositeAnimation | null>(null);
+  const trialStartedRef = useRef(false);
 
   useEffect(() => {
     if (selectedBelief) {
@@ -123,6 +128,16 @@ export default function DetectScreen() {
       ]).start();
     }
   }, [selectedBelief]);
+
+  // Start the 3-day free trial automatically on first launch after onboarding
+  // MUST be above all early returns — hooks cannot be called after conditional returns
+  useEffect(() => {
+    if (trialStartedRef.current) return;
+    if (!subscription.loading && subscription.status === "none") {
+      trialStartedRef.current = true;
+      subscription.startTrial().catch(() => {});
+    }
+  }, [subscription.loading, subscription.status]);
 
   // Combine built-in + custom beliefs for display
   const allCategories: BeliefCategory[] = useMemo(() => {
@@ -265,6 +280,19 @@ export default function DetectScreen() {
 
   // Wait one frame after onboarding completes before mounting the heavy home screen
   if (!homeReady) return null;
+
+  // Paywall gate — show paywall if trial expired and not subscribed
+  if (!subscription.loading && !subscription.hasAccess && subscription.status === "expired") {
+    return (
+      <Modal visible animationType="slide" statusBarTranslucent>
+        <Paywall
+          subscription={subscription}
+          required
+          onDismiss={() => subscription.refresh()}
+        />
+      </Modal>
+    );
+  }
 
   // Create Belief
   if (screen === "create-belief") {
@@ -501,6 +529,27 @@ export default function DetectScreen() {
           </Text>
         </View>
       </View>
+
+      {/* Trial status banner */}
+      {subscription.isTrialing && subscription.daysLeftInTrial <= 1 && (
+        <Pressable
+          onPress={() => setShowPaywall(true)}
+          style={({ pressed }) => [{
+            marginHorizontal: 16,
+            marginBottom: 12,
+            padding: 12,
+            borderRadius: 12,
+            backgroundColor: colors.warning + "20",
+            borderWidth: 1,
+            borderColor: colors.warning + "50",
+            opacity: pressed ? 0.8 : 1,
+          }]}
+        >
+          <Text style={{ color: colors.warning, fontWeight: "700", fontSize: 13 }}>
+            ⏰ {subscription.daysLeftInTrial === 0 ? "Trial ends today" : "1 day left in your free trial"} — Subscribe to keep access
+          </Text>
+        </Pressable>
+      )}
 
       {/* Daily Challenge — always shown */}
       <DailyChallenge
@@ -815,6 +864,16 @@ export default function DetectScreen() {
           </Animated.View>
         </View>
       </Animated.View>
+      {/* Paywall modal — shown when user taps trial banner */}
+      <Modal visible={showPaywall} animationType="slide" statusBarTranslucent>
+        <Paywall
+          subscription={subscription}
+          onDismiss={() => {
+            setShowPaywall(false);
+            subscription.refresh();
+          }}
+        />
+      </Modal>
     </ScreenContainer>
   );
 }
