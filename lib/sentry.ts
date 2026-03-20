@@ -19,11 +19,13 @@
  *   Sentry.setUser({ id: userId });
  */
 
+import React from "react";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
+import type * as SentryRN from "@sentry/react-native";
 
 // Lazy-load Sentry to avoid crashing if not configured
-let _sentry: typeof import("@sentry/react-native") | null = null;
+let _sentry: typeof SentryRN | null = null;
 let _initialized = false;
 
 async function getSentry() {
@@ -241,5 +243,3 @@ export const Sentry = {
   },
 };
 
-// Re-export React for the wrap method type
-import React from "react";

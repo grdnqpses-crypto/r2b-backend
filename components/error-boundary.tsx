@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
+import { Sentry } from "@/lib/sentry";
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -31,6 +32,10 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.warn("[ErrorBoundary] Caught crash:", error.message);
+    Sentry.captureException(error, {
+      componentStack: info.componentStack ?? undefined,
+      boundary: "ErrorBoundary",
+    });
     this.props.onError?.(error, info);
   }
 
@@ -88,6 +93,7 @@ export class SilentErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error) {
     console.warn("[SilentErrorBoundary] Suppressed crash:", error.message);
+    Sentry.captureException(error, { boundary: "SilentErrorBoundary" });
   }
 
   render() {

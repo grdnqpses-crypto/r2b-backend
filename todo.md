@@ -112,3 +112,6 @@
 - [x] Add "Stop & Reveal" button so user controls when scan ends
 - [x] Keep a minimum warm-up period (15s) before Stop button becomes active
 - [x] Add live score preview next to orb during scan — pulsing animated number that updates in real time
+- [ ] Fix app crash after user takes a screenshot
+- [x] Activate Sentry crash reporting with DSN key
+- [x] Add scan/belief/screenshot breadcrumbs to Sentry for richer crash context

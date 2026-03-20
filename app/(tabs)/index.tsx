@@ -40,6 +40,7 @@ import {
 import { getBeliefById } from "@/constants/beliefs";
 import { Haptics, LinearGradient } from "@/lib/safe-imports";
 import { DailyChallenge } from "@/components/daily-challenge";
+import { Sentry } from "@/lib/sentry";
 
 type Screen =
   | "home"
@@ -127,6 +128,12 @@ export default function DetectScreen() {
 
   const handleSelectBelief = useCallback((belief: BeliefOption) => {
     setSelectedBelief(belief);
+    Sentry.addBreadcrumb({
+      message: `Belief selected: ${belief.emoji} ${belief.name}`,
+      category: "belief",
+      level: "info",
+      data: { beliefId: belief.id, category: belief.category },
+    });
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
@@ -134,6 +141,12 @@ export default function DetectScreen() {
 
   const handleStartScan = useCallback(() => {
     if (!selectedBelief) return;
+    Sentry.addBreadcrumb({
+      message: `Scan started: ${selectedBelief.emoji} ${selectedBelief.name} (intensity ${intensity})`,
+      category: "scan",
+      level: "info",
+      data: { beliefId: selectedBelief.id, intensity },
+    });
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
@@ -146,6 +159,12 @@ export default function DetectScreen() {
 
   const handleScanComplete = useCallback(
     async (result: ScanResult) => {
+      Sentry.addBreadcrumb({
+        message: `Scan completed: ${result.beliefName} — score ${Math.round(result.score)}`,
+        category: "scan",
+        level: "info",
+        data: { beliefId: result.beliefId, score: result.score },
+      });
       setLastResult(result);
       await saveScan(result);
       await recordScan(result.score, result.beliefName);
