@@ -60,20 +60,17 @@ export default function DetectScreen() {
   const colors = useColors();
   const onboarding = useOnboarding();
 
-  // Deferred mount guard: wait one frame after onboarding completes before
-  // rendering heavy home screen content. This prevents a crash on Android
-  // where simultaneous AsyncStorage reads from multiple hooks on first mount
-  // can race with the Modal unmount animation.
-  // For returning users (onboarding.done already true), we skip the delay.
+  // homeReady: controls when the home screen content is rendered.
+  // - For new users: home screen mounts immediately (hidden under onboarding overlay)
+  // - For returning users: mount immediately (they skip onboarding entirely)
+  // - Only stays false while AsyncStorage is loading (onboarding.done === null)
   const [homeReady, setHomeReady] = useState(false);
   useEffect(() => {
-    if (onboarding.done === true) {
-      // requestAnimationFrame gives the JS thread one idle frame before mounting.
-      // This only fires once (when done transitions from null/false to true).
+    if (onboarding.done !== null) {
+      // AsyncStorage load complete — mount the home screen.
+      // Use requestAnimationFrame to give the JS thread one idle frame first.
       const raf = requestAnimationFrame(() => setHomeReady(true));
       return () => cancelAnimationFrame(raf);
-    } else if (onboarding.done === null) {
-      // Still loading from AsyncStorage — keep homeReady false
     }
   }, [onboarding.done]);
   const { history, saveScan, updateJournal } = useScanHistoryContext();
@@ -91,6 +88,10 @@ export default function DetectScreen() {
   const [searchText, setSearchText] = useState("");
   const [expandedCategory, setExpandedCategory] = useState<string | null>("childhood");
   const [lastResult, setLastResult] = useState<ScanResult | null>(null);
+
+  // Onboarding overlay state — must be declared here (before any early returns)
+  const [onboardingVisible, setOnboardingVisible] = useState(!onboarding.done);
+  const onboardingOpacity = useRef(new Animated.Value(onboarding.done ? 0 : 1)).current;
 
   // Sticky CTA bar animation
   const ctaBarY = useRef(new Animated.Value(120)).current;
@@ -259,24 +260,20 @@ export default function DetectScreen() {
   );
 
 
-  // Onboarding
+  const handleOnboardingComplete = useCallback(() => {
+    // Fade out the overlay over 400ms, then mark onboarding done
+    Animated.timing(onboardingOpacity, {
+      toValue: 0,
+      duration: 400,
+      useNativeDriver: true,
+    }).start(() => {
+      setOnboardingVisible(false);
+      onboarding.complete();
+    });
+  }, [onboarding, onboardingOpacity]);
+
+  // Show loading spinner until AsyncStorage check completes
   if (onboarding.done === null) return null;
-  if (!onboarding.done) {
-    return (
-      <Modal visible animationType="fade" statusBarTranslucent>
-        <Onboarding
-          onComplete={() => {
-            // Delay completing onboarding until after the Modal fade-out animation
-            // finishes (~300ms). Without this delay, the Modal unmount and home screen
-            // mount race on Android, causing a crash as all hooks initialize simultaneously.
-            setTimeout(() => {
-              onboarding.complete();
-            }, 350);
-          }}
-        />
-      </Modal>
-    );
-  }
 
   // Wait one frame after onboarding completes before mounting the heavy home screen
   if (!homeReady) return null;
@@ -874,6 +871,20 @@ export default function DetectScreen() {
           }}
         />
       </Modal>
+
+      {/* Onboarding overlay — rendered on top of home screen, fades out on complete.
+          This avoids the Modal unmount race condition that caused crashes on Android. */}
+      {onboardingVisible && (
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            { opacity: onboardingOpacity, zIndex: 999, backgroundColor: colors.background },
+          ]}
+          pointerEvents={onboardingVisible ? "auto" : "none"}
+        >
+          <Onboarding onComplete={handleOnboardingComplete} />
+        </Animated.View>
+      )}
     </ScreenContainer>
   );
 }
