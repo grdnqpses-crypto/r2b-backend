@@ -99,3 +99,10 @@
 
 ## CRITICAL: Onboarding Close Bug
 - [x] App closes immediately after tutorial steps — fixed: animation callback was interrupted by system dialogs, leaving opacity at 0. Now sets step immediately and fades in.
+
+## Dashboard Crash + Screenshots Fix (Round 3)
+- [x] Root cause: react-native-maps MapView on Dashboard crashes Android with Expo SDK 54 + New Architecture (confirmed bug #5699, #5759)
+- [x] Remove MapView from Dashboard entirely — replaced with live store list with real-time distance
+- [x] Fix onboarding navigation: replaced router.replace() with Stack.Protected pattern (confirmed router.replace crash on Android)
+- [x] Generate app screenshots (shopping list + notification alert mockups) and add to onboarding ad step
+- [x] Make onboarding ad step scrollable so screenshots + feature rows fit on small screens

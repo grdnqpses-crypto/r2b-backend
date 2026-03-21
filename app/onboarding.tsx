@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import {
   View, Text, Pressable, StyleSheet, Platform, Alert, Linking,
-  Animated, Dimensions, TextInput, KeyboardAvoidingView,
+  Animated, Dimensions, TextInput, KeyboardAvoidingView, ScrollView,
 } from "react-native";
+import { Image } from "expo-image";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import * as Haptics from "expo-haptics";
@@ -274,7 +275,7 @@ export default function OnboardingScreen() {
 
         <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
           {currentStep.id === "ad" && (
-            <View style={styles.adContainer}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.adContainer}>
               <View style={[styles.adBadge, { backgroundColor: colors.primary + "18", borderColor: colors.primary + "40" }]}>
                 <Text style={[styles.adBadgeText, { color: colors.primary }]}>💡 For the cost of a bottled soda</Text>
               </View>
@@ -289,6 +290,19 @@ export default function OnboardingScreen() {
                 {" reminds you what's on your shopping list when you are "}
                 <Text style={{ fontWeight: "700", color: colors.foreground }}>actually in the store shopping!</Text>
               </Text>
+              {/* App screenshots */}
+              <View style={styles.screenshotsRow}>
+                <Image
+                  source="https://d2xsxph8kpxj0f.cloudfront.net/310519663348315388/3MWRPobTFfqJ6iFRe4j7At/screenshot_list_46a4faa7.png"
+                  style={styles.screenshotImg}
+                  contentFit="cover"
+                />
+                <Image
+                  source="https://d2xsxph8kpxj0f.cloudfront.net/310519663348315388/3MWRPobTFfqJ6iFRe4j7At/screenshot_alert_2470ad55.png"
+                  style={styles.screenshotImg}
+                  contentFit="cover"
+                />
+              </View>
               <View style={styles.adFeatures}>
                 {[
                   { icon: "🛒", text: "Your list, always ready" },
@@ -302,7 +316,7 @@ export default function OnboardingScreen() {
                   </View>
                 ))}
               </View>
-            </View>
+            </ScrollView>
           )}
 
           {currentStep.type === "tutorial" && tutorialData && (
@@ -410,6 +424,8 @@ const styles = StyleSheet.create({
   adHeadline: { fontSize: 30, fontWeight: "900", textAlign: "center", lineHeight: 38, letterSpacing: -0.5 },
   adDivider: { width: 48, height: 3, borderRadius: 2 },
   adBody: { fontSize: 16, textAlign: "center", lineHeight: 24, maxWidth: 320 },
+  screenshotsRow: { flexDirection: "row", gap: 10, width: "100%", justifyContent: "center" },
+  screenshotImg: { width: (SCREEN_WIDTH - 48 - 10) / 2, height: 180, borderRadius: 12, overflow: "hidden" },
   adFeatures: { width: "100%", gap: 10, marginTop: 4 },
   adFeatureRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 14, borderWidth: 1 },
   adFeatureIcon: { fontSize: 22 },
