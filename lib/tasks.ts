@@ -34,35 +34,36 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
       const unchecked = items.filter((i) => !i.checked);
 
       const storeName = region.identifier || "a store";
-      const itemList =
-        unchecked.length > 0
-          ? unchecked
-              .slice(0, 5)
-              .map((i) => i.text)
-              .join(", ") +
-            (unchecked.length > 5 ? ` +${unchecked.length - 5} more` : "")
-          : "Check your list!";
+      const top3 = unchecked.slice(0, 3);
+      const remaining = unchecked.length - top3.length;
 
-      // Send immediate notification
+      // Build a numbered list body for the notification
+      const buildBody = (items: typeof top3, extra: number): string => {
+        if (items.length === 0) return "You have nothing on your list right now.";
+        const lines = items.map((item, idx) => `${idx + 1}. ${item.text}`);
+        if (extra > 0) lines.push(`...and ${extra} more item${extra !== 1 ? "s" : ""}`);
+        return lines.join("\n");
+      };
+
+      // Send immediate notification with top 3 items
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: `🛒 Near ${storeName}!`,
-          body:
-            unchecked.length > 0
-              ? `Don't forget: ${itemList}`
-              : "You have nothing on your list right now.",
+          title: `🛒 You're near ${storeName}!`,
+          body: unchecked.length > 0
+            ? `Don't forget:\n${buildBody(top3, remaining)}`
+            : "You have nothing on your list right now.",
           sound: true,
           data: { storeId: region.identifier, type: "geofence_enter" },
         },
         trigger: null, // immediate
       });
 
-      // Schedule a follow-up "arrived" notification after 6 minutes
+      // Schedule a follow-up reminder after 6 minutes
       if (unchecked.length > 0) {
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: `📋 Shopping at ${storeName}`,
-            body: `You have ${unchecked.length} item${unchecked.length !== 1 ? "s" : ""} to buy: ${itemList}`,
+            title: `📋 Still shopping at ${storeName}?`,
+            body: `${unchecked.length} item${unchecked.length !== 1 ? "s" : ""} on your list:\n${buildBody(top3, remaining)}`,
             sound: false,
             data: { storeId: region.identifier, type: "geofence_arrived" },
           },

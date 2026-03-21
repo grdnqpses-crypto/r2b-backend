@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   View, Text, Pressable, StyleSheet, Platform, Alert, Linking,
-  Animated, Dimensions,
+  Animated, Dimensions, TextInput, KeyboardAvoidingView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
@@ -324,29 +324,33 @@ export default function OnboardingScreen() {
           )}
 
           {currentStep.type === "referral" && (
-            <View style={styles.permContainer}>
-              <Text style={styles.permEmoji}>🎁</Text>
-              <Text style={[styles.permTitle, { color: colors.foreground }]}>Have a Referral Code?</Text>
-              <Text style={[styles.permSubtitle, { color: colors.muted }]}>
-                Enter a friend's code to get 1 week of Premium free.
-              </Text>
-              <Pressable
-                style={[styles.referralInput, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                onPress={() => {
-                  if (Platform.OS === "ios") {
-                    Alert.prompt("Enter Referral Code", "Enter your friend's referral code (e.g. R2B-ABC123):",
-                      (text) => { if (text) setReferralCode(text.toUpperCase()); }, "plain-text", referralCode);
-                  } else {
-                    Alert.alert("Enter Referral Code", "Ask your friend for their R2B-XXXXXX code and enter it here.", [{ text: "OK" }]);
-                  }
-                }}
-              >
-                <IconSymbol name="gift.fill" size={18} color={colors.primary} />
-                <Text style={[styles.referralText, { color: referralCode ? colors.foreground : colors.muted }]}>
-                  {referralCode || "Tap to enter code..."}
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              style={{ width: "100%" }}
+            >
+              <View style={styles.permContainer}>
+                <Text style={styles.permEmoji}>🎁</Text>
+                <Text style={[styles.permTitle, { color: colors.foreground }]}>Have a Referral Code?</Text>
+                <Text style={[styles.permSubtitle, { color: colors.muted }]}>
+                  Enter a friend's code to get 1 week of Premium free.
                 </Text>
-              </Pressable>
-            </View>
+                <View style={[styles.referralInput, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <IconSymbol name="gift.fill" size={18} color={colors.primary} />
+                  <TextInput
+                    style={[styles.referralTextInput, { color: colors.foreground }]}
+                    placeholder="Enter code (e.g. R2B-ABC123)"
+                    placeholderTextColor={colors.muted}
+                    value={referralCode}
+                    onChangeText={(t) => setReferralCode(t.toUpperCase())}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    returnKeyType="done"
+                    onSubmitEditing={handleAction}
+                    maxLength={12}
+                  />
+                </View>
+              </View>
+            </KeyboardAvoidingView>
           )}
         </Animated.View>
 
@@ -404,7 +408,7 @@ const styles = StyleSheet.create({
   badge: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12 },
   badgeText: { fontSize: 14, fontWeight: "600" },
   referralInput: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 14, borderRadius: 14, borderWidth: 1, width: "100%", marginTop: 8 },
-  referralText: { flex: 1, fontSize: 16, letterSpacing: 1 },
+  referralTextInput: { flex: 1, fontSize: 16, letterSpacing: 1, paddingVertical: 2 },
   buttons: { gap: 10, paddingBottom: 20 },
   primaryBtn: { paddingVertical: 16, borderRadius: 16, alignItems: "center" },
   primaryBtnText: { color: "#fff", fontSize: 17, fontWeight: "700" },

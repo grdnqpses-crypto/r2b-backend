@@ -87,3 +87,8 @@
 - [x] Fix raw unicode escape sequences in onboarding.tsx (use real UTF-8 emoji via file tool)
 - [x] Fix app closing after tutorial — remove Skip setup from tutorial steps
 - [x] Add error boundary component to catch and display crashes
+
+## Three New Features
+- [x] Android inline text input for referral code (replace Alert.alert with TextInput in onboarding)
+- [x] Arrival notification shows top 3 unchecked shopping list items in notification body
+- [x] List tab icon badge count showing number of unchecked items
