@@ -39,19 +39,19 @@ const STEPS: Step[] = [
 
 const TUTORIAL_STEPS = [
   {
-    emoji: "\uD83D\uDCDD",
+    emoji: "📝",
     title: "Add What You Need",
-    subtitle: "Build your shopping list before you leave home. Add items by name \u2014 milk, batteries, birthday card \u2014 whatever you need.",
+    subtitle: "Build your shopping list before you leave home. Add items by name — milk, batteries, birthday card — whatever you need.",
     tip: "Step 1 of 3",
   },
   {
-    emoji: "\uD83C\uDFEA",
+    emoji: "🏪",
     title: "Pick Your Stores",
-    subtitle: "Choose the stores you shop at. Remember2Buy finds them near you automatically \u2014 no typing addresses.",
+    subtitle: "Choose the stores you shop at. Remember2Buy finds them near you automatically — no typing addresses.",
     tip: "Step 2 of 3",
   },
   {
-    emoji: "\uD83D\uDD14",
+    emoji: "🔔",
     title: "Get Alerted Automatically",
     subtitle: "When you drive or walk near a store, your phone buzzes with a reminder. No more driving past the store and forgetting!",
     tip: "Step 3 of 3",
@@ -105,7 +105,7 @@ export default function OnboardingScreen() {
         if (stores.length > 0) await startGeofencing(stores);
       }
     } catch {}
-    router.replace("/(tabs)");
+    router.replace("/(tabs)" as any);
   };
 
   const requestNotifications = async () => {
@@ -195,20 +195,20 @@ export default function OnboardingScreen() {
 
   const getButtonLabel = () => {
     if (loading) return "Please wait...";
-    if (currentStep.id === "ad") return "Show Me How \u2192";
-    if (currentStep.type === "tutorial") return step === 3 ? "Got It \u2014 Let's Set Up" : "Next \u2192";
+    if (currentStep.id === "ad") return "Show Me How →";
+    if (currentStep.type === "tutorial") return step === 3 ? "Got It — Let's Set Up" : "Next →";
     if (currentStep.action === "notifications") {
-      if (notifStatus === "granted") return "Continue \u2192";
+      if (notifStatus === "granted") return "Continue →";
       if (notifStatus === "denied") return "Open Settings";
       return "Enable Notifications";
     }
     if (currentStep.action === "location_fg") {
-      if (fgStatus === "granted") return "Continue \u2192";
+      if (fgStatus === "granted") return "Continue →";
       if (fgStatus === "denied") return "Open Settings";
       return "Allow Location";
     }
     if (currentStep.action === "location_bg") {
-      if (bgStatus === "granted") return "Continue \u2192";
+      if (bgStatus === "granted") return "Continue →";
       return "Allow 'Always' Location";
     }
     if (currentStep.action === "referral") return referralCode.trim() ? "Apply Code" : "Skip for Now";
@@ -217,15 +217,15 @@ export default function OnboardingScreen() {
 
   const getStatusBadge = () => {
     if (currentStep.action === "notifications" && notifStatus === "granted")
-      return { label: "Notifications enabled \u2713", color: colors.success };
+      return { label: "✓ Notifications enabled", color: colors.success };
     if (currentStep.action === "notifications" && notifStatus === "denied")
-      return { label: "Notifications blocked \u2014 tap to open Settings", color: colors.warning };
+      return { label: "Notifications blocked — tap to open Settings", color: colors.warning };
     if (currentStep.action === "location_fg" && fgStatus === "granted")
-      return { label: "Location access granted \u2713", color: colors.success };
+      return { label: "✓ Location access granted", color: colors.success };
     if (currentStep.action === "location_fg" && fgStatus === "denied")
-      return { label: "Location blocked \u2014 tap to open Settings", color: colors.warning };
+      return { label: "Location blocked — tap to open Settings", color: colors.warning };
     if (currentStep.action === "location_bg" && bgStatus === "granted")
-      return { label: "Background location granted \u2713", color: colors.success };
+      return { label: "✓ Background location granted", color: colors.success };
     return null;
   };
 
@@ -257,29 +257,29 @@ export default function OnboardingScreen() {
           {currentStep.id === "ad" && (
             <View style={styles.adContainer}>
               <View style={[styles.adBadge, { backgroundColor: colors.primary + "18", borderColor: colors.primary + "40" }]}>
-                <Text style={[styles.adBadgeText, { color: colors.primary }]}>\uD83D\uDCA1 For the cost of a bottled soda</Text>
+                <Text style={[styles.adBadgeText, { color: colors.primary }]}>💡 For the cost of a bottled soda</Text>
               </View>
               <Text style={[styles.adHeadline, { color: colors.foreground }]}>
                 {"NEVER feel that\n"}
-                <Text style={{ color: colors.primary }}>{"\u201CI FORGOT TO BUY\u201D"}</Text>
+                <Text style={{ color: colors.primary }}>{"\"I FORGOT TO BUY\""}</Text>
                 {"\nfeeling ever again!"}
               </Text>
               <View style={[styles.adDivider, { backgroundColor: colors.primary }]} />
               <Text style={[styles.adBody, { color: colors.muted }]}>
                 <Text style={{ fontWeight: "700", color: colors.foreground }}>Remember2Buy</Text>
-                {" reminds you what\u2019s on your shopping list when you are "}
+                {" reminds you what's on your shopping list when you are "}
                 <Text style={{ fontWeight: "700", color: colors.foreground }}>actually in the store shopping!</Text>
               </Text>
               <View style={styles.adFeatures}>
                 {[
-                  { icon: "\uD83D\uDED2", text: "Your list, always ready" },
-                  { icon: "\uD83D\uDCCD", text: "Alerts when you\u2019re near a store" },
-                  { icon: "\uD83D\uDD15", text: "No more forgotten items" },
+                  { icon: "🛒", text: "Your list, always ready" },
+                  { icon: "📍", text: "Alerts when you're near a store" },
+                  { icon: "🔕", text: "No more forgotten items" },
                 ].map((f) => (
                   <View key={f.icon} style={[styles.adFeatureRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <Text style={styles.adFeatureIcon}>{f.icon}</Text>
                     <Text style={[styles.adFeatureText, { color: colors.foreground }]}>{f.text}</Text>
-                    <Text style={{ color: colors.success, fontSize: 18, fontWeight: "700" }}>\u2713</Text>
+                    <Text style={{ color: colors.success, fontSize: 18, fontWeight: "700" }}>✓</Text>
                   </View>
                 ))}
               </View>
@@ -300,20 +300,20 @@ export default function OnboardingScreen() {
           {currentStep.type === "permission" && (
             <View style={styles.permContainer}>
               <Text style={styles.permEmoji}>
-                {currentStep.action === "notifications" ? "\uD83D\uDD14" :
-                 currentStep.action === "location_fg" ? "\uD83D\uDCCD" : "\uD83D\uDD0D"}
+                {currentStep.action === "notifications" ? "🔔" :
+                 currentStep.action === "location_fg" ? "📍" : "🔍"}
               </Text>
               <Text style={[styles.permTitle, { color: colors.foreground }]}>
                 {currentStep.action === "notifications" ? "Enable Alerts" :
                  currentStep.action === "location_fg" ? "Allow Location Access" :
-                 "Allow \u201CAlways\u201D Location"}
+                 "Allow 'Always' Location"}
               </Text>
               <Text style={[styles.permSubtitle, { color: colors.muted }]}>
                 {currentStep.action === "notifications"
                   ? "Get notified the moment you arrive near a store with items on your list."
                   : currentStep.action === "location_fg"
-                  ? "Remember2Buy needs your location to detect when you\u2019re near a store."
-                  : "To alert you in the background, tap \u201CAllow all the time\u201D on the next screen. This is how the app works when your phone is in your pocket."}
+                  ? "Remember2Buy needs your location to detect when you're near a store."
+                  : "To alert you in the background, tap 'Allow all the time' on the next screen. This is how the app works when your phone is in your pocket."}
               </Text>
               {badge && (
                 <View style={[styles.badge, { backgroundColor: badge.color + "20" }]}>
@@ -325,16 +325,16 @@ export default function OnboardingScreen() {
 
           {currentStep.type === "referral" && (
             <View style={styles.permContainer}>
-              <Text style={styles.permEmoji}>\uD83C\uDF81</Text>
+              <Text style={styles.permEmoji}>🎁</Text>
               <Text style={[styles.permTitle, { color: colors.foreground }]}>Have a Referral Code?</Text>
               <Text style={[styles.permSubtitle, { color: colors.muted }]}>
-                Enter a friend\u2019s code to get 1 week of Premium free.
+                Enter a friend's code to get 1 week of Premium free.
               </Text>
               <Pressable
                 style={[styles.referralInput, { backgroundColor: colors.surface, borderColor: colors.border }]}
                 onPress={() => {
                   if (Platform.OS === "ios") {
-                    Alert.prompt("Enter Referral Code", "Enter your friend\u2019s referral code (e.g. R2B-ABC123):",
+                    Alert.prompt("Enter Referral Code", "Enter your friend's referral code (e.g. R2B-ABC123):",
                       (text) => { if (text) setReferralCode(text.toUpperCase()); }, "plain-text", referralCode);
                   } else {
                     Alert.alert("Enter Referral Code", "Ask your friend for their R2B-XXXXXX code and enter it here.", [{ text: "OK" }]);
@@ -361,7 +361,7 @@ export default function OnboardingScreen() {
           >
             <Text style={styles.primaryBtnText}>{getButtonLabel()}</Text>
           </Pressable>
-          {(currentStep.type === "tutorial" || currentStep.type === "referral") && (
+          {(currentStep.type === "permission" || currentStep.type === "referral") && (
             <Pressable
               style={({ pressed }) => [styles.skipBtn, { opacity: pressed ? 0.7 : 1 }]}
               onPress={finish}

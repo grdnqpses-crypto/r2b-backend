@@ -71,10 +71,19 @@
 - [x] Add live map with store markers and geofence circles to Dashboard
 
 ## Onboarding Ad + Tutorial
-- [ ] Add value-prop ad splash screen as first onboarding step with the "cost of a bottled soda" message
-- [ ] Add 3-step tutorial walkthrough (Add Items, Add Stores, Get Alerted) before permission steps
-- [ ] Animate between slides with smooth horizontal transitions
-- [ ] Show dot pagination indicators for all steps
+- [x] Add value-prop ad splash screen as first onboarding step with the "cost of a bottled soda" message
+- [x] Add 3-step tutorial walkthrough (Add Items, Add Stores, Get Alerted) before permission steps
+- [x] Animate between slides with smooth horizontal transitions
+- [x] Show dot pagination indicators for all steps
 
 ## Typo Fixes
 - [x] Fix all typos in onboarding ad screen copy (Remeber2Buy → Remember2Buy, etc.) — copy was already correct in code
+
+## Onboarding Critical Bugs
+- [x] Fix unicode escape sequences rendering as raw text (e.g. \uD83D\uDCA1 instead of 💡)
+- [x] Fix app closing after tutorial steps instead of proceeding to permission steps
+
+## Critical Bug Fixes (Round 2)
+- [x] Fix raw unicode escape sequences in onboarding.tsx (use real UTF-8 emoji via file tool)
+- [x] Fix app closing after tutorial — remove Skip setup from tutorial steps
+- [x] Add error boundary component to catch and display crashes
