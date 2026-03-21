@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1565C0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Remember2Buy">
+<title>Remember2Buy</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  :root{
+    --blue:#1565C0;--blue-light:#1976D2;--blue-dark:#0D47A1;
+    --bg:#F5F7FA;--surface:#FFFFFF;--border:#E0E4EA;
+    --text:#1A1A2E;--muted:#6B7280;--red:#EF4444;--green:#22C55E;
+    --gold:#F59E0B;--radius:12px;
+  }
+  html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);}
+  #app{height:100%;display:flex;flex-direction:column;}
+  /* Screens */
+  .screen{display:none;flex:1;flex-direction:column;overflow:hidden;}
+  .screen.active{display:flex;}
+  /* Onboarding */
+  #onboarding{background:var(--blue);color:#fff;}
+  .ob-slides{flex:1;overflow:hidden;position:relative;}
+  .ob-slide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 32px;opacity:0;transition:opacity .3s;pointer-events:none;}
+  .ob-slide.active{opacity:1;pointer-events:auto;}
+  .ob-icon{font-size:80px;margin-bottom:24px;}
+  .ob-title{font-size:26px;font-weight:700;text-align:center;margin-bottom:16px;}
+  .ob-desc{font-size:16px;text-align:center;opacity:.85;line-height:1.6;}
+  .ob-dots{display:flex;gap:8px;justify-content:center;padding:20px;}
+  .ob-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.4);transition:all .3s;}
+  .ob-dot.active{width:24px;border-radius:4px;background:#fff;}
+  .ob-btns{display:flex;justify-content:space-between;align-items:center;padding:16px 24px 32px;}
+  .ob-skip{color:rgba(255,255,255,.7);font-size:15px;padding:8px 16px;cursor:pointer;}
+  .ob-next{background:#fff;color:var(--blue);border:none;padding:14px 32px;border-radius:50px;font-size:16px;font-weight:700;cursor:pointer;}
+  /* Main layout */
+  #main{background:var(--bg);}
+  .topbar{background:var(--blue);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;min-height:56px;}
+  .topbar h1{font-size:20px;font-weight:700;flex:1;}
+  .topbar-btn{background:rgba(255,255,255,.15);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .tab-content{flex:1;overflow-y:auto;overflow-x:hidden;}
+  .bottom-nav{background:var(--surface);border-top:1px solid var(--border);display:flex;}
+  .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 4px;border:none;background:none;color:var(--muted);font-size:10px;cursor:pointer;gap:4px;transition:color .2s;}
+  .nav-btn.active{color:var(--blue);}
+  .nav-icon{font-size:22px;}
+  /* Cards */
+  .card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);margin:12px 16px;overflow:hidden;}
+  .card-header{padding:14px 16px;font-weight:600;font-size:15px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+  .card-body{padding:16px;}
+  /* Buttons */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;border-radius:50px;border:none;font-size:15px;font-weight:600;cursor:pointer;transition:opacity .2s;}
+  .btn:active{opacity:.8;}
+  .btn-primary{background:var(--blue);color:#fff;}
+  .btn-outline{background:none;border:2px solid var(--blue);color:var(--blue);}
+  .btn-danger{background:var(--red);color:#fff;}
+  .btn-gold{background:var(--gold);color:#fff;}
+  .btn-sm{padding:8px 16px;font-size:13px;}
+  .btn-full{width:100%;}
+  /* Dashboard */
+  #map{height:260px;border-radius:var(--radius);overflow:hidden;margin:12px 16px;}
+  .store-pill{display:inline-flex;align-items:center;gap:6px;background:var(--blue);color:#fff;padding:6px 14px;border-radius:50px;font-size:13px;font-weight:600;margin:4px;}
+  .status-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:50px;font-size:13px;font-weight:600;}
+  .status-on{background:#DCFCE7;color:#166534;}
+  .status-off{background:#FEE2E2;color:#991B1B;}
+  /* List */
+  .list-input-row{display:flex;gap:8px;padding:12px 16px;}
+  .list-input{flex:1;padding:12px 16px;border:2px solid var(--border);border-radius:50px;font-size:15px;outline:none;background:var(--surface);}
+  .list-input:focus{border-color:var(--blue);}
+  .list-item{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);}
+  .list-item:last-child{border-bottom:none;}
+  .list-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .2s;}
+  .list-check.done{background:var(--green);border-color:var(--green);color:#fff;}
+  .list-item-text{flex:1;font-size:15px;}
+  .list-item-text.done{text-decoration:line-through;color:var(--muted);}
+  .list-del{color:var(--muted);font-size:18px;cursor:pointer;padding:4px;border:none;background:none;}
+  .list-del:hover{color:var(--red);}
+  .empty-state{text-align:center;padding:48px 24px;color:var(--muted);}
+  .empty-icon{font-size:56px;margin-bottom:16px;}
+  .empty-text{font-size:16px;}
+  /* Stores */
+  .search-bar{padding:12px 16px;}
+  .search-input{width:100%;padding:12px 16px;border:2px solid var(--border);border-radius:50px;font-size:15px;outline:none;background:var(--surface);}
+  .search-input:focus{border-color:var(--blue);}
+  .cat-tabs{display:flex;gap:8px;padding:0 16px 12px;overflow-x:auto;scrollbar-width:none;}
+  .cat-tabs::-webkit-scrollbar{display:none;}
+  .cat-tab{padding:6px 16px;border-radius:50px;border:2px solid var(--border);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;background:var(--surface);color:var(--muted);transition:all .2s;}
+  .cat-tab.active{background:var(--blue);border-color:var(--blue);color:#fff;}
+  .store-row{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);gap:12px;}
+  .store-row:last-child{border-bottom:none;}
+  .store-logo{width:40px;height:40px;border-radius:8px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--blue);flex-shrink:0;border:1px solid var(--border);}
+  .store-info{flex:1;}
+  .store-name{font-size:15px;font-weight:600;}
+  .store-cat{font-size:12px;color:var(--muted);}
+  .store-toggle{width:44px;height:26px;border-radius:13px;background:var(--border);border:none;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0;}
+  .store-toggle.on{background:var(--blue);}
+  .store-toggle::after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;top:3px;left:3px;transition:transform .2s;}
+  .store-toggle.on::after{transform:translateX(18px);}
+  /* Coupons */
+  .coupon-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);margin:8px 16px;overflow:hidden;}
+  .coupon-img{width:100%;height:160px;object-fit:cover;background:var(--bg);}
+  .coupon-footer{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;}
+  .coupon-title{font-size:14px;font-weight:600;}
+  .coupon-date{font-size:12px;color:var(--muted);}
+  .coupon-actions{display:flex;gap:8px;padding:0 16px 12px;}
+  /* Settings */
+  .settings-section{padding:16px 16px 4px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+  .settings-row{display:flex;align-items:center;padding:16px;border-bottom:1px solid var(--border);gap:12px;background:var(--surface);}
+  .settings-row:last-child{border-bottom:none;}
+  .settings-icon{font-size:22px;width:36px;text-align:center;}
+  .settings-label{flex:1;font-size:15px;font-weight:500;}
+  .settings-value{font-size:14px;color:var(--muted);}
+  .toggle-sw{width:44px;height:26px;border-radius:13px;background:var(--border);border:none;cursor:pointer;position:relative;transition:background .2s;}
+  .toggle-sw.on{background:var(--blue);}
+  .toggle-sw::after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;top:3px;left:3px;transition:transform .2s;}
+  .toggle-sw.on::after{transform:translateX(18px);}
+  /* Premium banner */
+  .premium-banner{background:linear-gradient(135deg,#1565C0,#7B1FA2);color:#fff;border-radius:var(--radius);margin:12px 16px;padding:20px;display:flex;flex-direction:column;gap:12px;}
+  .premium-title{font-size:18px;font-weight:700;}
+  .premium-price{font-size:24px;font-weight:800;}
+  .premium-features{display:flex;flex-direction:column;gap:6px;}
+  .premium-feature{font-size:14px;opacity:.9;display:flex;align-items:center;gap:8px;}
+  /* Free limit banner */
+  .limit-banner{background:#FEF3C7;border:1px solid #F59E0B;border-radius:var(--radius);margin:8px 16px;padding:12px 16px;display:flex;align-items:center;gap:10px;font-size:13px;color:#92400E;}
+  /* Modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s;}
+  .modal-overlay.open{opacity:1;pointer-events:auto;}
+  .modal{background:var(--surface);border-radius:24px 24px 0 0;width:100%;max-height:85vh;overflow-y:auto;padding:24px;transform:translateY(100%);transition:transform .3s;}
+  .modal-overlay.open .modal{transform:translateY(0);}
+  .modal-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px;}
+  .modal-title{font-size:20px;font-weight:700;margin-bottom:16px;}
+  /* Notification permission */
+  .perm-banner{background:var(--blue);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;font-size:14px;}
+  .perm-banner button{background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 14px;border-radius:50px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
+  /* Scrollbar */
+  .tab-content::-webkit-scrollbar{width:4px;}
+  .tab-content::-webkit-scrollbar-track{background:transparent;}
+  .tab-content::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+  /* Referral */
+  .referral-code{background:var(--bg);border:2px dashed var(--blue);border-radius:var(--radius);padding:16px;text-align:center;margin:12px 0;}
+  .referral-code-text{font-size:28px;font-weight:800;color:var(--blue);letter-spacing:4px;}
+  /* Toast */
+  .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:#1A1A2E;color:#fff;padding:12px 24px;border-radius:50px;font-size:14px;font-weight:600;z-index:2000;opacity:0;transition:all .3s;white-space:nowrap;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  /* Import options */
+  .import-btn{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin:8px 16px;cursor:pointer;font-size:15px;font-weight:500;}
+  .import-btn:active{background:var(--bg);}
+  .import-icon{font-size:24px;}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ONBOARDING -->
+<div class="screen active" id="onboarding">
+  <div class="ob-slides">
+    <div class="ob-slide active" data-slide="0">
+      <div class="ob-icon">🛒</div>
+      <div class="ob-title">Welcome to Remember2Buy</div>
+      <div class="ob-desc">Never forget your shopping list again. Remember2Buy reminds you exactly when you need it — when you're near the store.</div>
+    </div>
+    <div class="ob-slide" data-slide="1">
+      <div class="ob-icon">🏪</div>
+      <div class="ob-title">Pick Your Stores</div>
+      <div class="ob-desc">Choose from hundreds of national and local store chains. Remember2Buy knows where they are and watches for you.</div>
+    </div>
+    <div class="ob-slide" data-slide="2">
+      <div class="ob-icon">📝</div>
+      <div class="ob-title">Build Your Shopping List</div>
+      <div class="ob-desc">Type items, import from a photo, or paste from a text message. Your list is always ready when you need it.</div>
+    </div>
+    <div class="ob-slide" data-slide="3">
+      <div class="ob-icon">📍</div>
+      <div class="ob-title">Get Reminders</div>
+      <div class="ob-desc">Get an alert when you're 0.3 miles from a store. Then another reminder 6 minutes after you arrive — right when you walk in.</div>
+    </div>
+    <div class="ob-slide" data-slide="4">
+      <div class="ob-icon">✂️</div>
+      <div class="ob-title">Save With Coupons</div>
+      <div class="ob-desc">Photograph coupons, scan barcodes, or browse top coupon websites — all in one place. Premium feature.</div>
+    </div>
+    <div class="ob-slide" data-slide="5">
+      <div class="ob-icon">🔔</div>
+      <div class="ob-title">Close the App</div>
+      <div class="ob-desc">Remember2Buy runs in the background. Close it and it will still remind you when you're near your stores.</div>
+    </div>
+  </div>
+  <div class="ob-dots" id="ob-dots"></div>
+  <div class="ob-btns">
+    <span class="ob-skip" id="ob-skip">Skip</span>
+    <button class="ob-next" id="ob-next">Next</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="screen" id="main">
+  <div class="topbar">
+    <h1 id="topbar-title">Remember2Buy</h1>
+  </div>
+  <div id="notif-banner" class="perm-banner" style="display:none;">
+    🔔 Enable notifications to get store reminders
+    <button onclick="requestNotifPerm()">Enable</button>
+  </div>
+  <div class="tab-content" id="tab-content">
+    <!-- Dashboard Tab -->
+    <div id="tab-home" class="tab-pane">
+      <div id="map"></div>
+      <div class="card">
+        <div class="card-header">📍 Reminder Status</div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:12px;">
+          <div id="reminder-status" class="status-badge status-off">⛔ Location permission needed</div>
+          <div id="list-summary" style="font-size:14px;color:var(--muted);">No items on your list yet.</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">🏪 Your Stores</div>
+        <div class="card-body" id="dash-stores">
+          <div style="color:var(--muted);font-size:14px;">No stores selected. Go to Stores tab to pick your favorites.</div>
+        </div>
+      </div>
+    </div>
+    <!-- List Tab -->
+    <div id="tab-list" class="tab-pane" style="display:none;">
+      <div class="list-input-row">
+        <input class="list-input" id="list-input" type="text" placeholder="Add an item..." maxlength="100" returnkeylabel="Add">
+        <button class="btn btn-primary" id="list-add-btn" onclick="addListItem()">Add</button>
+      </div>
+      <div style="display:flex;gap:8px;padding:0 16px 8px;flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" onclick="showImportModal()">📷 Import from Photo</button>
+        <button class="btn btn-outline btn-sm" onclick="importFromFile()">📁 Import from File</button>
+        <button class="btn btn-outline btn-sm" onclick="pasteFromClipboard()">📋 Paste List</button>
+      </div>
+      <div id="free-limit-banner" class="limit-banner" style="display:none;">
+        ⚠️ Free plan: 3 items max. <button class="btn btn-gold btn-sm" style="margin-left:8px;" onclick="showPremiumModal()">Upgrade</button>
+      </div>
+      <div class="card" style="margin-top:4px;">
+        <div id="list-items"></div>
+      </div>
+      <div style="padding:12px 16px;display:flex;justify-content:flex-end;">
+        <button class="btn btn-outline btn-sm" onclick="clearCheckedItems()" style="color:var(--red);border-color:var(--red);">🗑 Clear Checked</button>
+      </div>
+    </div>
+    <!-- Stores Tab -->
+    <div id="tab-stores" class="tab-pane" style="display:none;">
+      <div class="search-bar">
+        <input class="search-input" id="store-search" type="text" placeholder="Search store chains..." oninput="filterStores()">
+      </div>
+      <div class="cat-tabs" id="cat-tabs"></div>
+      <div id="free-store-banner" class="limit-banner" style="display:none;">
+        ⚠️ Free plan: 1 store max. <button class="btn btn-gold btn-sm" style="margin-left:8px;" onclick="showPremiumModal()">Upgrade</button>
+      </div>
+      <div class="card" style="margin-top:0;">
+        <div id="store-list"></div>
+      </div>
+    </div>
+    <!-- Coupons Tab -->
+    <div id="tab-coupons" class="tab-pane" style="display:none;">
+      <div id="coupons-premium-wall" style="display:none;">
+        <div class="premium-banner">
+          <div class="premium-title">✂️ Coupons — Premium Feature</div>
+          <div style="font-size:14px;opacity:.9;">Save money with coupons. Upgrade to Premium to access the full coupon section.</div>
+          <button class="btn" style="background:#fff;color:var(--blue);" onclick="showPremiumModal()">Upgrade to Premium</button>
+        </div>
+      </div>
+      <div id="coupons-content">
+        <div class="coupon-actions">
+          <button class="btn btn-primary btn-sm" onclick="addCouponPhoto()">📷 Add Coupon Photo</button>
+          <button class="btn btn-outline btn-sm" onclick="openCouponSite()">🌐 Browse Coupon Sites</button>
+        </div>
+        <div id="coupon-list"></div>
+        <div id="coupon-empty" class="empty-state">
+          <div class="empty-icon">✂️</div>
+          <div class="empty-text">No coupons saved yet.<br>Tap "Add Coupon Photo" to get started.</div>
+        </div>
+      </div>
+    </div>
+    <!-- Settings Tab -->
+    <div id="tab-settings" class="tab-pane" style="display:none;">
+      <div id="premium-status-card"></div>
+      <div class="settings-section">Reminders</div>
+      <div style="background:var(--surface);border-radius:var(--radius);margin:0 16px 8px;overflow:hidden;border:1px solid var(--border);">
+        <div class="settings-row">
+          <span class="settings-icon">🔔</span>
+          <span class="settings-label">Store reminders</span>
+          <button class="toggle-sw" id="notif-toggle" onclick="toggleNotifications()"></button>
+        </div>
+        <div class="settings-row">
+          <span class="settings-icon">📍</span>
+          <span class="settings-label">Location access</span>
+          <span class="settings-value" id="loc-status-text">Not granted</span>
+        </div>
+        <div class="settings-row" onclick="requestBatteryOptimization()" style="cursor:pointer;">
+          <span class="settings-icon">🔋</span>
+          <span class="settings-label">Battery optimization</span>
+          <span class="settings-value" style="color:var(--blue);">Fix →</span>
+        </div>
+      </div>
+      <div class="settings-section">Share & Earn</div>
+      <div style="background:var(--surface);border-radius:var(--radius);margin:0 16px 8px;overflow:hidden;border:1px solid var(--border);">
+        <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:12px;">
+          <div style="font-size:14px;color:var(--muted);">Share your code — when a friend signs up, you both get 1 free week of Premium.</div>
+          <div class="referral-code">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">YOUR REFERRAL CODE</div>
+            <div class="referral-code-text" id="referral-code-display">—</div>
+          </div>
+          <button class="btn btn-primary btn-full" onclick="shareReferral()">🎁 Share & Earn 1 Free Week</button>
+          <div style="font-size:13px;color:var(--muted);">Friends referred: <strong id="referral-count">0</strong></div>
+        </div>
+      </div>
+      <div class="settings-section">About</div>
+      <div style="background:var(--surface);border-radius:var(--radius);margin:0 16px 8px;overflow:hidden;border:1px solid var(--border);">
+        <div class="settings-row">
+          <span class="settings-icon">ℹ️</span>
+          <span class="settings-label">Version</span>
+          <span class="settings-value">3.0.0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-tab="home" onclick="switchTab('home')">
+      <span class="nav-icon">🗺️</span><span>Home</span>
+    </button>
+    <button class="nav-btn" data-tab="list" onclick="switchTab('list')">
+      <span class="nav-icon">📝</span><span>List</span>
+    </button>
+    <button class="nav-btn" data-tab="stores" onclick="switchTab('stores')">
+      <span class="nav-icon">🏪</span><span>Stores</span>
+    </button>
+    <button class="nav-btn" data-tab="coupons" onclick="switchTab('coupons')">
+      <span class="nav-icon">✂️</span><span>Coupons</span>
+    </button>
+    <button class="nav-btn" data-tab="settings" onclick="switchTab('settings')">
+      <span class="nav-icon">⚙️</span><span>Settings</span>
+    </button>
+  </nav>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="premium-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">⭐ Upgrade to Premium</div>
+    <div style="font-size:28px;font-weight:800;color:var(--blue);margin-bottom:4px;">$1.99<span style="font-size:16px;font-weight:400;color:var(--muted);"> / week</span></div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">Cancel anytime</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
+      <div style="display:flex;align-items:center;gap:10px;font-size:15px;">✅ Unlimited stores</div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:15px;">✅ Unlimited list items</div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:15px;">✅ Full coupon section</div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:15px;">✅ Share & earn free weeks</div>
+    </div>
+    <button class="btn btn-primary btn-full" style="font-size:17px;padding:16px;" onclick="subscribePremium()">Subscribe Now — $1.99/week</button>
+    <button class="btn btn-outline btn-full" style="margin-top:12px;" onclick="closeModal('premium-modal')">Not Now</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="import-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📷 Import from Photo</div>
+    <div style="font-size:14px;color:var(--muted);margin-bottom:20px;">Take a photo of your handwritten list or a printed list. We'll read the text and add it to your shopping list.</div>
+    <input type="file" id="photo-input" accept="image/*" capture="environment" style="display:none;" onchange="processPhotoImport(event)">
+    <button class="btn btn-primary btn-full" onclick="document.getElementById('photo-input').click()">📷 Take Photo</button>
+    <button class="btn btn-outline btn-full" style="margin-top:12px;" onclick="document.getElementById('photo-input').click()">🖼 Choose from Gallery</button>
+    <button class="btn btn-outline btn-full" style="margin-top:12px;" onclick="closeModal('import-modal')">Cancel</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="coupon-sites-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🌐 Coupon Websites</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <a href="https://www.coupons.com" target="_blank" class="import-btn"><span class="import-icon">🏷️</span>Coupons.com</a>
+      <a href="https://www.retailmenot.com" target="_blank" class="import-btn"><span class="import-icon">🏷️</span>RetailMeNot</a>
+      <a href="https://www.groupon.com" target="_blank" class="import-btn"><span class="import-icon">🏷️</span>Groupon</a>
+      <a href="https://www.slickdeals.net" target="_blank" class="import-btn"><span class="import-icon">🏷️</span>Slickdeals</a>
+      <a href="https://www.honey.com" target="_blank" class="import-btn"><span class="import-icon">🏷️</span>Honey</a>
+      <a href="https://www.ibotta.com" target="_blank" class="import-btn"><span class="import-icon">🏷️</span>Ibotta</a>
+      <a href="https://www.rakuten.com" target="_blank" class="import-btn"><span class="import-icon">🏷️</span>Rakuten</a>
+    </div>
+    <button class="btn btn-outline btn-full" style="margin-top:16px;" onclick="closeModal('coupon-sites-modal')">Close</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<input type="file" id="file-input" accept=".txt,.csv" style="display:none;" onchange="processFileImport(event)">
+<input type="file" id="coupon-photo-input" accept="image/*" capture="environment" style="display:none;" onchange="processCouponPhoto(event)">
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+const STATE = {
+  onboardingDone: false,
+  isPremium: false,
+  premiumExpiry: null,
+  listItems: [],
+  selectedStores: [],
+  coupons: [],
+  notificationsEnabled: false,
+  referralCode: '',
+  referralCount: 0,
+  userLat: null,
+  userLng: null,
+  watchId: null,
+  arrivedAt: {},   // storeName -> timestamp when arrived
+  alertedApproach: {}, // storeName -> bool
+  alertedArrival: {},  // storeName -> bool
+};
+
+// ============================================================
+// STORE DATABASE (323 chains)
+// ============================================================
+const STORE_DB = [
+  {name:"Walmart",cat:"Grocery"},{name:"Kroger",cat:"Grocery"},{name:"Safeway",cat:"Grocery"},
+  {name:"Albertsons",cat:"Grocery"},{name:"Publix",cat:"Grocery"},{name:"H-E-B",cat:"Grocery"},
+  {name:"Meijer",cat:"Grocery"},{name:"Hy-Vee",cat:"Grocery"},{name:"Wegmans",cat:"Grocery"},
+  {name:"ShopRite",cat:"Grocery"},{name:"Stop & Shop",cat:"Grocery"},{name:"Giant Food",cat:"Grocery"},
+  {name:"Giant Eagle",cat:"Grocery"},{name:"Food Lion",cat:"Grocery"},{name:"Winn-Dixie",cat:"Grocery"},
+  {name:"Piggly Wiggly",cat:"Grocery"},{name:"Stater Bros.",cat:"Grocery"},{name:"Raley's",cat:"Grocery"},
+  {name:"Vons",cat:"Grocery"},{name:"Pavilions",cat:"Grocery"},{name:"Ralph's",cat:"Grocery"},
+  {name:"Fred Meyer",cat:"Grocery"},{name:"QFC",cat:"Grocery"},{name:"King Soopers",cat:"Grocery"},
+  {name:"Fry's Food",cat:"Grocery"},{name:"Smith's Food & Drug",cat:"Grocery"},{name:"Harris Teeter",cat:"Grocery"},
+  {name:"Hannaford",cat:"Grocery"},{name:"Price Chopper",cat:"Grocery"},{name:"Market Basket",cat:"Grocery"},
+  {name:"Brookshire's",cat:"Grocery"},{name:"Ingles Markets",cat:"Grocery"},{name:"WinCo Foods",cat:"Grocery"},
+  {name:"Sprouts Farmers Market",cat:"Grocery"},{name:"Natural Grocers",cat:"Grocery"},
+  {name:"Whole Foods Market",cat:"Grocery"},{name:"Trader Joe's",cat:"Grocery"},{name:"ALDI",cat:"Grocery"},
+  {name:"Lidl",cat:"Grocery"},{name:"Save-A-Lot",cat:"Grocery"},{name:"Grocery Outlet",cat:"Grocery"},
+  {name:"Fiesta Mart",cat:"Grocery"},{name:"Cardenas Markets",cat:"Grocery"},
+  {name:"Vallarta Supermarkets",cat:"Grocery"},{name:"El Super",cat:"Grocery"},
+  {name:"Northgate Market",cat:"Grocery"},{name:"Key Food",cat:"Grocery"},
+  {name:"C-Town Supermarkets",cat:"Grocery"},{name:"Bashas'",cat:"Grocery"},
+  {name:"Dillons",cat:"Grocery"},{name:"Mariano's",cat:"Grocery"},{name:"Pick 'n Save",cat:"Grocery"},
+  {name:"Festival Foods",cat:"Grocery"},{name:"Cub Foods",cat:"Grocery"},{name:"Lunds & Byerlys",cat:"Grocery"},
+  {name:"Fareway",cat:"Grocery"},{name:"Schnucks",cat:"Grocery"},{name:"Dierbergs",cat:"Grocery"},
+  {name:"Hy-Vee Gas",cat:"Grocery"},{name:"WinCo Foods",cat:"Grocery"},
+  // Wholesale
+  {name:"Costco",cat:"Wholesale"},{name:"Sam's Club",cat:"Wholesale"},{name:"BJ's Wholesale Club",cat:"Wholesale"},
+  // Pharmacy
+  {name:"CVS Pharmacy",cat:"Pharmacy"},{name:"Walgreens",cat:"Pharmacy"},{name:"Rite Aid",cat:"Pharmacy"},
+  {name:"Duane Reade",cat:"Pharmacy"},{name:"Kinney Drugs",cat:"Pharmacy"},
+  {name:"Good Neighbor Pharmacy",cat:"Pharmacy"},{name:"Health Mart",cat:"Pharmacy"},
+  // General
+  {name:"Target",cat:"General"},{name:"Kmart",cat:"General"},{name:"Big Lots",cat:"General"},
+  {name:"Dollar General",cat:"General"},{name:"Dollar Tree",cat:"General"},{name:"Family Dollar",cat:"General"},
+  {name:"Five Below",cat:"General"},{name:"99 Cents Only",cat:"General"},{name:"Ollie's Bargain Outlet",cat:"General"},
+  {name:"Boscov's",cat:"General"},{name:"Bealls",cat:"General"},
+  // Home
+  {name:"Home Depot",cat:"Home"},{name:"Lowe's",cat:"Home"},{name:"Menards",cat:"Home"},
+  {name:"Ace Hardware",cat:"Home"},{name:"True Value",cat:"Home"},{name:"Do it Best",cat:"Home"},
+  {name:"Tractor Supply Co.",cat:"Home"},{name:"Harbor Freight Tools",cat:"Home"},
+  {name:"Northern Tool",cat:"Home"},
+  // Clothing
+  {name:"Macy's",cat:"Clothing"},{name:"Nordstrom",cat:"Clothing"},{name:"Nordstrom Rack",cat:"Clothing"},
+  {name:"Kohl's",cat:"Clothing"},{name:"JCPenney",cat:"Clothing"},{name:"TJ Maxx",cat:"Clothing"},
+  {name:"Marshalls",cat:"Clothing"},{name:"Ross Dress for Less",cat:"Clothing"},{name:"Burlington",cat:"Clothing"},
+  {name:"Old Navy",cat:"Clothing"},{name:"Gap",cat:"Clothing"},{name:"H&M",cat:"Clothing"},
+  {name:"Zara",cat:"Clothing"},{name:"Forever 21",cat:"Clothing"},{name:"American Eagle",cat:"Clothing"},
+  {name:"Abercrombie & Fitch",cat:"Clothing"},{name:"Express",cat:"Clothing"},{name:"Lane Bryant",cat:"Clothing"},
+  {name:"Torrid",cat:"Clothing"},{name:"Chico's",cat:"Clothing"},{name:"Ann Taylor",cat:"Clothing"},
+  {name:"Talbots",cat:"Clothing"},{name:"J.Crew",cat:"Clothing"},{name:"Anthropologie",cat:"Clothing"},
+  {name:"Urban Outfitters",cat:"Clothing"},{name:"Lululemon",cat:"Clothing"},{name:"Athleta",cat:"Clothing"},
+  {name:"Under Armour",cat:"Clothing"},{name:"Nike",cat:"Clothing"},{name:"Adidas",cat:"Clothing"},
+  {name:"Foot Locker",cat:"Clothing"},{name:"Finish Line",cat:"Clothing"},{name:"DSW",cat:"Clothing"},
+  // Electronics
+  {name:"Best Buy",cat:"Electronics"},{name:"Apple Store",cat:"Electronics"},{name:"Microsoft Store",cat:"Electronics"},
+  {name:"GameStop",cat:"Electronics"},{name:"Fry's Electronics",cat:"Electronics"},
+  // Pet
+  {name:"PetSmart",cat:"Pet"},{name:"Petco",cat:"Pet"},{name:"Pet Supplies Plus",cat:"Pet"},
+  // Auto
+  {name:"AutoZone",cat:"Auto"},{name:"O'Reilly Auto Parts",cat:"Auto"},{name:"Advance Auto Parts",cat:"Auto"},
+  {name:"NAPA Auto Parts",cat:"Auto"},{name:"Pep Boys",cat:"Auto"},
+  // Sporting Goods
+  {name:"Dick's Sporting Goods",cat:"Sports"},{name:"Academy Sports",cat:"Sports"},
+  {name:"Bass Pro Shops",cat:"Sports"},{name:"Cabela's",cat:"Sports"},{name:"REI",cat:"Sports"},
+  {name:"Sports Authority",cat:"Sports"},{name:"Big 5 Sporting Goods",cat:"Sports"},
+  // Office
+  {name:"Staples",cat:"Office"},{name:"Office Depot",cat:"Office"},{name:"OfficeMax",cat:"Office"},
+  // Craft
+  {name:"Hobby Lobby",cat:"Craft"},{name:"Michaels",cat:"Craft"},{name:"Jo-Ann Fabric",cat:"Craft"},
+  {name:"AC Moore",cat:"Craft"},
+  // Furniture
+  {name:"IKEA",cat:"Furniture"},{name:"Ashley Furniture",cat:"Furniture"},{name:"Rooms To Go",cat:"Furniture"},
+  {name:"Wayfair",cat:"Furniture"},{name:"Crate & Barrel",cat:"Furniture"},{name:"Pottery Barn",cat:"Furniture"},
+  {name:"Williams-Sonoma",cat:"Furniture"},
+  // Beauty
+  {name:"Sephora",cat:"Beauty"},{name:"Ulta Beauty",cat:"Beauty"},{name:"Sally Beauty",cat:"Beauty"},
+  {name:"Bath & Body Works",cat:"Beauty"},{name:"The Body Shop",cat:"Beauty"},
+  // Food/Fast
+  {name:"McDonald's",cat:"Food"},{name:"Burger King",cat:"Food"},{name:"Wendy's",cat:"Food"},
+  {name:"Taco Bell",cat:"Food"},{name:"Subway",cat:"Food"},{name:"Chick-fil-A",cat:"Food"},
+  {name:"Starbucks",cat:"Food"},{name:"Dunkin'",cat:"Food"},{name:"Chipotle",cat:"Food"},
+  {name:"Panera Bread",cat:"Food"},{name:"Pizza Hut",cat:"Food"},{name:"Domino's",cat:"Food"},
+  // Convenience
+  {name:"7-Eleven",cat:"Convenience"},{name:"Circle K",cat:"Convenience"},{name:"Wawa",cat:"Convenience"},
+  {name:"Sheetz",cat:"Convenience"},{name:"Casey's General Store",cat:"Convenience"},
+  {name:"Speedway",cat:"Convenience"},{name:"Kwik Trip",cat:"Convenience"},
+  {name:"Holiday Stationstores",cat:"Convenience"},{name:"Pilot Flying J",cat:"Convenience"},
+  {name:"Love's Travel Stop",cat:"Convenience"},{name:"QuikTrip",cat:"Convenience"},
+  {name:"RaceTrac",cat:"Convenience"},{name:"Thorntons",cat:"Convenience"},
+  {name:"GetGo",cat:"Convenience"},{name:"Maverik",cat:"Convenience"},
+  // Liquor
+  {name:"Total Wine & More",cat:"Liquor"},{name:"BevMo!",cat:"Liquor"},{name:"ABC Fine Wine & Spirits",cat:"Liquor"},
+  // Books
+  {name:"Barnes & Noble",cat:"Books"},{name:"Half Price Books",cat:"Books"},
+  // Toys
+  {name:"Toys R Us",cat:"Toys"},{name:"Learning Express",cat:"Toys"},
+  // Warehouse
+  {name:"Restaurant Depot",cat:"Warehouse"},{name:"Gordon Food Service",cat:"Warehouse"},
+  // Specialty Grocery
+  {name:"Eataly",cat:"Specialty"},{name:"The Fresh Market",cat:"Specialty"},
+  {name:"Lucky's Market",cat:"Specialty"},{name:"Earth Fare",cat:"Specialty"},
+  {name:"Fresh Thyme",cat:"Specialty"},{name:"Jungle Jim's",cat:"Specialty"},
+  {name:"Central Market",cat:"Specialty"},{name:"Stew Leonard's",cat:"Specialty"},
+  {name:"Bristol Farms",cat:"Specialty"},{name:"Metropolitan Market",cat:"Specialty"},
+];
+
+const CATEGORIES = ['All', ...new Set(STORE_DB.map(s => s.cat))].sort((a,b) => a==='All'?-1:b==='All'?1:a.localeCompare(b));
+
+// ============================================================
+// PERSISTENCE
+// ============================================================
+function save() {
+  localStorage.setItem('r2b_state', JSON.stringify({
+    onboardingDone: STATE.onboardingDone,
+    isPremium: STATE.isPremium,
+    premiumExpiry: STATE.premiumExpiry,
+    listItems: STATE.listItems,
+    selectedStores: STATE.selectedStores,
+    coupons: STATE.coupons,
+    notificationsEnabled: STATE.notificationsEnabled,
+    referralCode: STATE.referralCode,
+    referralCount: STATE.referralCount,
+  }));
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem('r2b_state');
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    Object.assign(STATE, d);
+    // Check premium expiry
+    if (STATE.premiumExpiry && new Date(STATE.premiumExpiry) < new Date()) {
+      STATE.isPremium = false;
+      STATE.premiumExpiry = null;
+    }
+  } catch(e) {}
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  load();
+  generateReferralCode();
+  if (STATE.onboardingDone) {
+    showMain();
+  } else {
+    initOnboarding();
+  }
+});
+
+function generateReferralCode() {
+  if (!STATE.referralCode) {
+    STATE.referralCode = Math.random().toString(36).substring(2,8).toUpperCase();
+    save();
+  }
+  document.getElementById('referral-code-display').textContent = STATE.referralCode;
+}
+
+// ============================================================
+// ONBOARDING
+// ============================================================
+let obSlide = 0;
+const OB_TOTAL = 6;
+
+function initOnboarding() {
+  const dots = document.getElementById('ob-dots');
+  dots.innerHTML = '';
+  for (let i=0;i<OB_TOTAL;i++) {
+    const d = document.createElement('div');
+    d.className = 'ob-dot' + (i===0?' active':'');
+    dots.appendChild(d);
+  }
+  document.getElementById('ob-next').addEventListener('click', obNext);
+  document.getElementById('ob-skip').addEventListener('click', finishOnboarding);
+}
+
+function obNext() {
+  obSlide++;
+  if (obSlide >= OB_TOTAL) { finishOnboarding(); return; }
+  document.querySelectorAll('.ob-slide').forEach((s,i) => s.classList.toggle('active', i===obSlide));
+  document.querySelectorAll('.ob-dot').forEach((d,i) => d.classList.toggle('active', i===obSlide));
+  if (obSlide === OB_TOTAL-1) document.getElementById('ob-next').textContent = 'Get Started';
+}
+
+function finishOnboarding() {
+  STATE.onboardingDone = true;
+  save();
+  showMain();
+}
+
+// ============================================================
+// MAIN APP
+// ============================================================
+function showMain() {
+  document.getElementById('onboarding').classList.remove('active');
+  document.getElementById('main').classList.add('active');
+  initMap();
+  renderStoreList();
+  renderListItems();
+  renderCoupons();
+  renderSettings();
+  renderDashboard();
+  checkNotifPermission();
+  startLocationWatch();
+}
+
+// ============================================================
+// TAB NAVIGATION
+// ============================================================
+let currentTab = 'home';
+function switchTab(tab) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.style.display='none');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+tab).style.display='block';
+  document.querySelector('[data-tab="'+tab+'"]').classList.add('active');
+  const titles = {home:'Remember2Buy',list:'Shopping List',stores:'My Stores',coupons:'Coupons',settings:'Settings'};
+  document.getElementById('topbar-title').textContent = titles[tab] || 'Remember2Buy';
+  currentTab = tab;
+  if (tab==='home') renderDashboard();
+  if (tab==='settings') renderSettings();
+}
+
+// ============================================================
+// MAP
+// ============================================================
+let map, userMarker, storeMarkers = [];
+
+function initMap() {
+  map = L.map('map', {zoomControl:false, attributionControl:false}).setView([39.5, -98.35], 4);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(map);
+  L.control.attribution({prefix:false}).addTo(map);
+}
+
+function updateMapMarkers() {
+  storeMarkers.forEach(m => map.removeLayer(m));
+  storeMarkers = [];
+  STATE.selectedStores.forEach(store => {
+    if (store.lat && store.lng) {
+      const m = L.marker([store.lat, store.lng], {
+        icon: L.divIcon({className:'', html:`<div style="background:var(--blue);color:#fff;padding:4px 8px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.3)">${store.name}</div>`, iconAnchor:[0,0]})
+      }).addTo(map);
+      storeMarkers.push(m);
+    }
+  });
+}
+
+// ============================================================
+// LOCATION
+// ============================================================
+function startLocationWatch() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(pos => {
+    STATE.userLat = pos.coords.latitude;
+    STATE.userLng = pos.coords.longitude;
+    if (map) {
+      map.setView([STATE.userLat, STATE.userLng], 13);
+      if (userMarker) map.removeLayer(userMarker);
+      userMarker = L.circleMarker([STATE.userLat, STATE.userLng], {radius:8, fillColor:'#1565C0', color:'#fff', weight:2, fillOpacity:1}).addTo(map);
+    }
+    updateLocationStatus(true);
+    checkProximity();
+  }, () => updateLocationStatus(false), {enableHighAccuracy:true});
+
+  STATE.watchId = navigator.geolocation.watchPosition(pos => {
+    STATE.userLat = pos.coords.latitude;
+    STATE.userLng = pos.coords.longitude;
+    if (userMarker) userMarker.setLatLng([STATE.userLat, STATE.userLng]);
+    checkProximity();
+  }, null, {enableHighAccuracy:true, maximumAge:10000, timeout:15000});
+}
+
+function updateLocationStatus(granted) {
+  const el = document.getElementById('reminder-status');
+  const locText = document.getElementById('loc-status-text');
+  if (granted) {
+    el.className = 'status-badge status-on';
+    el.textContent = '✅ Reminders active';
+    if (locText) locText.textContent = 'Granted';
+  } else {
+    el.className = 'status-badge status-off';
+    el.textContent = '⛔ Location permission needed';
+    if (locText) locText.textContent = 'Not granted';
+  }
+}
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R=6371, dLat=(lat2-lat1)*Math.PI/180, dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function checkProximity() {
+  if (!STATE.userLat || !STATE.notificationsEnabled) return;
+  const items = STATE.listItems.filter(i=>!i.done).map(i=>i.text).join(', ');
+  if (!items) return;
+
+  STATE.selectedStores.forEach(store => {
+    if (!store.lat || !store.lng) return;
+    const distKm = haversineKm(STATE.userLat, STATE.userLng, store.lat, store.lng);
+    const distMiles = distKm * 0.621371;
+
+    // 0.3 mile approach alert
+    if (distMiles <= 0.3 && !STATE.alertedApproach[store.name]) {
+      STATE.alertedApproach[store.name] = true;
+      sendNotification('Remember2Buy — Near ' + store.name, 'Remember to buy: ' + items);
+    }
+    if (distMiles > 0.5) STATE.alertedApproach[store.name] = false;
+
+    // Arrived (within ~100m = 0.06 miles)
+    if (distMiles <= 0.06) {
+      if (!STATE.arrivedAt[store.name]) {
+        STATE.arrivedAt[store.name] = Date.now();
+      } else {
+        const elapsed = (Date.now() - STATE.arrivedAt[store.name]) / 60000; // minutes
+        if (elapsed >= 6 && !STATE.alertedArrival[store.name]) {
+          STATE.alertedArrival[store.name] = true;
+          sendNotification('Remember2Buy — You\'re at ' + store.name + '!', 'Remember to buy: ' + items);
+        }
+      }
+    } else {
+      STATE.arrivedAt[store.name] = null;
+      STATE.alertedArrival[store.name] = false;
+    }
+  });
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+function checkNotifPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    document.getElementById('notif-banner').style.display = 'flex';
+  } else if (Notification.permission === 'granted') {
+    STATE.notificationsEnabled = true;
+    updateNotifToggle();
+  }
+}
+
+function requestNotifPerm() {
+  Notification.requestPermission().then(p => {
+    if (p === 'granted') {
+      STATE.notificationsEnabled = true;
+      document.getElementById('notif-banner').style.display = 'none';
+      updateNotifToggle();
+      save();
+      showToast('Notifications enabled!');
+    }
+  });
+}
+
+function toggleNotifications() {
+  if (!('Notification' in window)) { showToast('Notifications not supported'); return; }
+  if (Notification.permission !== 'granted') {
+    requestNotifPerm();
+    return;
+  }
+  STATE.notificationsEnabled = !STATE.notificationsEnabled;
+  updateNotifToggle();
+  save();
+}
+
+function updateNotifToggle() {
+  const t = document.getElementById('notif-toggle');
+  if (t) t.className = 'toggle-sw' + (STATE.notificationsEnabled?' on':'');
+}
+
+function sendNotification(title, body) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  new Notification(title, {body, icon:'icons/icon-192.png', badge:'icons/icon-96.png'});
+}
+
+// ============================================================
+// SHOPPING LIST
+// ============================================================
+function addListItem() {
+  const input = document.getElementById('list-input');
+  const text = input.value.trim();
+  if (!text) return;
+  if (!STATE.isPremium && STATE.listItems.filter(i=>!i.done).length >= 3) {
+    showPremiumModal();
+    return;
+  }
+  STATE.listItems.push({id: Date.now(), text, done: false});
+  input.value = '';
+  save();
+  renderListItems();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('list-input');
+  if (inp) inp.addEventListener('keydown', e => { if(e.key==='Enter') addListItem(); });
+});
+
+function toggleListItem(id) {
+  const item = STATE.listItems.find(i=>i.id===id);
+  if (item) { item.done = !item.done; save(); renderListItems(); }
+}
+
+function deleteListItem(id) {
+  STATE.listItems = STATE.listItems.filter(i=>i.id!==id);
+  save();
+  renderListItems();
+}
+
+function clearCheckedItems() {
+  STATE.listItems = STATE.listItems.filter(i=>!i.done);
+  save();
+  renderListItems();
+}
+
+function renderListItems() {
+  const container = document.getElementById('list-items');
+  const activeCount = STATE.listItems.filter(i=>!i.done).length;
+  const limitBanner = document.getElementById('free-limit-banner');
+  if (limitBanner) limitBanner.style.display = (!STATE.isPremium && activeCount >= 3) ? 'flex' : 'none';
+
+  if (!STATE.listItems.length) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-text">Your shopping list is empty.<br>Add items above.</div></div>';
+    return;
+  }
+  container.innerHTML = STATE.listItems.map(item => `
+    <div class="list-item">
+      <div class="list-check ${item.done?'done':''}" onclick="toggleListItem(${item.id})">${item.done?'✓':''}</div>
+      <span class="list-item-text ${item.done?'done':''}">${escHtml(item.text)}</span>
+      <button class="list-del" onclick="deleteListItem(${item.id})">✕</button>
+    </div>
+  `).join('');
+
+  // Update dashboard summary
+  const summaryEl = document.getElementById('list-summary');
+  if (summaryEl) {
+    const total = STATE.listItems.length, done = STATE.listItems.filter(i=>i.done).length;
+    summaryEl.textContent = total ? `${total - done} item${total-done!==1?'s':''} remaining (${done} checked off)` : 'No items on your list yet.';
+  }
+}
+
+function showImportModal() { openModal('import-modal'); }
+
+function importFromFile() { document.getElementById('file-input').click(); }
+
+function processFileImport(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const lines = ev.target.result.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>0);
+    let added = 0;
+    lines.forEach(line => {
+      if (!STATE.isPremium && STATE.listItems.filter(i=>!i.done).length >= 3) return;
+      STATE.listItems.push({id: Date.now()+Math.random(), text: line, done: false});
+      added++;
+    });
+    save();
+    renderListItems();
+    showToast(`Added ${added} items`);
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function pasteFromClipboard() {
+  if (navigator.clipboard && navigator.clipboard.readText) {
+    navigator.clipboard.readText().then(text => {
+      const lines = text.split(/\r?\n|,|;/).map(l=>l.trim()).filter(l=>l.length>0);
+      let added = 0;
+      lines.forEach(line => {
+        if (!STATE.isPremium && STATE.listItems.filter(i=>!i.done).length >= 3) return;
+        STATE.listItems.push({id: Date.now()+Math.random(), text: line, done: false});
+        added++;
+      });
+      save();
+      renderListItems();
+      showToast(`Added ${added} items from clipboard`);
+    }).catch(() => showToast('Could not read clipboard'));
+  } else {
+    const text = prompt('Paste your shopping list here (one item per line):');
+    if (!text) return;
+    const lines = text.split(/\r?\n|,|;/).map(l=>l.trim()).filter(l=>l.length>0);
+    lines.forEach(line => {
+      if (!STATE.isPremium && STATE.listItems.filter(i=>!i.done).length >= 3) return;
+      STATE.listItems.push({id: Date.now()+Math.random(), text: line, done: false});
+    });
+    save();
+    renderListItems();
+    showToast('Items added');
+  }
+}
+
+function processPhotoImport(e) {
+  closeModal('import-modal');
+  showToast('Reading photo... (OCR requires Premium API)');
+  // In a real deployment, send image to OCR API here
+  e.target.value = '';
+}
+
+// ============================================================
+// STORES
+// ============================================================
+let selectedCat = 'All';
+
+function renderStoreList() {
+  // Category tabs
+  const catTabs = document.getElementById('cat-tabs');
+  catTabs.innerHTML = CATEGORIES.map(c =>
+    `<div class="cat-tab ${c===selectedCat?'active':''}" onclick="selectCat('${c}')">${c}</div>`
+  ).join('');
+
+  filterStores();
+}
+
+function selectCat(cat) {
+  selectedCat = cat;
+  renderStoreList();
+}
+
+function filterStores() {
+  const q = (document.getElementById('store-search')?.value||'').toLowerCase();
+  const container = document.getElementById('store-list');
+  const banner = document.getElementById('free-store-banner');
+  if (banner) banner.style.display = (!STATE.isPremium && STATE.selectedStores.length >= 1) ? 'flex' : 'none';
+
+  let stores = STORE_DB;
+  if (selectedCat !== 'All') stores = stores.filter(s=>s.cat===selectedCat);
+  if (q) stores = stores.filter(s=>s.name.toLowerCase().includes(q)||s.cat.toLowerCase().includes(q));
+
+  container.innerHTML = stores.map(store => {
+    const isOn = STATE.selectedStores.some(s=>s.name===store.name);
+    const initials = store.name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+    return `<div class="store-row">
+      <div class="store-logo">${initials}</div>
+      <div class="store-info">
+        <div class="store-name">${escHtml(store.name)}</div>
+        <div class="store-cat">${store.cat}</div>
+      </div>
+      <button class="store-toggle ${isOn?'on':''}" onclick="toggleStore('${escAttr(store.name)}','${store.cat}')"></button>
+    </div>`;
+  }).join('');
+}
+
+function toggleStore(name, cat) {
+  const idx = STATE.selectedStores.findIndex(s=>s.name===name);
+  if (idx >= 0) {
+    STATE.selectedStores.splice(idx, 1);
+    showToast(name + ' removed');
+  } else {
+    if (!STATE.isPremium && STATE.selectedStores.length >= 1) {
+      showPremiumModal();
+      return;
+    }
+    STATE.selectedStores.push({name, cat, lat:null, lng:null});
+    showToast(name + ' added');
+    // Try to find location via Nominatim
+    fetchStoreLocation(name);
+  }
+  save();
+  filterStores();
+  renderDashboard();
+  updateMapMarkers();
+}
+
+function fetchStoreLocation(name) {
+  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(name)}&format=json&limit=1`;
+  fetch(url, {headers:{'Accept-Language':'en'}})
+    .then(r=>r.json())
+    .then(data => {
+      if (data && data[0]) {
+        const store = STATE.selectedStores.find(s=>s.name===name);
+        if (store) {
+          store.lat = parseFloat(data[0].lat);
+          store.lng = parseFloat(data[0].lon);
+          save();
+          updateMapMarkers();
+        }
+      }
+    }).catch(()=>{});
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function renderDashboard() {
+  const container = document.getElementById('dash-stores');
+  if (!STATE.selectedStores.length) {
+    container.innerHTML = '<div style="color:var(--muted);font-size:14px;">No stores selected. Go to Stores tab to pick your favorites.</div>';
+    return;
+  }
+  container.innerHTML = STATE.selectedStores.map(s =>
+    `<span class="store-pill">🏪 ${escHtml(s.name)}</span>`
+  ).join('');
+  updateMapMarkers();
+}
+
+// ============================================================
+// COUPONS
+// ============================================================
+function renderCoupons() {
+  const wall = document.getElementById('coupons-premium-wall');
+  const content = document.getElementById('coupons-content');
+  if (!STATE.isPremium) {
+    wall.style.display = 'block';
+    content.style.display = 'none';
+    return;
+  }
+  wall.style.display = 'none';
+  content.style.display = 'block';
+
+  const list = document.getElementById('coupon-list');
+  const empty = document.getElementById('coupon-empty');
+  if (!STATE.coupons.length) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  list.innerHTML = STATE.coupons.map((c,i) => `
+    <div class="coupon-card">
+      <img class="coupon-img" src="${c.dataUrl}" alt="Coupon">
+      <div class="coupon-footer">
+        <div>
+          <div class="coupon-title">${escHtml(c.title||'Coupon')}</div>
+          <div class="coupon-date">${c.date}</div>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="deleteCoupon(${i})">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function addCouponPhoto() {
+  if (!STATE.isPremium) { showPremiumModal(); return; }
+  document.getElementById('coupon-photo-input').click();
+}
+
+function processCouponPhoto(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    STATE.coupons.unshift({dataUrl: ev.target.result, title: 'Coupon', date: new Date().toLocaleDateString()});
+    save();
+    renderCoupons();
+    showToast('Coupon saved!');
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+function deleteCoupon(i) {
+  STATE.coupons.splice(i, 1);
+  save();
+  renderCoupons();
+  showToast('Coupon deleted');
+}
+
+function openCouponSite() {
+  if (!STATE.isPremium) { showPremiumModal(); return; }
+  openModal('coupon-sites-modal');
+}
+
+// ============================================================
+// SETTINGS
+// ============================================================
+function renderSettings() {
+  const card = document.getElementById('premium-status-card');
+  updateNotifToggle();
+  document.getElementById('referral-code-display').textContent = STATE.referralCode;
+  document.getElementById('referral-count').textContent = STATE.referralCount;
+
+  if (STATE.isPremium) {
+    const exp = STATE.premiumExpiry ? new Date(STATE.premiumExpiry).toLocaleDateString() : 'Active';
+    card.innerHTML = `<div style="background:linear-gradient(135deg,#1565C0,#7B1FA2);color:#fff;border-radius:var(--radius);margin:12px 16px;padding:16px;display:flex;align-items:center;gap:12px;">
+      <span style="font-size:28px;">⭐</span>
+      <div><div style="font-weight:700;font-size:16px;">Premium Active</div><div style="font-size:13px;opacity:.8;">Expires: ${exp}</div></div>
+    </div>`;
+  } else {
+    card.innerHTML = `<div style="margin:12px 16px;">
+      <button class="btn btn-primary btn-full" style="font-size:16px;padding:14px;" onclick="showPremiumModal()">⭐ Upgrade to Premium — $1.99/week</button>
+    </div>`;
+  }
+}
+
+function requestBatteryOptimization() {
+  showToast('On Android: Settings → Apps → Remember2Buy → Battery → Unrestricted');
+}
+
+function shareReferral() {
+  const text = `Try Remember2Buy - it reminds you to buy things when you're near the store! Use my code ${STATE.referralCode} to get 1 free week of Premium. https://remember2buy.app`;
+  if (navigator.share) {
+    navigator.share({title:'Remember2Buy', text}).catch(()=>{});
+  } else {
+    navigator.clipboard?.writeText(text).then(()=>showToast('Link copied to clipboard!')).catch(()=>{
+      prompt('Copy this link:', text);
+    });
+  }
+}
+
+// ============================================================
+// PREMIUM
+// ============================================================
+function showPremiumModal() { openModal('premium-modal'); }
+
+function subscribePremium() {
+  // In production, integrate Google Play Billing or Stripe here
+  // For demo/PWA: simulate purchase
+  const expiry = new Date();
+  expiry.setDate(expiry.getDate() + 7);
+  STATE.isPremium = true;
+  STATE.premiumExpiry = expiry.toISOString();
+  save();
+  closeModal('premium-modal');
+  renderCoupons();
+  renderSettings();
+  filterStores();
+  renderListItems();
+  showToast('Welcome to Premium! ⭐');
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+document.addEventListener('click', e => {
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.classList.remove('open');
+  }
+});
+
+// ============================================================
+// TOAST
+// ============================================================
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) {
+  return String(s).replace(/'/g,"\\'");
+}
+</script>
+<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/sw.js").catch(()=>{});}</script>
+</body>
+</html>
