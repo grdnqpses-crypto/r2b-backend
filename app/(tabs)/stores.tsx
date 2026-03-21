@@ -247,7 +247,7 @@ export default function StoresScreen() {
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.foreground }]}>Stores</Text>
           <Text style={[styles.subtitle, { color: colors.muted }]}>
-            Monitoring {savedStores.length} of {tier === "free" ? FREE_STORE_LIMIT : "\u221E"} stores
+            Monitoring {savedStores.length} of {tier === "free" ? FREE_STORE_LIMIT : "∞"} stores
           </Text>
         </View>
 
@@ -310,7 +310,7 @@ export default function StoresScreen() {
               </View>
             ) : locationError ? (
               <View style={styles.centered}>
-                <Text style={styles.errorEmoji}>{"\uD83D\uDCCD"}</Text>
+                <Text style={styles.errorEmoji}>📍</Text>
                 <Text style={[styles.errorText, { color: colors.foreground }]}>Location Unavailable</Text>
                 <Text style={[styles.errorDesc, { color: colors.muted }]}>{locationError}</Text>
                 <Pressable
@@ -337,7 +337,7 @@ export default function StoresScreen() {
                 }
                 ListEmptyComponent={
                   <View style={styles.centered}>
-                    <Text style={styles.errorEmoji}>{"\uD83C\uDFEA"}</Text>
+                    <Text style={styles.errorEmoji}>🏪</Text>
                     <Text style={[styles.errorText, { color: colors.foreground }]}>No stores found nearby</Text>
                     <Text style={[styles.errorDesc, { color: colors.muted }]}>
                       Pull down to refresh or try in a different area.
@@ -360,7 +360,7 @@ export default function StoresScreen() {
             ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
             ListEmptyComponent={
               <View style={styles.centered}>
-                <Text style={styles.errorEmoji}>{"\uD83D\uDCCC"}</Text>
+                <Text style={styles.errorEmoji}>📌</Text>
                 <Text style={[styles.errorText, { color: colors.foreground }]}>No stores added yet</Text>
                 <Text style={[styles.errorDesc, { color: colors.muted }]}>
                   Switch to the Nearby tab to find and add stores.

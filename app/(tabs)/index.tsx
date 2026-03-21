@@ -186,7 +186,7 @@ export default function DashboardScreen() {
               </MapView>
             ) : (
               <View style={[styles.mapPlaceholder, { backgroundColor: colors.surface }]}>
-                <Text style={styles.mapPlaceholderEmoji}>\uD83D\uDCCD</Text>
+                <Text style={styles.mapPlaceholderEmoji}>📍</Text>
                 <Text style={[styles.mapPlaceholderText, { color: colors.muted }]}>
                   Enable location to see your position on the map
                 </Text>
@@ -230,7 +230,7 @@ export default function DashboardScreen() {
               style={({ pressed }) => [styles.fixButton, { backgroundColor: colors.warning, opacity: pressed ? 0.8 : 1 }]}
               onPress={() => router.push("/(tabs)/settings" as never)}
             >
-              <Text style={styles.fixButtonText}>Fix Permissions \u2192</Text>
+              <Text style={styles.fixButtonText}>Fix Permissions →</Text>
             </Pressable>
           )}
         </View>
@@ -266,7 +266,7 @@ export default function DashboardScreen() {
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Monitored Stores</Text>
               <Pressable onPress={() => router.push("/(tabs)/stores" as never)}>
-                <Text style={[styles.seeAll, { color: colors.primary }]}>Manage \u2192</Text>
+                <Text style={[styles.seeAll, { color: colors.primary }]}>Manage →</Text>
               </Pressable>
             </View>
             {stores.map((store) => {
@@ -290,7 +290,7 @@ export default function DashboardScreen() {
                     {distLabel ? (
                       <View style={[styles.distanceBadge, { backgroundColor: isNearby ? colors.success + "20" : colors.primary + "15" }]}>
                         <Text style={[styles.distanceText, { color: isNearby ? colors.success : colors.primary }]}>
-                          {isNearby ? "\uD83D\uDECD Here!" : distLabel + " away"}
+                          {isNearby ? "🛖 Here!" : distLabel + " away"}
                         </Text>
                       </View>
                     ) : (
@@ -311,7 +311,7 @@ export default function DashboardScreen() {
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Shopping List</Text>
               <Pressable onPress={() => router.push("/(tabs)/list" as never)}>
-                <Text style={[styles.seeAll, { color: colors.primary }]}>See all \u2192</Text>
+                <Text style={[styles.seeAll, { color: colors.primary }]}>See all →</Text>
               </Pressable>
             </View>
             {uncheckedItems.slice(0, 5).map((item) => (
@@ -329,7 +329,7 @@ export default function DashboardScreen() {
         {/* Empty State */}
         {stores.length === 0 && uncheckedItems.length === 0 && (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>\uD83D\uDED2</Text>
+            <Text style={styles.emptyEmoji}>🛒</Text>
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Get Started</Text>
             <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
               Add stores and shopping items to get alerts when you're nearby.

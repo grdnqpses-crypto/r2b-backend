@@ -116,7 +116,7 @@ export default function CouponsScreen() {
           >
             <IconSymbol name="camera.fill" size={18} color={tier === "premium" ? "#fff" : colors.muted} />
             <Text style={[styles.addBtnText, { color: tier === "premium" ? "#fff" : colors.muted }]}>
-              Scan {tier !== "premium" ? "\uD83D\uDD12" : ""}
+              Scan {tier !== "premium" ? "🔒" : ""}
             </Text>
           </Pressable>
           <Pressable
@@ -125,7 +125,7 @@ export default function CouponsScreen() {
           >
             <IconSymbol name="photo.fill" size={18} color={tier === "premium" ? "#fff" : colors.muted} />
             <Text style={[styles.addBtnText, { color: tier === "premium" ? "#fff" : colors.muted }]}>
-              Import {tier !== "premium" ? "\uD83D\uDD12" : ""}
+              Import {tier !== "premium" ? "🔒" : ""}
             </Text>
           </Pressable>
         </View>
@@ -146,7 +146,7 @@ export default function CouponsScreen() {
         {/* Coupons List */}
         {coupons.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>{"\uD83C\uDFF7\uFE0F"}</Text>
+            <Text style={styles.emptyEmoji}>🏷️</Text>
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No coupons saved</Text>
             <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
               {tier === "premium"

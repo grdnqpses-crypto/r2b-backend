@@ -197,7 +197,7 @@ export default function ListScreen() {
               <>
                 <IconSymbol name="plus.circle.fill" size={16} color={tier === "premium" ? colors.primary : colors.muted} />
                 <Text style={[styles.importBtnText, { color: tier === "premium" ? colors.primary : colors.muted }]}>
-                  Import Photo {tier !== "premium" ? "\uD83D\uDD12" : ""}
+                  Import Photo {tier !== "premium" ? "🔒" : ""}
                 </Text>
               </>
             )}
@@ -206,7 +206,7 @@ export default function ListScreen() {
 
         {allItems.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>{"\uD83D\uDCDD"}</Text>
+            <Text style={styles.emptyEmoji}>📝</Text>
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No items yet</Text>
             <Text style={[styles.emptySubtitle, { color: colors.muted }]}>Add items above to start your shopping list.</Text>
           </View>
