@@ -69,3 +69,12 @@
 - [x] Add miles/km toggle in Settings screen
 - [x] Fix stale Expo Router type cache so TypeScript recognizes list/stores/coupons routes
 - [x] Add live map with store markers and geofence circles to Dashboard
+
+## Onboarding Ad + Tutorial
+- [ ] Add value-prop ad splash screen as first onboarding step with the "cost of a bottled soda" message
+- [ ] Add 3-step tutorial walkthrough (Add Items, Add Stores, Get Alerted) before permission steps
+- [ ] Animate between slides with smooth horizontal transitions
+- [ ] Show dot pagination indicators for all steps
+
+## Typo Fixes
+- [x] Fix all typos in onboarding ad screen copy (Remeber2Buy → Remember2Buy, etc.) — copy was already correct in code
