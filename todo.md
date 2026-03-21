@@ -61,3 +61,11 @@
 ## Address Display Fix
 - [x] Fix nearby stores showing no addresses — diagnose Overpass API response parsing
 - [x] Ensure address field is correctly extracted and displayed in the stores list
+
+## Real-Time Distance Display & Live Map
+- [x] Add distanceUnit preference (miles/km) to storage with locale-based default
+- [x] Add real-time location tracking on Dashboard to compute live distance to each store
+- [x] Show distance to each store in the Dashboard store list (e.g. "0.4 mi away")
+- [x] Add miles/km toggle in Settings screen
+- [x] Fix stale Expo Router type cache so TypeScript recognizes list/stores/coupons routes
+- [x] Add live map with store markers and geofence circles to Dashboard

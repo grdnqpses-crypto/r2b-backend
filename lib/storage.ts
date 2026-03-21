@@ -29,6 +29,7 @@ export interface Coupon {
 }
 
 export type Tier = "free" | "premium";
+export type DistanceUnit = "miles" | "km";
 
 // ─── Keys ─────────────────────────────────────────────────────────────────────
 
@@ -41,6 +42,7 @@ const KEYS = {
   REFERRAL_CODE: "r2b_referral_code",
   ONBOARDING_DONE: "r2b_onboarding_done",
   REFERRAL_USED: "r2b_referral_used",
+  DISTANCE_UNIT: "r2b_distance_unit",
 } as const;
 
 // ─── Free Tier Limits ─────────────────────────────────────────────────────────
@@ -221,6 +223,24 @@ export async function applyReferralCode(code: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+// ─── Distance Unit ───────────────────────────────────────────────────────────
+
+export async function getDistanceUnit(): Promise<DistanceUnit> {
+  try {
+    const val = await AsyncStorage.getItem(KEYS.DISTANCE_UNIT);
+    if (val === "miles" || val === "km") return val;
+    // Default: miles for US locale, km elsewhere
+    const locale = Intl.DateTimeFormat().resolvedOptions().locale ?? "en-US";
+    return locale.toLowerCase().includes("us") ? "miles" : "km";
+  } catch {
+    return "miles";
+  }
+}
+
+export async function setDistanceUnit(unit: DistanceUnit): Promise<void> {
+  await AsyncStorage.setItem(KEYS.DISTANCE_UNIT, unit);
 }
 
 // ─── Onboarding ───────────────────────────────────────────────────────────────

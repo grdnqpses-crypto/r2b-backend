@@ -9,7 +9,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { getTier, setTier, type Tier } from "@/lib/storage";
+import { getTier, setTier, getDistanceUnit, setDistanceUnit, type Tier, type DistanceUnit } from "@/lib/storage";
 import {
   checkLocationPermissions,
   requestLocationPermissions,
@@ -27,17 +27,26 @@ export default function SettingsScreen() {
   const [locationPerms, setLocationPerms] = useState({ foreground: false, background: false });
   const [notifGranted, setNotifGranted] = useState(false);
   const [geofencingActive, setGeofencingActive] = useState(false);
+  const [distanceUnit, setDistanceUnitState] = useState<DistanceUnit>("miles");
 
   const loadState = useCallback(async () => {
-    const [tierData, perms, geofence] = await Promise.all([
+    const [tierData, perms, geofence, unit] = await Promise.all([
       getTier(),
       checkLocationPermissions(),
       isGeofencingActive(),
+      getDistanceUnit(),
     ]);
     setTierState(tierData);
     setLocationPerms(perms);
     setGeofencingActive(geofence);
+    setDistanceUnitState(unit);
   }, []);
+
+  const handleDistanceUnitToggle = async (unit: DistanceUnit) => {
+    await setDistanceUnit(unit);
+    setDistanceUnitState(unit);
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
 
   useFocusEffect(useCallback(() => { loadState(); }, [loadState]));
 
@@ -264,6 +273,33 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Distance Unit Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.muted }]}>DISPLAY</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.settingRow, { borderColor: colors.border }]}>
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingLabel, { color: colors.foreground }]}>Distance Unit</Text>
+                <Text style={[styles.settingDesc, { color: colors.muted }]}>Used on Dashboard and Stores screens</Text>
+              </View>
+              <View style={styles.unitToggleRow}>
+                <Pressable
+                  style={({ pressed }) => [styles.unitBtn, { backgroundColor: distanceUnit === "miles" ? colors.primary : colors.border, opacity: pressed ? 0.8 : 1 }]}
+                  onPress={() => handleDistanceUnitToggle("miles")}
+                >
+                  <Text style={[styles.unitBtnText, { color: distanceUnit === "miles" ? "#fff" : colors.muted }]}>mi</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.unitBtn, { backgroundColor: distanceUnit === "km" ? colors.primary : colors.border, opacity: pressed ? 0.8 : 1 }]}
+                  onPress={() => handleDistanceUnitToggle("km")}
+                >
+                  <Text style={[styles.unitBtnText, { color: distanceUnit === "km" ? "#fff" : colors.muted }]}>km</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </View>
+
         {/* About Section */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.muted }]}>ABOUT</Text>
@@ -311,4 +347,7 @@ const styles = StyleSheet.create({
   upgradeBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
   restoreBtn: { alignItems: "center", paddingBottom: 12 },
   restoreBtnText: { fontSize: 13 },
+  unitToggleRow: { flexDirection: "row", gap: 6 },
+  unitBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 },
+  unitBtnText: { fontSize: 13, fontWeight: "700" },
 });
