@@ -43,6 +43,7 @@ const KEYS = {
   ONBOARDING_DONE: "r2b_onboarding_done",
   REFERRAL_USED: "r2b_referral_used",
   DISTANCE_UNIT: "r2b_distance_unit",
+  DEV_MODE: "r2b_dev_mode",
 } as const;
 
 // ─── Free Tier Limits ─────────────────────────────────────────────────────────
@@ -256,4 +257,19 @@ export async function isOnboardingDone(): Promise<boolean> {
 
 export async function markOnboardingDone(): Promise<void> {
   await AsyncStorage.setItem(KEYS.ONBOARDING_DONE, "1");
+}
+
+// ─── Developer Mode ───────────────────────────────────────────────────────────
+
+export async function isDevModeEnabled(): Promise<boolean> {
+  try {
+    const val = await AsyncStorage.getItem(KEYS.DEV_MODE);
+    return val === "1";
+  } catch {
+    return false;
+  }
+}
+
+export async function setDevModeEnabled(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(KEYS.DEV_MODE, enabled ? "1" : "0");
 }

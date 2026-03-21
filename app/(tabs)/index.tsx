@@ -12,18 +12,22 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  View, Text, ScrollView, Pressable, StyleSheet, RefreshControl, Platform,
+  View, Text, ScrollView, Pressable, StyleSheet, RefreshControl, Platform, Animated,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import * as Location from "expo-location";
+import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import {
   getShoppingItems, getSavedStores, getTier, getDistanceUnit,
+  isDevModeEnabled, setDevModeEnabled,
   type ShoppingItem, type SavedStore, type Tier, type DistanceUnit,
 } from "@/lib/storage";
 import { isGeofencingActive, checkLocationPermissions } from "@/lib/geofence";
+
+const DEV_TAP_TARGET = 11;
 
 const GEOFENCE_RADIUS = 483; // meters (~0.3 mi)
 
@@ -59,12 +63,18 @@ export default function DashboardScreen() {
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [distanceUnit, setDistanceUnitState] = useState<DistanceUnit>("miles");
   const locationSubRef = useRef<Location.LocationSubscription | null>(null);
+  const [devMode, setDevMode] = useState(false);
+  const [devTapCount, setDevTapCount] = useState(0);
+  const devTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const devToastAnim = useRef(new Animated.Value(0)).current;
+  const [devToastMsg, setDevToastMsg] = useState("");
 
   const loadData = useCallback(async () => {
-    const [itemsData, storesData, tierData, geofenceActive, locationPerms, unit] =
+    const [itemsData, storesData, tierData, geofenceActive, locationPerms, unit, devEnabled] =
       await Promise.all([
         getShoppingItems(), getSavedStores(), getTier(),
         isGeofencingActive(), checkLocationPermissions(), getDistanceUnit(),
+        isDevModeEnabled(),
       ]);
     setItems(itemsData);
     setStores(storesData);
@@ -72,7 +82,39 @@ export default function DashboardScreen() {
     setGeofencingActive(geofenceActive);
     setLocationGranted(locationPerms.background);
     setDistanceUnitState(unit);
+    setDevMode(devEnabled);
   }, []);
+
+  const showDevToast = useCallback((msg: string) => {
+    setDevToastMsg(msg);
+    Animated.sequence([
+      Animated.timing(devToastAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.delay(1200),
+      Animated.timing(devToastAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start();
+  }, [devToastAnim]);
+
+  const handleTitleTap = useCallback(async () => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Reset timer on each tap
+    if (devTapTimer.current) clearTimeout(devTapTimer.current);
+    devTapTimer.current = setTimeout(() => setDevTapCount(0), 3000);
+
+    const newCount = devTapCount + 1;
+    setDevTapCount(newCount);
+
+    if (newCount === DEV_TAP_TARGET) {
+      setDevTapCount(0);
+      if (devTapTimer.current) clearTimeout(devTapTimer.current);
+      const next = !devMode;
+      await setDevModeEnabled(next);
+      setDevMode(next);
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showDevToast(next ? "🛠️ Developer mode ON" : "Developer mode OFF");
+    } else if (newCount >= DEV_TAP_TARGET - 3) {
+      showDevToast(`${DEV_TAP_TARGET - newCount} more tap${DEV_TAP_TARGET - newCount !== 1 ? "s" : ""}…`);
+    }
+  }, [devTapCount, devMode, devToastAnim, showDevToast]);
 
   // Real-time location tracking for live distance display (no MapView needed)
   useEffect(() => {
@@ -135,16 +177,35 @@ export default function DashboardScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={[styles.appTitle, { color: colors.primary }]}>Remember2Buy</Text>
+          <Pressable onPress={handleTitleTap} style={{ flex: 1 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Text style={[styles.appTitle, { color: colors.primary }]}>Remember2Buy</Text>
+              {devMode && (
+                <View style={[styles.devBadge, { backgroundColor: colors.warning + "25", borderColor: colors.warning + "60" }]}>
+                  <Text style={[styles.devBadgeText, { color: colors.warning }]}>DEV</Text>
+                </View>
+              )}
+            </View>
             <Text style={[styles.subtitle, { color: colors.muted }]}>Never forget to buy something</Text>
-          </View>
+          </Pressable>
           {tier === "premium" && (
             <View style={[styles.premiumBadge, { backgroundColor: "#a855f7" }]}>
               <Text style={styles.premiumText}>PREMIUM</Text>
             </View>
           )}
         </View>
+
+        {/* Dev mode toast */}
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.devToast,
+            { backgroundColor: colors.foreground, opacity: devToastAnim,
+              transform: [{ translateY: devToastAnim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] }
+          ]}
+        >
+          <Text style={[styles.devToastText, { color: colors.background }]}>{devToastMsg}</Text>
+        </Animated.View>
 
         {/* Alert Status Card */}
         <View style={[styles.statusCard, { backgroundColor: geofencingActive ? colors.success + "18" : colors.surface, borderColor: geofencingActive ? colors.success + "50" : colors.border }]}>
@@ -349,4 +410,8 @@ const styles = StyleSheet.create({
   emptyButtonOutline: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, borderWidth: 1.5 },
   emptyButtonOutlineText: { fontSize: 15, fontWeight: "600" },
   bottomPadding: { height: 20 },
+  devBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1 },
+  devBadgeText: { fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
+  devToast: { alignSelf: "center", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginBottom: 12, zIndex: 10 },
+  devToastText: { fontSize: 13, fontWeight: "600" },
 });

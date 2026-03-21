@@ -106,3 +106,14 @@
 - [x] Fix onboarding navigation: replaced router.replace() with Stack.Protected pattern (confirmed router.replace crash on Android)
 - [x] Generate app screenshots (shopping list + notification alert mockups) and add to onboarding ad step
 - [x] Make onboarding ad step scrollable so screenshots + feature rows fit on small screens
+
+## Bug Fix + Feature (Round 4)
+- [ ] Fix duplicate "Open Settings" button on notifications permission screen — Alert.alert shows "Open Settings" while bottom button also shows "Open Settings"
+- [ ] Add developer mode easter egg: tap "Remember2Buy" title 11 times on dashboard to unlock dev panel
+
+## Notification Permission Blocked Fix (Round 5)
+- [x] Fix "Notifications Blocked" state — when user denies notifications, the app must re-check permission status when returning from device Settings
+- [x] Fix Settings screen to show notification permission status and provide a direct "Enable Notifications" button that opens device Settings
+- [x] Ensure notification status is re-checked on app foreground resume (AppState listener) so the UI updates automatically after user enables in Settings
+- [x] Fix duplicate "Open Settings" button on onboarding notification step (already in progress)
+- [x] Add developer mode easter egg (11 taps on title) — already in progress

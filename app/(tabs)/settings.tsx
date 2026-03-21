@@ -1,15 +1,21 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
-  Alert, Platform, Linking, Switch,
+  Alert, Platform, Linking, Switch, AppState, type AppStateStatus,
 } from "react-native";
 import { useFocusEffect } from "expo-router";
+import * as Notifications from "expo-notifications";
 import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { getTier, setTier, getDistanceUnit, setDistanceUnit, type Tier, type DistanceUnit } from "@/lib/storage";
+import {
+  getTier, setTier, getDistanceUnit, setDistanceUnit,
+  isDevModeEnabled, setDevModeEnabled,
+  type Tier, type DistanceUnit,
+} from "@/lib/storage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   checkLocationPermissions,
   requestLocationPermissions,
@@ -28,19 +34,34 @@ export default function SettingsScreen() {
   const [notifGranted, setNotifGranted] = useState(false);
   const [geofencingActive, setGeofencingActive] = useState(false);
   const [distanceUnit, setDistanceUnitState] = useState<DistanceUnit>("miles");
+  const [devMode, setDevMode] = useState(false);
+  const [notifDenied, setNotifDenied] = useState(false);
 
   const loadState = useCallback(async () => {
-    const [tierData, perms, geofence, unit] = await Promise.all([
+    const [tierData, perms, geofence, unit, devEnabled, notifStatus] = await Promise.all([
       getTier(),
       checkLocationPermissions(),
       isGeofencingActive(),
       getDistanceUnit(),
+      isDevModeEnabled(),
+      Notifications.getPermissionsAsync(),
     ]);
     setTierState(tierData);
     setLocationPerms(perms);
     setGeofencingActive(geofence);
     setDistanceUnitState(unit);
+    setDevMode(devEnabled);
+    setNotifGranted(notifStatus.status === "granted");
+    setNotifDenied(notifStatus.status === "denied");
   }, []);
+
+  // Re-check permissions when app comes back to foreground (user may have enabled in Settings)
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
+      if (state === "active") loadState();
+    });
+    return () => sub.remove();
+  }, [loadState]);
 
   const handleDistanceUnitToggle = async (unit: DistanceUnit) => {
     await setDistanceUnit(unit);
@@ -84,19 +105,19 @@ export default function SettingsScreen() {
   };
 
   const handleEnableNotifications = async () => {
+    if (notifDenied) {
+      // Already denied — can only fix via device Settings
+      Linking.openSettings();
+      return;
+    }
     const granted = await setupNotifications();
     setNotifGranted(granted);
     if (granted) {
-      Alert.alert("Notifications Enabled", "You will receive store alerts.");
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
-      Alert.alert(
-        "Notifications Denied",
-        "Please enable notifications in Settings.",
-        [
-          { text: "Open Settings", onPress: () => Linking.openSettings() },
-          { text: "Cancel", style: "cancel" },
-        ]
-      );
+      // Permission dialog was shown but denied — now it's denied
+      setNotifDenied(true);
+      Linking.openSettings();
     }
   };
 
@@ -151,32 +172,39 @@ export default function SettingsScreen() {
   const PermissionRow = ({
     label,
     granted,
+    denied,
     onPress,
     description,
   }: {
     label: string;
     granted: boolean;
+    denied?: boolean;
     onPress: () => void;
     description: string;
-  }) => (
-    <View style={[styles.settingRow, { borderColor: colors.border }]}>
-      <View style={styles.settingInfo}>
-        <Text style={[styles.settingLabel, { color: colors.foreground }]}>{label}</Text>
-        <Text style={[styles.settingDesc, { color: colors.muted }]}>{description}</Text>
+  }) => {
+    const btnLabel = granted ? "Granted" : denied ? "Open Settings" : "Enable";
+    const btnBg = granted ? colors.success + "20" : denied ? colors.warning : colors.primary;
+    const btnTextColor = granted ? colors.success : "#fff";
+    return (
+      <View style={[styles.settingRow, { borderColor: colors.border }]}>
+        <View style={styles.settingInfo}>
+          <Text style={[styles.settingLabel, { color: colors.foreground }]}>{label}</Text>
+          <Text style={[styles.settingDesc, { color: denied && !granted ? colors.error : colors.muted }]}>
+            {denied && !granted ? "Blocked — tap to open device Settings" : description}
+          </Text>
+        </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.permBtn,
+            { backgroundColor: btnBg, opacity: pressed ? 0.8 : 1 },
+          ]}
+          onPress={onPress}
+        >
+          <Text style={[styles.permBtnText, { color: btnTextColor }]}>{btnLabel}</Text>
+        </Pressable>
       </View>
-      <Pressable
-        style={({ pressed }) => [
-          styles.permBtn,
-          { backgroundColor: granted ? colors.success + "20" : colors.primary, opacity: pressed ? 0.8 : 1 },
-        ]}
-        onPress={onPress}
-      >
-        <Text style={[styles.permBtnText, { color: granted ? colors.success : "#fff" }]}>
-          {granted ? "Granted" : "Enable"}
-        </Text>
-      </Pressable>
-    </View>
-  );
+    );
+  };
 
   return (
     <ScreenContainer>
@@ -197,6 +225,7 @@ export default function SettingsScreen() {
             <PermissionRow
               label="Notifications"
               granted={notifGranted}
+              denied={notifDenied}
               onPress={handleEnableNotifications}
               description="Required to receive store alerts"
             />
@@ -320,6 +349,73 @@ export default function SettingsScreen() {
             </View>
           </View>
         </View>
+
+        {/* Developer Panel — only visible when dev mode is active */}
+        {devMode && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.warning }]}>DEVELOPER</Text>
+            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.warning + "50" }]}>
+              <Pressable
+                style={({ pressed }) => [styles.settingRow, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+                onPress={async () => {
+                  await AsyncStorage.removeItem("r2b_onboarding_done");
+                  Alert.alert("Done", "Onboarding reset. Restart the app to see it.");
+                }}
+              >
+                <View style={styles.settingInfo}>
+                  <Text style={[styles.settingLabel, { color: colors.foreground }]}>Reset Onboarding</Text>
+                  <Text style={[styles.settingDesc, { color: colors.muted }]}>Clears onboarding flag — restart app to re-run</Text>
+                </View>
+                <IconSymbol name="chevron.right" size={16} color={colors.muted} />
+              </Pressable>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <Pressable
+                style={({ pressed }) => [styles.settingRow, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+                onPress={async () => {
+                  await setTier("premium");
+                  setTierState("premium");
+                  Alert.alert("Done", "Tier set to Premium (no expiry).");
+                }}
+              >
+                <View style={styles.settingInfo}>
+                  <Text style={[styles.settingLabel, { color: colors.foreground }]}>Force Premium</Text>
+                  <Text style={[styles.settingDesc, { color: colors.muted }]}>Set tier to premium with no expiry</Text>
+                </View>
+                <IconSymbol name="chevron.right" size={16} color={colors.muted} />
+              </Pressable>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <Pressable
+                style={({ pressed }) => [styles.settingRow, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+                onPress={async () => {
+                  await setTier("free");
+                  setTierState("free");
+                  Alert.alert("Done", "Tier reset to Free.");
+                }}
+              >
+                <View style={styles.settingInfo}>
+                  <Text style={[styles.settingLabel, { color: colors.foreground }]}>Force Free</Text>
+                  <Text style={[styles.settingDesc, { color: colors.muted }]}>Reset tier back to free</Text>
+                </View>
+                <IconSymbol name="chevron.right" size={16} color={colors.muted} />
+              </Pressable>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <Pressable
+                style={({ pressed }) => [styles.settingRow, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+                onPress={async () => {
+                  await setDevModeEnabled(false);
+                  setDevMode(false);
+                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                }}
+              >
+                <View style={styles.settingInfo}>
+                  <Text style={[styles.settingLabel, { color: colors.warning }]}>Disable Developer Mode</Text>
+                  <Text style={[styles.settingDesc, { color: colors.muted }]}>Tap title 11× on Dashboard to re-enable</Text>
+                </View>
+                <IconSymbol name="chevron.right" size={16} color={colors.muted} />
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>

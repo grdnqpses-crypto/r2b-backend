@@ -165,26 +165,22 @@ export default function OnboardingScreen() {
   const handleAction = async () => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (currentStep.action === "notifications") {
+      if (notifStatus === "denied") {
+        // Button label is already "Open Settings" — go directly, no Alert
+        Linking.openSettings();
+        return;
+      }
       if (notifStatus !== "granted") {
-        if (notifStatus === "denied") {
-          Alert.alert("Notifications Blocked", "Please enable notifications for Remember2Buy in your device Settings.", [
-            { text: "Open Settings", onPress: () => Linking.openSettings() },
-            { text: "Skip", onPress: () => nextStep() },
-          ]);
-          return;
-        }
         await requestNotifications();
       }
       nextStep();
     } else if (currentStep.action === "location_fg") {
+      if (fgStatus === "denied") {
+        // Button label is already "Open Settings" — go directly, no Alert
+        Linking.openSettings();
+        return;
+      }
       if (fgStatus !== "granted") {
-        if (fgStatus === "denied") {
-          Alert.alert("Location Blocked", "Please enable location for Remember2Buy in your device Settings.", [
-            { text: "Open Settings", onPress: () => Linking.openSettings() },
-            { text: "Skip", onPress: () => nextStep() },
-          ]);
-          return;
-        }
         await requestForegroundLocation();
       }
       nextStep();
