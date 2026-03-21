@@ -2,36 +2,26 @@
 import "./scripts/load-env.js";
 import type { ExpoConfig } from "expo/config";
 
-// Bundle ID format: space.manus.<project_name_dots>.<timestamp>
-// e.g., "my-app" created at 2024-01-15 10:30:45 -> "space.manus.my.app.t20240115103045"
-// Bundle ID can only contain letters, numbers, and dots
-// Android requires each dot-separated segment to start with a letter
 const rawBundleId = "space.manus.belief.field.detector.t20260218220634";
 const bundleId =
   rawBundleId
-    .replace(/[-_]/g, ".") // Replace hyphens/underscores with dots
-    .replace(/[^a-zA-Z0-9.]/g, "") // Remove invalid chars
-    .replace(/\.+/g, ".") // Collapse consecutive dots
-    .replace(/^\.+|\.+$/g, "") // Trim leading/trailing dots
+    .replace(/[-_]/g, ".")
+    .replace(/[^a-zA-Z0-9.]/g, "")
+    .replace(/\.+/g, ".")
+    .replace(/^\.+|\.+$/g, "")
     .toLowerCase()
     .split(".")
     .map((segment) => {
-      // Android requires each segment to start with a letter
-      // Prefix with 'x' if segment starts with a digit
       return /^[a-zA-Z]/.test(segment) ? segment : "x" + segment;
     })
     .join(".") || "space.manus.app";
-// Extract timestamp from bundle ID and prefix with "manus" for deep link scheme
-// e.g., "space.manus.my.app.t20240115103045" -> "manus20240115103045"
+
 const timestamp = bundleId.split(".").pop()?.replace(/^t/, "") ?? "";
 const schemeFromBundleId = `manus${timestamp}`;
 
 const env = {
-  // App branding - update these values directly (do not use env vars)
   appName: "Remember2Buy",
   appSlug: "belief-field-detector",
-  // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
-  // Leave empty to use the default icon from assets/images/icon.png
   logoUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663348315388/3MWRPobTFfqJ6iFRe4j7At/r2b-icon-CAWNbqfNGqp34zMiwqtnFA.png",
   scheme: schemeFromBundleId,
   iosBundleId: bundleId,
@@ -52,26 +42,32 @@ const config: ExpoConfig = {
     bundleIdentifier: env.iosBundleId,
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
-      NSMotionUsageDescription: "Remember2Buy uses motion to detect when you arrive at a store.",
-      SKAdNetworkItems: [],
+      NSLocationAlwaysAndWhenInUseUsageDescription:
+        "Remember2Buy needs your location to alert you when you approach a store on your list.",
+      NSLocationWhenInUseUsageDescription:
+        "Remember2Buy needs your location to show nearby stores.",
+      UIBackgroundModes: ["location", "fetch"],
     },
   },
   android: {
     adaptiveIcon: {
-      backgroundColor: "#E6F4FE",
+      backgroundColor: "#1D4ED8",
       foregroundImage: "./assets/images/android-icon-foreground.png",
-      backgroundImage: "./assets/images/android-icon-background.png",
-      monochromeImage: "./assets/images/android-icon-monochrome.png",
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
     package: env.androidPackage,
     permissions: [
+      "ACCESS_FINE_LOCATION",
+      "ACCESS_COARSE_LOCATION",
+      "ACCESS_BACKGROUND_LOCATION",
       "POST_NOTIFICATIONS",
       "VIBRATE",
       "RECEIVE_BOOT_COMPLETED",
-      "SCHEDULE_EXACT_ALARM",
-      "HIGH_SAMPLING_RATE_SENSORS",
+      "FOREGROUND_SERVICE",
+      "FOREGROUND_SERVICE_LOCATION",
+      "CAMERA",
+      "READ_MEDIA_IMAGES",
       "com.android.vending.BILLING",
     ],
     intentFilters: [
@@ -95,24 +91,34 @@ const config: ExpoConfig = {
   },
   plugins: [
     "expo-router",
-    "react-native-iap",
     [
-      "expo-sensors",
+      "expo-location",
       {
-        "motionPermission": "Allow $(PRODUCT_NAME) to access your device motion to detect belief field changes."
-      }
-    ],
-    [
-      "expo-audio",
-      {
-        microphonePermission: "Allow $(PRODUCT_NAME) to access your microphone.",
+        locationAlwaysAndWhenInUsePermission:
+          "Remember2Buy needs your location to alert you when you're near a store on your shopping list.",
+        isAndroidBackgroundLocationEnabled: true,
+        isAndroidForegroundServiceEnabled: true,
       },
     ],
     [
-      "expo-video",
+      "expo-camera",
       {
-        supportsBackgroundPlayback: true,
-        supportsPictureInPicture: true,
+        cameraPermission:
+          "Allow Remember2Buy to access your camera to scan coupon barcodes.",
+      },
+    ],
+    [
+      "expo-image-picker",
+      {
+        photosPermission:
+          "Allow Remember2Buy to access your photos to import shopping lists.",
+      },
+    ],
+    [
+      "expo-notifications",
+      {
+        color: "#1D4ED8",
+        sounds: [],
       },
     ],
     [
@@ -123,7 +129,7 @@ const config: ExpoConfig = {
         resizeMode: "contain",
         backgroundColor: "#ffffff",
         dark: {
-          backgroundColor: "#000000",
+          backgroundColor: "#1D4ED8",
         },
       },
     ],

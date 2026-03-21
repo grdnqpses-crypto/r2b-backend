@@ -1,236 +1,258 @@
-import React, { useEffect, useState, useRef } from "react";
+import { useCallback, useState } from "react";
 import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
-  Platform,
+  Pressable,
   StyleSheet,
+  RefreshControl,
 } from "react-native";
+import { useFocusEffect, useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
-import { useColors } from "@/hooks/use-colors";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-
-interface SelectedStore {
-  id: string;
-  name: string;
-  lat?: number;
-  lng?: number;
-}
-
-interface ShoppingItem {
-  id: string;
-  name: string;
-  quantity: string;
-  checked: boolean;
-}
+import { useColors } from "@/hooks/use-colors";
+import {
+  getShoppingItems,
+  getSavedStores,
+  getTier,
+  type ShoppingItem,
+  type SavedStore,
+  type Tier,
+} from "@/lib/storage";
+import { isGeofencingActive, checkLocationPermissions } from "@/lib/geofence";
 
 export default function DashboardScreen() {
   const colors = useColors();
-  const [stores, setStores] = useState<SelectedStore[]>([]);
+  const router = useRouter();
   const [items, setItems] = useState<ShoppingItem[]>([]);
+  const [stores, setStores] = useState<SavedStore[]>([]);
+  const [tier, setTier] = useState<Tier>("free");
+  const [geofencingActive, setGeofencingActive] = useState(false);
   const [locationGranted, setLocationGranted] = useState(false);
-  const [userLat, setUserLat] = useState<number | null>(null);
-  const [userLng, setUserLng] = useState<number | null>(null);
-  const [nearestStore, setNearestStore] = useState<SelectedStore | null>(null);
-  const [distanceMiles, setDistanceMiles] = useState<number | null>(null);
-  const alertFiredRef = useRef<Set<string>>(new Set());
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadData();
+  const loadData = useCallback(async () => {
+    const [itemsData, storesData, tierData, geofenceActive, locationPerms] =
+      await Promise.all([
+        getShoppingItems(),
+        getSavedStores(),
+        getTier(),
+        isGeofencingActive(),
+        checkLocationPermissions(),
+      ]);
+    setItems(itemsData);
+    setStores(storesData);
+    setTier(tierData);
+    setGeofencingActive(geofenceActive);
+    setLocationGranted(locationPerms.background);
   }, []);
 
-  const loadData = async () => {
-    try {
-      const s = await AsyncStorage.getItem("@r2b_selected_stores");
-      const i = await AsyncStorage.getItem("@r2b_shopping_items");
-      if (s) setStores(JSON.parse(s));
-      if (i) setItems(JSON.parse(i));
-    } catch {}
-  };
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
-  useEffect(() => {
-    if (Platform.OS === "web" && typeof navigator !== "undefined" && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setUserLat(pos.coords.latitude);
-          setUserLng(pos.coords.longitude);
-          setLocationGranted(true);
-        },
-        () => setLocationGranted(false),
-        { enableHighAccuracy: true }
-      );
-    }
-  }, []);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  }, [loadData]);
 
-  const haversine = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 3958.8;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  };
-
-  useEffect(() => {
-    if (userLat === null || userLng === null || stores.length === 0) return;
-    let nearest: SelectedStore | null = null;
-    let minDist = Infinity;
-    for (const store of stores) {
-      if (!store.lat || !store.lng) continue;
-      const d = haversine(userLat, userLng, store.lat, store.lng);
-      if (d < minDist) { minDist = d; nearest = store; }
-    }
-    setNearestStore(nearest);
-    setDistanceMiles(nearest ? minDist : null);
-
-    if (nearest && minDist <= 0.3 && !alertFiredRef.current.has("approach_" + nearest.id)) {
-      alertFiredRef.current.add("approach_" + nearest.id);
-      const itemNames = items.filter((i) => !i.checked).map((i) => i.name).join(", ");
-      if (Platform.OS === "web" && typeof window !== "undefined" && "Notification" in window) {
-        Notification.requestPermission().then((perm) => {
-          if (perm === "granted") {
-            new Notification("Remember2Buy", {
-              body: `You are near ${nearest!.name}! Remember to buy: ${itemNames || "your items"}`,
-            });
-          }
-        });
-      }
-    }
-  }, [userLat, userLng, stores, items]);
-
-  const pendingItems = items.filter((i) => !i.checked);
-  const mapUrl =
-    userLat && userLng
-      ? `https://www.openstreetmap.org/export/embed.html?bbox=${userLng - 0.05},${userLat - 0.05},${userLng + 0.05},${userLat + 0.05}&layer=mapnik&marker=${userLat},${userLng}`
-      : null;
+  const uncheckedItems = items.filter((i) => !i.checked);
+  const checkedItems = items.filter((i) => i.checked);
 
   return (
     <ScreenContainer>
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <View style={[styles.header, { backgroundColor: colors.primary }]}>
-          <Text style={styles.headerTitle}>Remember2Buy</Text>
-          <Text style={styles.headerSub}>Your Smart Shopping Reminder</Text>
-        </View>
-
-        <View style={[styles.mapContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          {Platform.OS === "web" && mapUrl ? (
-            <iframe
-              src={mapUrl}
-              style={{ width: "100%", height: 220, border: "none", borderRadius: 12 }}
-              title="Your Location"
-            />
-          ) : (
-            <View style={[styles.mapPlaceholder, { backgroundColor: colors.border }]}>
-              <IconSymbol name="map.fill" size={40} color={colors.muted} />
-              <Text style={[styles.mapPlaceholderText, { color: colors.muted }]}>
-                {locationGranted ? "Map loading..." : "Enable location to see map"}
-              </Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={[styles.appTitle, { color: colors.primary }]}>Remember2Buy</Text>
+            <Text style={[styles.subtitle, { color: colors.muted }]}>Never forget to buy something</Text>
+          </View>
+          {tier === "premium" && (
+            <View style={[styles.premiumBadge, { backgroundColor: colors.premium }]}>
+              <Text style={styles.premiumText}>PREMIUM</Text>
             </View>
           )}
         </View>
 
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.row}>
-            <IconSymbol name="location.fill" size={20} color={locationGranted ? colors.success : colors.muted} />
-            <Text style={[styles.cardTitle, { color: colors.foreground }]}>
-              {locationGranted ? "Location Active" : "Location Required"}
-            </Text>
+        {/* Status Card */}
+        <View style={[styles.statusCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.statusTitle, { color: colors.foreground }]}>Alert Status</Text>
+          <View style={styles.statusRow}>
+            <View style={styles.statusItem}>
+              <View style={[styles.statusDot, { backgroundColor: geofencingActive ? colors.success : colors.muted }]} />
+              <Text style={[styles.statusLabel, { color: colors.muted }]}>
+                {geofencingActive ? "Geofencing On" : "Geofencing Off"}
+              </Text>
+            </View>
+            <View style={styles.statusItem}>
+              <View style={[styles.statusDot, { backgroundColor: locationGranted ? colors.success : colors.warning }]} />
+              <Text style={[styles.statusLabel, { color: colors.muted }]}>
+                {locationGranted ? "Location: Always" : "Location: Limited"}
+              </Text>
+            </View>
           </View>
           {!locationGranted && (
-            <Text style={[styles.cardSub, { color: colors.muted }]}>
-              Allow location access to receive store reminders
-            </Text>
+            <Pressable
+              style={({ pressed }) => [styles.fixButton, { backgroundColor: colors.warning, opacity: pressed ? 0.8 : 1 }]}
+              onPress={() => router.push("/(tabs)/settings")}
+            >
+              <Text style={styles.fixButtonText}>Fix Permissions →</Text>
+            </Pressable>
           )}
-          {nearestStore && distanceMiles !== null && (
-            <View style={[styles.nearestBadge, { backgroundColor: distanceMiles <= 0.3 ? colors.success + "22" : colors.primary + "11" }]}>
-              <Text style={[styles.nearestText, { color: distanceMiles <= 0.3 ? colors.success : colors.primary }]}>
-                {distanceMiles <= 0.3
-                  ? `You are near ${nearestStore.name}!`
-                  : `${nearestStore.name} is ${distanceMiles.toFixed(1)} mi away`}
-              </Text>
+        </View>
+
+        {/* Summary Cards */}
+        <View style={styles.summaryRow}>
+          <Pressable
+            style={({ pressed }) => [styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 }]}
+            onPress={() => router.push("/(tabs)/list")}
+          >
+            <Text style={[styles.summaryNumber, { color: colors.primary }]}>{uncheckedItems.length}</Text>
+            <Text style={[styles.summaryLabel, { color: colors.muted }]}>Items to buy</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 }]}
+            onPress={() => router.push("/(tabs)/stores")}
+          >
+            <Text style={[styles.summaryNumber, { color: colors.primary }]}>{stores.length}</Text>
+            <Text style={[styles.summaryLabel, { color: colors.muted }]}>{stores.length === 1 ? "Store" : "Stores"} tracked</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 }]}
+            onPress={() => router.push("/(tabs)/list")}
+          >
+            <Text style={[styles.summaryNumber, { color: colors.success }]}>{checkedItems.length}</Text>
+            <Text style={[styles.summaryLabel, { color: colors.muted }]}>Bought</Text>
+          </Pressable>
+        </View>
+
+        {/* Active Stores */}
+        {stores.length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Monitored Stores</Text>
+            {stores.map((store) => (
+              <View key={store.id} style={[styles.storeRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <View style={[styles.storeIconBg, { backgroundColor: colors.primary + "20" }]}>
+                  <IconSymbol name="storefront.fill" size={18} color={colors.primary} />
+                </View>
+                <View style={styles.storeInfo}>
+                  <Text style={[styles.storeName, { color: colors.foreground }]} numberOfLines={1}>{store.name}</Text>
+                  {store.address && (
+                    <Text style={[styles.storeAddress, { color: colors.muted }]} numberOfLines={1}>{store.address}</Text>
+                  )}
+                </View>
+                <View style={[styles.activeIndicator, { backgroundColor: colors.success + "20" }]}>
+                  <Text style={[styles.activeText, { color: colors.success }]}>Active</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Shopping List Preview */}
+        {uncheckedItems.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Shopping List</Text>
+              <Pressable onPress={() => router.push("/(tabs)/list")}>
+                <Text style={[styles.seeAll, { color: colors.primary }]}>See all →</Text>
+              </Pressable>
             </View>
-          )}
-        </View>
+            {uncheckedItems.slice(0, 5).map((item) => (
+              <View key={item.id} style={[styles.itemRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <View style={[styles.itemDot, { backgroundColor: colors.primary }]} />
+                <Text style={[styles.itemText, { color: colors.foreground }]} numberOfLines={1}>{item.text}</Text>
+              </View>
+            ))}
+            {uncheckedItems.length > 5 && (
+              <Text style={[styles.moreItems, { color: colors.muted }]}>+{uncheckedItems.length - 5} more items</Text>
+            )}
+          </View>
+        )}
 
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.row}>
-            <IconSymbol name="list.bullet" size={20} color={colors.primary} />
-            <Text style={[styles.cardTitle, { color: colors.foreground }]}>
-              Shopping List ({pendingItems.length} items)
+        {/* Empty State */}
+        {stores.length === 0 && uncheckedItems.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>🛒</Text>
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Get Started</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
+              Add stores and shopping items to get alerts when you're nearby.
             </Text>
+            <View style={styles.emptyActions}>
+              <Pressable
+                style={({ pressed }) => [styles.emptyButton, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
+                onPress={() => router.push("/(tabs)/stores")}
+              >
+                <Text style={styles.emptyButtonText}>Add a Store</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.emptyButtonOutline, { borderColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
+                onPress={() => router.push("/(tabs)/list")}
+              >
+                <Text style={[styles.emptyButtonOutlineText, { color: colors.primary }]}>Add Items</Text>
+              </Pressable>
+            </View>
           </View>
-          {pendingItems.length === 0 ? (
-            <Text style={[styles.cardSub, { color: colors.muted }]}>No items yet — go to My List to add items</Text>
-          ) : (
-            pendingItems.slice(0, 5).map((item) => (
-              <View key={item.id} style={styles.itemRow}>
-                <View style={[styles.bullet, { backgroundColor: colors.primary }]} />
-                <Text style={[styles.itemText, { color: colors.foreground }]}>
-                  {item.name}{item.quantity ? ` (${item.quantity})` : ""}
-                </Text>
-              </View>
-            ))
-          )}
-          {pendingItems.length > 5 && (
-            <Text style={[styles.cardSub, { color: colors.muted }]}>+{pendingItems.length - 5} more items</Text>
-          )}
-        </View>
+        )}
 
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.row}>
-            <IconSymbol name="storefront.fill" size={20} color={colors.primary} />
-            <Text style={[styles.cardTitle, { color: colors.foreground }]}>My Stores ({stores.length})</Text>
-          </View>
-          {stores.length === 0 ? (
-            <Text style={[styles.cardSub, { color: colors.muted }]}>No stores selected — go to Stores tab</Text>
-          ) : (
-            stores.slice(0, 3).map((store) => (
-              <View key={store.id} style={styles.itemRow}>
-                <View style={[styles.bullet, { backgroundColor: colors.success }]} />
-                <Text style={[styles.itemText, { color: colors.foreground }]}>{store.name}</Text>
-              </View>
-            ))
-          )}
-          {stores.length > 3 && (
-            <Text style={[styles.cardSub, { color: colors.muted }]}>+{stores.length - 3} more stores</Text>
-          )}
-        </View>
-
-        <View style={[styles.card, { backgroundColor: colors.primary + "11", borderColor: colors.primary + "33" }]}>
-          <Text style={[styles.cardTitle, { color: colors.primary }]}>How It Works</Text>
-          <Text style={[styles.howStep, { color: colors.foreground }]}>1. Pick your stores in the Stores tab</Text>
-          <Text style={[styles.howStep, { color: colors.foreground }]}>2. Add items to your shopping list</Text>
-          <Text style={[styles.howStep, { color: colors.foreground }]}>3. Close the app — it runs in the background</Text>
-          <Text style={[styles.howStep, { color: colors.foreground }]}>4. Get reminded at 0.3 miles from the store</Text>
-          <Text style={[styles.howStep, { color: colors.foreground }]}>5. Get reminded again 6 min after arriving</Text>
-        </View>
-
-        <View style={{ height: 20 }} />
+        <View style={styles.bottomPadding} />
       </ScrollView>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: 20, paddingVertical: 20, alignItems: "center" },
-  headerTitle: { fontSize: 26, fontWeight: "800", color: "#FFFFFF", letterSpacing: 0.5 },
-  headerSub: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 2 },
-  mapContainer: { margin: 16, borderRadius: 12, overflow: "hidden", borderWidth: 1 },
-  mapPlaceholder: { height: 180, alignItems: "center", justifyContent: "center", gap: 8 },
-  mapPlaceholderText: { fontSize: 14 },
-  card: { marginHorizontal: 16, marginBottom: 12, borderRadius: 12, padding: 16, borderWidth: 1, gap: 8 },
-  row: { flexDirection: "row", alignItems: "center", gap: 8 },
-  cardTitle: { fontSize: 15, fontWeight: "700" },
-  cardSub: { fontSize: 13, lineHeight: 18 },
-  nearestBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginTop: 4 },
-  nearestText: { fontSize: 13, fontWeight: "600" },
-  itemRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  bullet: { width: 6, height: 6, borderRadius: 3 },
-  itemText: { fontSize: 14 },
-  howStep: { fontSize: 13, lineHeight: 22 },
+  scrollContent: { padding: 16 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, paddingTop: 8 },
+  appTitle: { fontSize: 26, fontWeight: "700", letterSpacing: -0.5 },
+  subtitle: { fontSize: 13, marginTop: 2 },
+  premiumBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginTop: 4 },
+  premiumText: { color: "#fff", fontSize: 11, fontWeight: "700", letterSpacing: 0.5 },
+  statusCard: { borderRadius: 16, padding: 16, borderWidth: 1, marginBottom: 16 },
+  statusTitle: { fontSize: 14, fontWeight: "600", marginBottom: 10 },
+  statusRow: { flexDirection: "row", gap: 16 },
+  statusItem: { flexDirection: "row", alignItems: "center", gap: 6 },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  statusLabel: { fontSize: 12 },
+  fixButton: { marginTop: 10, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, alignSelf: "flex-start" },
+  fixButtonText: { color: "#fff", fontSize: 13, fontWeight: "600" },
+  summaryRow: { flexDirection: "row", gap: 10, marginBottom: 20 },
+  summaryCard: { flex: 1, borderRadius: 14, padding: 14, alignItems: "center", borderWidth: 1 },
+  summaryNumber: { fontSize: 28, fontWeight: "700", lineHeight: 34 },
+  summaryLabel: { fontSize: 11, marginTop: 2, textAlign: "center" },
+  section: { marginBottom: 20 },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
+  sectionTitle: { fontSize: 16, fontWeight: "600", marginBottom: 10 },
+  seeAll: { fontSize: 13, fontWeight: "500" },
+  storeRow: { flexDirection: "row", alignItems: "center", padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 8, gap: 10 },
+  storeIconBg: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  storeInfo: { flex: 1 },
+  storeName: { fontSize: 14, fontWeight: "600" },
+  storeAddress: { fontSize: 11, marginTop: 1 },
+  activeIndicator: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  activeText: { fontSize: 11, fontWeight: "600" },
+  itemRow: { flexDirection: "row", alignItems: "center", padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 6, gap: 10 },
+  itemDot: { width: 6, height: 6, borderRadius: 3 },
+  itemText: { fontSize: 14, flex: 1 },
+  moreItems: { fontSize: 12, textAlign: "center", marginTop: 4 },
+  emptyState: { alignItems: "center", paddingVertical: 40, paddingHorizontal: 20 },
+  emptyEmoji: { fontSize: 56, marginBottom: 16 },
+  emptyTitle: { fontSize: 22, fontWeight: "700", marginBottom: 8 },
+  emptySubtitle: { fontSize: 14, textAlign: "center", lineHeight: 20, marginBottom: 24 },
+  emptyActions: { gap: 10, width: "100%" },
+  emptyButton: { paddingVertical: 14, borderRadius: 14, alignItems: "center" },
+  emptyButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  emptyButtonOutline: { paddingVertical: 14, borderRadius: 14, alignItems: "center", borderWidth: 2 },
+  emptyButtonOutlineText: { fontSize: 16, fontWeight: "600" },
+  bottomPadding: { height: 20 },
 });

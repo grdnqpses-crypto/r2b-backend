@@ -25,6 +25,18 @@ const MAPPING = {
   "crown.fill": "workspace-premium",
   "globe": "language",
   "star.fill": "star",
+  "bell.fill": "notifications",
+  "camera.fill": "camera-alt",
+  "photo.fill": "photo",
+  "barcode.viewfinder": "qr-code-scanner",
+  "doc.text.fill": "description",
+  "arrow.up.circle.fill": "upload",
+  "info.circle.fill": "info",
+  "person.fill": "person",
+  "gift.fill": "card-giftcard",
+  "link": "link",
+  "checkmark.circle.fill": "check-circle",
+  "xmark": "close",
 } as IconMapping;
 
 export function IconSymbol({

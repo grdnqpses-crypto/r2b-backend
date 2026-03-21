@@ -1,146 +1,41 @@
-# Belief Field Detector — TODO
+# Remember2Buy — TODO
 
-- [x] Set up dark scientific theme (colors, fonts, always-dark mode)
-- [x] Add tab icon mappings for Detect, History, Learn tabs
-- [x] Configure 3-tab layout (Detect, History, Learn)
-- [x] Build onboarding flow (3 slides, shown once)
-- [x] Build Home/Detect screen with belief input, intensity slider, begin scan button
-- [x] Build sensor integration engine (accelerometer, gyroscope, magnetometer, barometer, light sensor, device motion, pedometer)
-- [x] Build Live Scanner screen with real-time sensor dashboard
-- [x] Build sensor cards with live values, units, explanations, mini-graphs
-- [x] Build central belief field visualization (animated orb)
-- [x] Build real-time explanation ticker during scan
-- [x] Build Results screen with belief field score and sensor breakdown
-- [x] Build sensor detail cards with baseline vs peak, deviation, interpretation
-- [x] Build History tab with past scans list and stats
-- [x] Build Learn tab with educational content about sensors and belief science
-- [x] Add haptic feedback during scan intensity changes
-- [x] Add keep-awake during scan
-- [x] Persist scan history with AsyncStorage
-- [x] Generate app logo and branding assets
-- [x] Ensure all sensor readings are transparent with plain-language explanations
-- [x] Ensure user understands what phone is doing, why, and what outcome means
-- [x] Add pre-built belief categories with icons (Santa, Tooth Fairy, Easter Bunny, religions, spiritual, custom)
-- [x] Make experience inspiring and encouraging — harder belief = stronger sensor response
-- [x] Kid-friendly language and encouraging feedback messages
-- [x] Build unified sensor visualization — all sensors merged into one animated "apparition" display
-- [x] Add parent mode with gentle bedtime/behavior prompts ("The magic works while you sleep!")
-- [x] Ensure full cross-platform support (iPhone + Android), handle platform-specific sensor differences gracefully
-- [x] Add immersive sound effects and ambient audio during scans (humming/energy pulse that intensifies with belief score)
-- [x] Add share results feature (screenshot or share belief field score with friends/family)
-- [x] Add seasonal belief options (Leprechauns for St. Patrick's Day, Cupid for Valentine's Day, etc.)
-- [x] Add full custom belief creation (user picks emoji, name, description)
-- [x] Add Belief Journal — post-scan reflection writing, saved with scan history, viewable in journal tab
-- [x] Add animated particle effects to orb visualization (sparkles, energy waves, belief-themed floating symbols)
-- [x] Add Challenge a Friend mode — two people scan same belief, compare scores side by side
-- [x] Remove Challenge a Friend mode (belief is personal, not competitive)
-- [x] Remove competitive/leaderboard elements
-- [x] Add Belief Streak tracker — reward daily scanning with streak counter, encourage deeper belief over time
-- [x] Enhance personal growth focus — show belief deepening over time, personal bests, growth journey
-- [x] Add themed scan environments per belief category (colors, gradients, particle styles matching each belief)
-- [x] Add belief streak tracker — daily scan counter, personal growth journey, encouragement for consistency
-- [x] Add Belief Meditation mode — guided breathing exercise before scan with calming visuals and voice prompts
-- [x] Add Settings screen — scan duration (30s/60s/90s), sound on/off, custom belief management
-- [x] Add Scan Report export — shareable image card or PDF with full sensor data summary
-- [x] Ensure all features are crystal clear: what it does, why, and what it means — kid-friendly but parent-focused
-- [x] Add Settings tab to navigation
-- [x] Rewrite onboarding with deep science-of-belief philosophy (brain doesn't distinguish imagined vs real, placebo effect, belief creates measurable physical changes)
-- [x] Rewrite Learn tab articles with neuroscience-grounded messaging — respects belief while grounding in real science
-- [x] Build premium paywall system with free tier (3 scans/day, 5 beliefs, 30s only) and Premium tier (unlimited)
-- [x] Build Family Profiles — multiple profiles per app, each with own history/journal/streaks
-- [x] Build Belief Stories — narrated immersive audio experiences that play during scans, synced to sensor readings
-- [x] Build Advanced Sensor Lab tab — real-time raw sensor data, live graphs, scientific detail
-- [x] Add push notification reminders — daily nudges to maintain streaks and engagement
-- [x] Add achievement badges system with visual artwork — collectible badges for milestones
-- [x] Add hidden developer mode — tap app icon/title 11 times to unlock dev tools
-- [x] Configure Google Play billing integration for premium subscriptions
-- [x] Configure build settings for AAB (Google Play Store) with recommended signing
-- [x] Configure build settings for iOS (App Store)
-- [x] Prepare EAS build configuration for both platforms
-- [x] Add Belief Timer countdown — visual timer after bedtime scan ("Magic activates in X hours")
-- [x] Add About the Science deep-dive section with links to real published studies
-- [x] Configure all sensor permissions for both iOS and Android (motion, location, microphone, notifications, etc.)
-- [x] Integrate Google Play billing (in-app purchases/subscriptions) — configured with product IDs, permission, and BUILD_GUIDE
-- [x] Integrate Apple App Store billing (in-app purchases/subscriptions) — configured with product IDs and BUILD_GUIDE
-- [x] Enhance developer mode with billing bypass and test purchase tools
-- [x] Set up EAS CLI and build configuration for APK (Android testing)
-- [x] Build configuration for AAB (Google Play Store) — ready to run `eas build`
-- [x] Build configuration for iOS archive (App Store / TestFlight) — ready to run `eas build`
-- [x] Ensure all 2026 Google Play Store and Apple App Store requirements are met — documented in BUILD_GUIDE.md
-- [x] Create automated build script (scripts/build.sh) for APK, AAB, and iOS builds
-- [x] Create comprehensive BUILD_GUIDE.md with store listing copy, privacy policy template, billing setup, and troubleshooting
-- [x] Build APK locally (37 MB release APK for testing/sideloading)
-- [x] Build AAB locally (27 MB Android App Bundle for Google Play Store submission)
-- [x] Enable New Architecture (required by Reanimated v4)
-- [x] Install Android SDK 36, build-tools 36.0.0, CMake 3.22.1 for compilation
-- [x] Fix app crash during sensor calibration/scanning phase — app shuts down when all sensors start measuring
-- [x] Fix persistent crash at countdown-to-scan transition — missing Reanimated babel plugin caused worklets to fail in release builds
-- [x] Build self-healing diagnostic engine (auto-checks sensors, animations, audio, haptics, speech)
-- [x] Integrate diagnostic engine into scan flow — auto-disable broken features before scanning
-- [x] Fix sensor-lab crash-prone direct imports (wrap in try-catch like use-sensors.ts)
-- [x] Add runtime self-correction — if a sensor fails mid-scan, gracefully remove it and continue
-- [x] Fix app crash when scanning Guardian Angel (12345, 53321) — root cause: 17 files had unprotected direct imports of expo-linear-gradient, expo-haptics, expo-keep-awake. Created centralized safe-imports module with fallbacks.
-- [x] CRITICAL: Full systematic audit — phased warm-up (staggered startup over 3s), ErrorBoundary on all 8 modal screens, SilentErrorBoundary on BeliefFieldOrb, worklet safety clamps on all 17 useAnimatedStyle calls, safe-imports for all native modules across all 18 files
-- [x] Audit: Traced exact code path from countdown=0 to scan start — added 4-phase warm-up (warmup→animating→sensors→audio→ready)
-- [x] Audit: All useAnimatedStyle worklets have 'worklet' directive and NaN/undefined safety clamps
-- [x] Audit: All native modules (LinearGradient, Haptics, KeepAwake, Speech) go through safe-imports with try-catch
-- [x] Audit: All modal screens wrapped in ErrorBoundary — crash shows retry UI instead of killing app
-- [x] Audit: BeliefFieldOrb wrapped in SilentErrorBoundary — animation crash doesn't kill scan
-- [x] Fix "Rendered more hooks than during the previous render" error in LiveScanner — useCallback(renderSensorItem) was after early return at line 329, moved before it
-- [x] Fix history saving — scan sessions must persist to AsyncStorage and display in History tab
-- [x] Build belief strength tracker — visual progress showing belief getting stronger over time
-- [x] Build onboarding tutorial — screenshot-based walkthrough on first app open (already existed, confirmed working)
-- [x] Build group beliefs tab — group session functionality in the app
-- [x] Build share & earn system — share button with referral tracking, 1 free week reward for referrer
-- [x] Build Google Play billing — $0.99/week subscription with 3-day free trial (integration guide in docs/google-play-billing.md)
-- [x] Build paywall — gate content behind subscription after free trial ends (updated pricing: $0.99/week, 3-day free trial)
-- [x] Add celebration animations — confetti/fireworks/sparkles when scan completes with high belief score
-- [x] Integrate Sentry crash reporting — automatic error tracking, breadcrumbs, and performance monitoring
-- [x] Transform all science copy to plain emotional language (laymen's terms, tangible, real)
-- [x] Build Daily Challenge system with goals, streaks, and progress tracking
-- [x] Enhance results screen with emotional feedback and Don't Stop Believing energy
-- [x] Update onboarding to be exciting, personal, and goal-setting
-- [x] Add tangible real-world meaning to belief scores
-- [x] Build ImpactReveal component — full-screen animated score reveal with particles, pulses, screen flash
-- [x] Add intensity-based sound effects on results screen (low hum → powerful chime → explosive burst)
-- [x] Wire ImpactReveal into ResultsScreen so it fires on scan completion
-- [x] Fix "Start Today's Challenge" button — does nothing when pressed
-- [x] Add sticky bottom CTA bar that appears after belief is selected — auto-scrolls to it and pulses to draw attention
-- [x] Add haptic "lock in" thud (Medium impact) when sticky CTA bar fully slides up
-- [x] Remove fixed scan duration cap — let scan run indefinitely until user stops it
-- [x] Add elapsed time counter display during scan
-- [x] Add "Stop & Reveal" button so user controls when scan ends
-- [x] Keep a minimum warm-up period (15s) before Stop button becomes active
-- [x] Add live score preview next to orb during scan — pulsing animated number that updates in real time
-- [x] Fix app crash after user takes a screenshot
-- [x] Activate Sentry crash reporting with DSN key
-- [x] Add scan/belief/screenshot breadcrumbs to Sentry for richer crash context
-- [x] Fix screenshot crash — add safe guard around screenshot-triggered state changes
-- [x] Add Sentry device-based user identification on app startup
-- [x] Enable Sentry Session Replay for crash sessions (replaysOnErrorSampleRate: 1.0)
-- [x] Build subscription/paywall with RevenueCat — replaced with native react-native-iap
+## Core Foundation
+- [x] Set up project with Expo SDK 54, TypeScript, NativeWind
+- [x] Configure app.config.ts with location, camera, notifications, image-picker plugins
+- [x] Set up brand colors (blue primary, premium gold) in theme.config.js
+- [x] Add all required icon mappings to icon-symbol.tsx
+- [x] Set up tab navigation (Dashboard, My List, Stores, Coupons, Settings)
+
+## Data Layer
+- [x] Build lib/storage.ts — shopping items, saved stores, coupons, tier, referral, onboarding
+- [x] Build lib/store-data.ts — 200+ US grocery/pharmacy/retail chains database
+- [x] Build lib/tasks.ts — TaskManager geofence background task definition
+- [x] Build lib/notifications.ts — notification setup, test notification, sendTestNotification
+- [x] Build lib/geofence.ts — geocodeAddress, startGeofencing, stopGeofencing, checkLocationPermissions, requestLocationPermissions, isGeofencingActive
+
+## Screens
+- [x] Dashboard screen (index.tsx) — summary cards, quick-add, nearby stores status
+- [x] My List screen (list.tsx) — add/check/delete items, clear checked, item count
+- [x] Stores screen (stores.tsx) — add custom store by address, chain picker modal, delete stores
+- [x] Coupons screen (coupons.tsx) — camera scan, photo import, coupon gallery, premium gate
+- [x] Settings screen (settings.tsx) — permissions, geofencing toggle, subscription, about
+- [x] Onboarding screen (onboarding.tsx) — 4 steps: welcome, location, notifications, referral
+
+## App Routing
+- [x] Root _layout.tsx with OnboardingGuard — redirects to /onboarding on first launch
+- [x] Stack.Screen for onboarding registered in root layout
+
+## Branding
+- [x] Generate app logo and set in app.config.ts
+- [x] Update app name to "Remember2Buy"
+
+## TypeScript
+- [x] Fix all TypeScript errors (0 errors on tsc --noEmit)
+
+## Pending / Future
 - [ ] Generate Play Store screenshots and feature graphic
 - [ ] Create and host privacy policy page
-- [ ] Set up Play Console listing and upload AAB
-- [ ] Create subscription product in Play Console
-- [ ] Configure Google Cloud Pub/Sub for subscription notifications
-- [x] Fix crash after viewing instructional screenshots (onboarding slides) — app closes when transitioning to main screen
-- [x] CRITICAL: App STILL crashes immediately after onboarding instructions — definitive fix needed (moved startTrial from render path into useEffect above all early returns)
-- [x] Remove RevenueCat, install react-native-iap with native Google Play Billing 8.3.0
-- [x] Rebuild subscription hook using native IAP (no third-party middleware)
-- [x] Rebuild paywall screen using native IAP purchase flow
-- [ ] Create app in Play Console and set up closed testing track
-- [ ] Create $0.99/week subscription product in Play Console Monetization tab
-- [ ] Set up Google Cloud Pub/Sub topic and link to Play Console
-- [x] CRITICAL: App STILL crashes after tutorial screens — FIXED: replaced Modal-based onboarding with full-screen overlay that fades out, home screen mounts underneath
-- [x] CRITICAL: App crashes immediately on open — FIXED: added isIAPAvailable() guard so react-native-iap is never imported when native module is absent (Expo Go, simulators, web)
-- [x] Replace paywall with mandatory first-launch subscription consent screen — shown after onboarding, before home screen, with clear trial + billing terms and one "Agree & Start Free Trial" button
-- [x] Remove all trial banner UI from home screen (subscription status banner, showPaywall state)
-- [x] Remove Paywall component import from index.tsx
-- [ ] Build signed AAB for Play Store submission
-- [ ] Create/verify app listing in Play Console
-- [ ] Create $0.99/week subscription product with 3-day free trial in Play Console
-- [ ] Upload AAB and submit for review
-- [x] Rename app to "Believe" in app.config.ts and Play Console
-- [x] Add animated scroll-down indicator on home screen to show more content below
-- [x] Add scroll indicator on beliefs list screen to show more beliefs below
+- [ ] Set up Play Console listing
+- [ ] Add RevenueCat for production in-app purchases
+- [ ] Add OCR for shopping list photo import (server-side LLM)

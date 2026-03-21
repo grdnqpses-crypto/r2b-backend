@@ -1,216 +1,223 @@
-import React, { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
-  View, Text, ScrollView, TouchableOpacity, TextInput,
-  StyleSheet, Alert, Platform,
+  View, Text, FlatList, Pressable, TextInput,
+  StyleSheet, Alert, Platform, ActivityIndicator,
 } from "react-native";
+import { useFocusEffect } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
+import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
-import { useColors } from "@/hooks/use-colors";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-
-interface ShoppingItem {
-  id: string;
-  name: string;
-  quantity: string;
-  checked: boolean;
-}
-
-const STORAGE_KEY = "@r2b_shopping_items";
+import { useColors } from "@/hooks/use-colors";
+import {
+  getShoppingItems, addShoppingItem, toggleShoppingItem,
+  deleteShoppingItem, clearCheckedItems, getTier,
+  FREE_ITEM_LIMIT, type ShoppingItem, type Tier,
+} from "@/lib/storage";
 
 export default function ListScreen() {
   const colors = useColors();
   const [items, setItems] = useState<ShoppingItem[]>([]);
-  const [newItem, setNewItem] = useState("");
-  const [newQty, setNewQty] = useState("");
-  const [isPremium] = useState(false); // Free tier: max 3 items
+  const [tier, setTier] = useState<Tier>("free");
+  const [inputText, setInputText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
 
-  useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((v) => {
-      if (v) setItems(JSON.parse(v));
-    });
+  const loadItems = useCallback(async () => {
+    const [itemsData, tierData] = await Promise.all([getShoppingItems(), getTier()]);
+    setItems(itemsData);
+    setTier(tierData);
   }, []);
 
-  const save = async (updated: ShoppingItem[]) => {
-    setItems(updated);
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  };
+  useFocusEffect(useCallback(() => { loadItems(); }, [loadItems]));
 
-  const addItem = async () => {
-    if (!newItem.trim()) return;
-    if (!isPremium && items.length >= 3) {
-      Alert.alert(
-        "Free Tier Limit",
-        "Free accounts can store up to 3 items. Upgrade to Premium for unlimited items.",
-        [{ text: "OK" }]
-      );
+  const uncheckedCount = items.filter((i) => !i.checked).length;
+  const atLimit = tier === "free" && uncheckedCount >= FREE_ITEM_LIMIT;
+
+  const handleAdd = async () => {
+    const text = inputText.trim();
+    if (!text) return;
+    if (atLimit) {
+      Alert.alert("Free Limit Reached", `Free accounts can track up to ${FREE_ITEM_LIMIT} items. Upgrade to Premium for unlimited items.`, [{ text: "OK" }]);
       return;
     }
-    const item: ShoppingItem = {
-      id: Date.now().toString(),
-      name: newItem.trim(),
-      quantity: newQty.trim(),
-      checked: false,
-    };
-    await save([...items, item]);
-    setNewItem("");
-    setNewQty("");
+    setLoading(true);
+    await addShoppingItem(text);
+    setInputText("");
+    await loadItems();
+    setLoading(false);
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const toggleItem = async (id: string) => {
-    await save(items.map((i) => i.id === id ? { ...i, checked: !i.checked } : i));
+  const handleToggle = async (id: string) => {
+    await toggleShoppingItem(id);
+    await loadItems();
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const deleteItem = async (id: string) => {
-    await save(items.filter((i) => i.id !== id));
+  const handleDelete = async (id: string) => {
+    await deleteShoppingItem(id);
+    await loadItems();
   };
 
-  const clearChecked = async () => {
-    await save(items.filter((i) => !i.checked));
+  const handleClearChecked = async () => {
+    const checkedCount = items.filter((i) => i.checked).length;
+    if (checkedCount === 0) return;
+    Alert.alert("Clear Bought Items", `Remove ${checkedCount} checked item${checkedCount !== 1 ? "s" : ""}?`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Clear", style: "destructive", onPress: async () => { await clearCheckedItems(); await loadItems(); } },
+    ]);
   };
 
-  const pendingCount = items.filter((i) => !i.checked).length;
-  const checkedCount = items.filter((i) => i.checked).length;
+  const handleImportPhoto = async () => {
+    if (tier !== "premium") {
+      Alert.alert("Premium Feature", "Photo import is a Premium feature. Upgrade to import shopping lists from photos.", [{ text: "OK" }]);
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
+    if (result.canceled || !result.assets[0]) return;
+    setOcrLoading(true);
+    try {
+      Alert.alert("Photo Import", "OCR processing requires a server connection. Please add items manually.", [{ text: "OK" }]);
+    } catch {
+      Alert.alert("Error", "Failed to process image.");
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
+  const unchecked = items.filter((i) => !i.checked);
+  const checked = items.filter((i) => i.checked);
+  const allItems = [...unchecked, ...checked];
+
+  const renderItem = ({ item }: { item: ShoppingItem }) => (
+    <View style={[styles.itemRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <Pressable
+        style={({ pressed }) => [styles.checkbox, {
+          borderColor: item.checked ? colors.success : colors.border,
+          backgroundColor: item.checked ? colors.success : "transparent",
+          opacity: pressed ? 0.7 : 1,
+        }]}
+        onPress={() => handleToggle(item.id)}
+      >
+        {item.checked && <IconSymbol name="checkmark" size={14} color="#fff" />}
+      </Pressable>
+      <Text style={[styles.itemText, {
+        color: item.checked ? colors.muted : colors.foreground,
+        textDecorationLine: item.checked ? "line-through" : "none",
+      }]} numberOfLines={2}>{item.text}</Text>
+      <Pressable style={({ pressed }) => [styles.deleteBtn, { opacity: pressed ? 0.6 : 1 }]} onPress={() => handleDelete(item.id)}>
+        <IconSymbol name="xmark.circle.fill" size={20} color={colors.muted} />
+      </Pressable>
+    </View>
+  );
 
   return (
     <ScreenContainer>
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <View style={[styles.header, { backgroundColor: colors.primary }]}>
-          <Text style={styles.headerTitle}>My Shopping List</Text>
-          <Text style={styles.headerSub}>{pendingCount} items remaining</Text>
-        </View>
-
-        {/* Add Item */}
-        <View style={[styles.addCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>Add Item</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, flex: 2 }]}
-              placeholder="Item name..."
-              placeholderTextColor={colors.muted}
-              value={newItem}
-              onChangeText={setNewItem}
-              returnKeyType="done"
-              onSubmitEditing={addItem}
-            />
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, flex: 1 }]}
-              placeholder="Qty"
-              placeholderTextColor={colors.muted}
-              value={newQty}
-              onChangeText={setNewQty}
-              returnKeyType="done"
-              onSubmitEditing={addItem}
-            />
-          </View>
-          <TouchableOpacity
-            style={[styles.addBtn, { backgroundColor: colors.primary }]}
-            onPress={addItem}
-          >
-            <IconSymbol name="plus.circle.fill" size={18} color="#fff" />
-            <Text style={styles.addBtnText}>Add to List</Text>
-          </TouchableOpacity>
-          {!isPremium && (
-            <Text style={[styles.limitNote, { color: colors.muted }]}>
-              Free: {items.length}/3 items used. Upgrade for unlimited.
-            </Text>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.foreground }]}>My List</Text>
+          {checked.length > 0 && (
+            <Pressable style={({ pressed }) => [styles.clearBtn, { opacity: pressed ? 0.7 : 1 }]} onPress={handleClearChecked}>
+              <Text style={[styles.clearBtnText, { color: colors.error }]}>Clear bought</Text>
+            </Pressable>
           )}
         </View>
 
-        {/* Items */}
-        {items.length === 0 ? (
+        {tier === "free" && (
+          <View style={[styles.limitBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.limitText, { color: colors.muted }]}>{uncheckedCount}/{FREE_ITEM_LIMIT} items</Text>
+            <View style={[styles.limitTrack, { backgroundColor: colors.border }]}>
+              <View style={[styles.limitFill, {
+                backgroundColor: atLimit ? colors.error : colors.primary,
+                width: `${Math.min((uncheckedCount / FREE_ITEM_LIMIT) * 100, 100)}%` as any,
+              }]} />
+            </View>
+            <Text style={[styles.upgradeLink, { color: colors.premium }]}>Upgrade for unlimited</Text>
+          </View>
+        )}
+
+        <View style={[styles.inputRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <TextInput
+            style={[styles.input, { color: colors.foreground }]}
+            placeholder="Add an item..."
+            placeholderTextColor={colors.muted}
+            value={inputText}
+            onChangeText={setInputText}
+            onSubmitEditing={handleAdd}
+            returnKeyType="done"
+            editable={!atLimit}
+          />
+          <Pressable
+            style={({ pressed }) => [styles.addBtn, { backgroundColor: atLimit ? colors.border : colors.primary, opacity: pressed ? 0.85 : 1 }]}
+            onPress={handleAdd}
+            disabled={atLimit || loading}
+          >
+            {loading ? <ActivityIndicator size="small" color="#fff" /> : <IconSymbol name="plus.circle.fill" size={22} color="#fff" />}
+          </Pressable>
+        </View>
+
+        <View style={styles.importRow}>
+          <Pressable
+            style={({ pressed }) => [styles.importBtn, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.8 : 1 }]}
+            onPress={handleImportPhoto}
+          >
+            {ocrLoading ? <ActivityIndicator size="small" color={colors.primary} /> : (
+              <>
+                <IconSymbol name="plus.circle.fill" size={16} color={tier === "premium" ? colors.primary : colors.muted} />
+                <Text style={[styles.importBtnText, { color: tier === "premium" ? colors.primary : colors.muted }]}>
+                  Import Photo {tier !== "premium" ? "\uD83D\uDD12" : ""}
+                </Text>
+              </>
+            )}
+          </Pressable>
+        </View>
+
+        {allItems.length === 0 ? (
           <View style={styles.emptyState}>
-            <IconSymbol name="list.bullet" size={48} color={colors.muted} />
-            <Text style={[styles.emptyText, { color: colors.muted }]}>Your list is empty</Text>
-            <Text style={[styles.emptySub, { color: colors.muted }]}>Add items above to get started</Text>
+            <Text style={styles.emptyEmoji}>{"\uD83D\uDCDD"}</Text>
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No items yet</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.muted }]}>Add items above to start your shopping list.</Text>
           </View>
         ) : (
-          <View style={[styles.listCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={styles.listHeader}>
-              <Text style={[styles.sectionLabel, { color: colors.foreground }]}>Items</Text>
-              {checkedCount > 0 && (
-                <TouchableOpacity onPress={clearChecked}>
-                  <Text style={[styles.clearBtn, { color: colors.error }]}>Clear checked</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-            {items.map((item) => (
-              <View key={item.id} style={[styles.itemRow, { borderBottomColor: colors.border }]}>
-                <TouchableOpacity onPress={() => toggleItem(item.id)} style={styles.checkbox}>
-                  <View style={[
-                    styles.checkboxBox,
-                    { borderColor: colors.primary },
-                    item.checked && { backgroundColor: colors.primary }
-                  ]}>
-                    {item.checked && <IconSymbol name="checkmark" size={12} color="#fff" />}
-                  </View>
-                </TouchableOpacity>
-                <View style={{ flex: 1 }}>
-                  <Text style={[
-                    styles.itemName,
-                    { color: item.checked ? colors.muted : colors.foreground },
-                    item.checked && styles.strikethrough
-                  ]}>
-                    {item.name}
-                  </Text>
-                  {item.quantity ? (
-                    <Text style={[styles.itemQty, { color: colors.muted }]}>Qty: {item.quantity}</Text>
-                  ) : null}
-                </View>
-                <TouchableOpacity onPress={() => deleteItem(item.id)} style={styles.deleteBtn}>
-                  <IconSymbol name="trash.fill" size={18} color={colors.error} />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
+          <FlatList
+            data={allItems}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
+          />
         )}
-
-        {/* Premium Upsell */}
-        {!isPremium && (
-          <View style={[styles.premiumCard, { backgroundColor: colors.primary + "11", borderColor: colors.primary + "33" }]}>
-            <IconSymbol name="crown.fill" size={24} color={colors.primary} />
-            <Text style={[styles.premiumTitle, { color: colors.primary }]}>Upgrade to Premium</Text>
-            <Text style={[styles.premiumSub, { color: colors.foreground }]}>
-              Unlimited items, unlimited stores, full coupon access — just $1.99/week
-            </Text>
-            <TouchableOpacity style={[styles.premiumBtn, { backgroundColor: colors.primary }]}>
-              <Text style={styles.premiumBtnText}>Upgrade Now</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        <View style={{ height: 20 }} />
-      </ScrollView>
+      </View>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: 20, paddingVertical: 20, alignItems: "center" },
-  headerTitle: { fontSize: 22, fontWeight: "800", color: "#fff" },
-  headerSub: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 2 },
-  addCard: { margin: 16, borderRadius: 12, padding: 16, borderWidth: 1, gap: 10 },
-  sectionLabel: { fontSize: 15, fontWeight: "700" },
-  inputRow: { flexDirection: "row", gap: 8 },
-  input: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
-  addBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 10, paddingVertical: 12 },
-  addBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  limitNote: { fontSize: 12, textAlign: "center" },
-  emptyState: { alignItems: "center", justifyContent: "center", paddingVertical: 60, gap: 8 },
-  emptyText: { fontSize: 18, fontWeight: "600" },
-  emptySub: { fontSize: 14 },
-  listCard: { marginHorizontal: 16, borderRadius: 12, borderWidth: 1, overflow: "hidden" },
-  listHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 16, paddingBottom: 8 },
-  clearBtn: { fontSize: 13, fontWeight: "600" },
-  itemRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 0.5, gap: 12 },
-  checkbox: { padding: 2 },
-  checkboxBox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, alignItems: "center", justifyContent: "center" },
-  itemName: { fontSize: 15, fontWeight: "500" },
-  strikethrough: { textDecorationLine: "line-through" },
-  itemQty: { fontSize: 12, marginTop: 2 },
+  container: { flex: 1, paddingHorizontal: 16 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 16, paddingBottom: 12 },
+  title: { fontSize: 24, fontWeight: "700" },
+  clearBtn: { paddingVertical: 6, paddingHorizontal: 10 },
+  clearBtnText: { fontSize: 13, fontWeight: "500" },
+  limitBar: { flexDirection: "row", alignItems: "center", padding: 10, borderRadius: 10, borderWidth: 1, marginBottom: 10, gap: 8 },
+  limitText: { fontSize: 12, minWidth: 50 },
+  limitTrack: { flex: 1, height: 4, borderRadius: 2, overflow: "hidden" },
+  limitFill: { height: 4, borderRadius: 2 },
+  upgradeLink: { fontSize: 12, fontWeight: "600" },
+  inputRow: { flexDirection: "row", alignItems: "center", borderRadius: 14, borderWidth: 1, marginBottom: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  input: { flex: 1, fontSize: 16, paddingVertical: 4 },
+  addBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", marginLeft: 8 },
+  importRow: { flexDirection: "row", gap: 8, marginBottom: 14 },
+  importBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 9, borderRadius: 10, borderWidth: 1 },
+  importBtnText: { fontSize: 13, fontWeight: "500" },
+  listContent: { paddingBottom: 20 },
+  itemRow: { flexDirection: "row", alignItems: "center", padding: 12, borderRadius: 12, borderWidth: 1, gap: 10 },
+  checkbox: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  itemText: { flex: 1, fontSize: 15, lineHeight: 20 },
   deleteBtn: { padding: 4 },
-  premiumCard: { margin: 16, borderRadius: 12, padding: 20, borderWidth: 1, alignItems: "center", gap: 8 },
-  premiumTitle: { fontSize: 17, fontWeight: "800" },
-  premiumSub: { fontSize: 13, textAlign: "center", lineHeight: 18 },
-  premiumBtn: { borderRadius: 10, paddingHorizontal: 24, paddingVertical: 12, marginTop: 4 },
-  premiumBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  emptyState: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 60 },
+  emptyEmoji: { fontSize: 48, marginBottom: 12 },
+  emptyTitle: { fontSize: 20, fontWeight: "600", marginBottom: 6 },
+  emptySubtitle: { fontSize: 14, textAlign: "center", lineHeight: 20 },
 });
