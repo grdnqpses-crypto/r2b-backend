@@ -117,3 +117,12 @@
 - [x] Ensure notification status is re-checked on app foreground resume (AppState listener) so the UI updates automatically after user enables in Settings
 - [x] Fix duplicate "Open Settings" button on onboarding notification step (already in progress)
 - [x] Add developer mode easter egg (11 taps on title) — already in progress
+
+## Mandatory Permission Flow (Round 6)
+- [x] Remove all "Skip setup" buttons from permission steps — permissions are mandatory
+- [x] Remove "Open Settings" redirect pattern — app must request permissions inline
+- [x] Notifications: request on the notification step, if denied show a "Why we need this" explanation and a "Try Again" button that re-requests
+- [x] Foreground location: request inline, if denied show explanation + "Try Again"
+- [x] Background "Always" location: request inline after foreground granted, if denied show explanation + "Try Again"
+- [x] If a permission is permanently denied (canAskAgain=false on Android), only then show "Open Settings" as the only option with clear explanation
+- [x] Remove skip buttons from Settings screen permission rows — they should always show the correct action

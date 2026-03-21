@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   View, Text, Pressable, StyleSheet, Platform, Alert, Linking,
-  Animated, Dimensions, TextInput, KeyboardAvoidingView, ScrollView,
+  Animated, Dimensions, TextInput, KeyboardAvoidingView, ScrollView, AppState,
 } from "react-native";
 import { Image } from "expo-image";
 import * as Location from "expo-location";
@@ -17,7 +17,14 @@ import { useOnboarding } from "@/lib/onboarding-context";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-type PermStatus = "unknown" | "granted" | "denied";
+/**
+ * Permission state tracks:
+ * - "unknown": not yet checked
+ * - "granted": permission granted
+ * - "denied_retriable": denied but canAskAgain=true — show explanation + "Try Again"
+ * - "denied_permanent": denied and canAskAgain=false — must go to Settings
+ */
+type PermStatus = "unknown" | "granted" | "denied_retriable" | "denied_permanent";
 
 interface Step {
   id: string;
@@ -69,23 +76,51 @@ export default function OnboardingScreen() {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const currentStep = STEPS[step];
 
-  // Check existing permission status when arriving at a permission step (do NOT auto-request)
+  // When arriving at a permission step, check existing status immediately
   useEffect(() => {
     if (currentStep.action === "notifications") {
-      Notifications.getPermissionsAsync().then(({ status }) => {
+      Notifications.getPermissionsAsync().then(({ status, canAskAgain }) => {
         if (status === "granted") setNotifStatus("granted");
-        else if (status === "denied") setNotifStatus("denied");
+        else if (status === "denied") {
+          setNotifStatus(canAskAgain ? "denied_retriable" : "denied_permanent");
+        }
       });
     } else if (currentStep.action === "location_fg") {
-      Location.getForegroundPermissionsAsync().then(({ status }) => {
+      Location.getForegroundPermissionsAsync().then(({ status, canAskAgain }) => {
         if (status === "granted") setFgStatus("granted");
-        else if (status === "denied") setFgStatus("denied");
+        else if (status === "denied") {
+          setFgStatus(canAskAgain ? "denied_retriable" : "denied_permanent");
+        }
       });
     } else if (currentStep.action === "location_bg") {
       Location.getBackgroundPermissionsAsync().then(({ status }) => {
         if (status === "granted") setBgStatus("granted");
       });
     }
+  }, [step]);
+
+  // When returning from device Settings (AppState foreground), re-check permissions
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        if (currentStep.action === "notifications") {
+          Notifications.getPermissionsAsync().then(({ status, canAskAgain }) => {
+            if (status === "granted") setNotifStatus("granted");
+            else setNotifStatus(canAskAgain ? "denied_retriable" : "denied_permanent");
+          });
+        } else if (currentStep.action === "location_fg") {
+          Location.getForegroundPermissionsAsync().then(({ status, canAskAgain }) => {
+            if (status === "granted") setFgStatus("granted");
+            else if (status === "denied") setFgStatus(canAskAgain ? "denied_retriable" : "denied_permanent");
+          });
+        } else if (currentStep.action === "location_bg") {
+          Location.getBackgroundPermissionsAsync().then(({ status }) => {
+            if (status === "granted") setBgStatus("granted");
+          });
+        }
+      }
+    });
+    return () => sub.remove();
   }, [step]);
 
   const animateToNextStep = (nextStepIndex: number) => {
@@ -124,69 +159,104 @@ export default function OnboardingScreen() {
         if (stores.length > 0) await startGeofencing(stores);
       }
     } catch {}
-    // This persists the flag AND updates context state, which triggers Stack.Protected redirect
     await completeOnboarding();
   };
 
+  // Request notification permission — updates state with canAskAgain awareness
   const requestNotifications = async () => {
     setLoading(true);
     try {
       await setupNotifications();
-      const { status } = await Notifications.getPermissionsAsync();
-      if (status === "granted") { setNotifStatus("granted"); setLoading(false); return; }
-      const { status: newStatus } = await Notifications.requestPermissionsAsync();
-      setNotifStatus(newStatus === "granted" ? "granted" : "denied");
-    } catch { setNotifStatus("denied"); }
-    finally { setLoading(false); }
+      const { status: existing } = await Notifications.getPermissionsAsync();
+      if (existing === "granted") { setNotifStatus("granted"); return; }
+      const { status, canAskAgain } = await Notifications.requestPermissionsAsync();
+      if (status === "granted") {
+        setNotifStatus("granted");
+      } else {
+        setNotifStatus(canAskAgain ? "denied_retriable" : "denied_permanent");
+      }
+    } catch {
+      setNotifStatus("denied_retriable");
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // Request foreground location — updates state with canAskAgain awareness
   const requestForegroundLocation = async () => {
     setLoading(true);
     try {
       const { status: existing } = await Location.getForegroundPermissionsAsync();
-      if (existing === "granted") { setFgStatus("granted"); setLoading(false); return; }
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      setFgStatus(status === "granted" ? "granted" : "denied");
-    } catch { setFgStatus("denied"); }
-    finally { setLoading(false); }
+      if (existing === "granted") { setFgStatus("granted"); return; }
+      const { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
+      if (status === "granted") {
+        setFgStatus("granted");
+      } else {
+        setFgStatus(canAskAgain ? "denied_retriable" : "denied_permanent");
+      }
+    } catch {
+      setFgStatus("denied_retriable");
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // Request background location — must have foreground first
   const requestBackgroundLocation = async () => {
     setLoading(true);
     try {
-      const fg = await Location.getForegroundPermissionsAsync();
-      if (fg.status !== "granted") await Location.requestForegroundPermissionsAsync();
       const { status } = await Location.requestBackgroundPermissionsAsync();
-      setBgStatus(status === "granted" ? "granted" : "denied");
-    } catch { setBgStatus("denied"); }
-    finally { setLoading(false); }
+      if (status === "granted") {
+        setBgStatus("granted");
+      } else {
+        // Android background location denial: canAskAgain is often false after first denial
+        const { canAskAgain } = await Location.getBackgroundPermissionsAsync();
+        setBgStatus(canAskAgain ? "denied_retriable" : "denied_permanent");
+      }
+    } catch {
+      setBgStatus("denied_retriable");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAction = async () => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     if (currentStep.action === "notifications") {
-      if (notifStatus === "denied") {
-        // Button label is already "Open Settings" — go directly, no Alert
+      if (notifStatus === "granted") {
+        nextStep();
+      } else if (notifStatus === "denied_permanent") {
+        // Permanently denied — must open Settings
         Linking.openSettings();
-        return;
-      }
-      if (notifStatus !== "granted") {
+      } else {
+        // unknown or denied_retriable — request the permission
         await requestNotifications();
+        // Only advance if granted after the request
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status === "granted") nextStep();
+        // If still denied, stay on this step — the UI will show the retry/settings UI
       }
-      nextStep();
     } else if (currentStep.action === "location_fg") {
-      if (fgStatus === "denied") {
-        // Button label is already "Open Settings" — go directly, no Alert
+      if (fgStatus === "granted") {
+        nextStep();
+      } else if (fgStatus === "denied_permanent") {
         Linking.openSettings();
-        return;
-      }
-      if (fgStatus !== "granted") {
+      } else {
         await requestForegroundLocation();
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status === "granted") nextStep();
       }
-      nextStep();
     } else if (currentStep.action === "location_bg") {
-      if (bgStatus !== "granted") await requestBackgroundLocation();
-      nextStep();
+      if (bgStatus === "granted") {
+        nextStep();
+      } else if (bgStatus === "denied_permanent") {
+        Linking.openSettings();
+      } else {
+        await requestBackgroundLocation();
+        const { status } = await Location.getBackgroundPermissionsAsync();
+        if (status === "granted") nextStep();
+      }
     } else if (currentStep.action === "referral") {
       if (referralCode.trim()) {
         setLoading(true);
@@ -215,41 +285,78 @@ export default function OnboardingScreen() {
     if (currentStep.type === "tutorial") return step === 3 ? "Got It — Let's Set Up" : "Next →";
     if (currentStep.action === "notifications") {
       if (notifStatus === "granted") return "Continue →";
-      if (notifStatus === "denied") return "Open Settings";
+      if (notifStatus === "denied_permanent") return "Open Settings";
+      if (notifStatus === "denied_retriable") return "Try Again";
       return "Enable Notifications";
     }
     if (currentStep.action === "location_fg") {
       if (fgStatus === "granted") return "Continue →";
-      if (fgStatus === "denied") return "Open Settings";
+      if (fgStatus === "denied_permanent") return "Open Settings";
+      if (fgStatus === "denied_retriable") return "Try Again";
       return "Allow Location";
     }
     if (currentStep.action === "location_bg") {
       if (bgStatus === "granted") return "Continue →";
+      if (bgStatus === "denied_permanent") return "Open Settings";
+      if (bgStatus === "denied_retriable") return "Try Again";
       return "Allow 'Always' Location";
     }
     if (currentStep.action === "referral") return referralCode.trim() ? "Apply Code" : "Skip for Now";
     return "Continue";
   };
 
-  const getStatusBadge = () => {
-    if (currentStep.action === "notifications" && notifStatus === "granted")
-      return { label: "✓ Notifications enabled", color: colors.success };
-    if (currentStep.action === "notifications" && notifStatus === "denied")
-      return { label: "Notifications blocked — tap to open Settings", color: colors.warning };
-    if (currentStep.action === "location_fg" && fgStatus === "granted")
-      return { label: "✓ Location access granted", color: colors.success };
-    if (currentStep.action === "location_fg" && fgStatus === "denied")
-      return { label: "Location blocked — tap to open Settings", color: colors.warning };
-    if (currentStep.action === "location_bg" && bgStatus === "granted")
-      return { label: "✓ Background location granted", color: colors.success };
+  // Returns a status badge for the current permission step
+  const getStatusBadge = (): { label: string; color: string } | null => {
+    if (currentStep.action === "notifications") {
+      if (notifStatus === "granted") return { label: "✓ Notifications enabled", color: colors.success };
+      if (notifStatus === "denied_retriable") return { label: "Tap 'Try Again' to re-request permission", color: colors.warning };
+      if (notifStatus === "denied_permanent") return { label: "Blocked — tap 'Open Settings' to enable", color: colors.error };
+    }
+    if (currentStep.action === "location_fg") {
+      if (fgStatus === "granted") return { label: "✓ Location access granted", color: colors.success };
+      if (fgStatus === "denied_retriable") return { label: "Tap 'Try Again' to re-request permission", color: colors.warning };
+      if (fgStatus === "denied_permanent") return { label: "Blocked — tap 'Open Settings' to enable", color: colors.error };
+    }
+    if (currentStep.action === "location_bg") {
+      if (bgStatus === "granted") return { label: "✓ Background location granted", color: colors.success };
+      if (bgStatus === "denied_retriable") return { label: "Tap 'Try Again' and choose 'Allow all the time'", color: colors.warning };
+      if (bgStatus === "denied_permanent") return { label: "Blocked — tap 'Open Settings' to enable", color: colors.error };
+    }
+    return null;
+  };
+
+  // Returns explanation text shown below the badge when permission is denied
+  const getDeniedExplanation = (): string | null => {
+    if (currentStep.action === "notifications" && (notifStatus === "denied_retriable" || notifStatus === "denied_permanent")) {
+      return "Remember2Buy needs notifications to alert you when you arrive near a store. Without this, the app cannot remind you to shop.";
+    }
+    if (currentStep.action === "location_fg" && (fgStatus === "denied_retriable" || fgStatus === "denied_permanent")) {
+      return "Location access is required to detect when you are near a store. Without it, the app cannot trigger any alerts.";
+    }
+    if (currentStep.action === "location_bg" && (bgStatus === "denied_retriable" || bgStatus === "denied_permanent")) {
+      return "Background location ('Allow all the time') lets the app alert you even when it is not open. This is the core feature of Remember2Buy.";
+    }
     return null;
   };
 
   const badge = getStatusBadge();
+  const deniedExplanation = getDeniedExplanation();
   const tutorialIndex = step - 1;
   const tutorialData = currentStep.type === "tutorial" ? TUTORIAL_STEPS[tutorialIndex] : null;
   const showDots = step > 0;
   const totalDots = STEPS.length - 1;
+
+  // Determine button background color — warning for "Try Again", error-tinted for "Open Settings"
+  const getBtnColor = () => {
+    if (currentStep.type === "permission") {
+      const s = currentStep.action === "notifications" ? notifStatus
+               : currentStep.action === "location_fg" ? fgStatus
+               : bgStatus;
+      if (s === "denied_permanent") return colors.error;
+      if (s === "denied_retriable") return colors.warning;
+    }
+    return colors.primary;
+  };
 
   return (
     <ScreenContainer edges={["top", "bottom", "left", "right"]}>
@@ -349,6 +456,11 @@ export default function OnboardingScreen() {
                   <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
                 </View>
               )}
+              {deniedExplanation && (
+                <View style={[styles.deniedCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <Text style={[styles.deniedText, { color: colors.foreground }]}>{deniedExplanation}</Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -387,19 +499,20 @@ export default function OnboardingScreen() {
           <Pressable
             style={({ pressed }) => [
               styles.primaryBtn,
-              { backgroundColor: colors.primary, opacity: pressed || loading ? 0.8 : 1 },
+              { backgroundColor: getBtnColor(), opacity: pressed || loading ? 0.8 : 1 },
             ]}
             onPress={handleAction}
             disabled={loading}
           >
             <Text style={styles.primaryBtnText}>{getButtonLabel()}</Text>
           </Pressable>
-          {(currentStep.type === "permission" || currentStep.type === "referral") && (
+          {/* Skip is ONLY available on the referral step — all permission steps are mandatory */}
+          {currentStep.type === "referral" && (
             <Pressable
               style={({ pressed }) => [styles.skipBtn, { opacity: pressed ? 0.7 : 1 }]}
               onPress={finish}
             >
-              <Text style={[styles.skipBtnText, { color: colors.muted }]}>Skip setup</Text>
+              <Text style={[styles.skipBtnText, { color: colors.muted }]}>Skip for Now</Text>
             </Pressable>
           )}
         </View>
@@ -438,6 +551,8 @@ const styles = StyleSheet.create({
   permSubtitle: { fontSize: 16, textAlign: "center", lineHeight: 24, maxWidth: 320 },
   badge: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12 },
   badgeText: { fontSize: 14, fontWeight: "600" },
+  deniedCard: { borderRadius: 14, borderWidth: 1, padding: 16, width: "100%", marginTop: 4 },
+  deniedText: { fontSize: 14, lineHeight: 22, textAlign: "center" },
   referralInput: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 14, borderRadius: 14, borderWidth: 1, width: "100%", marginTop: 8 },
   referralTextInput: { flex: 1, fontSize: 16, letterSpacing: 1, paddingVertical: 2 },
   buttons: { gap: 10, paddingBottom: 20 },
