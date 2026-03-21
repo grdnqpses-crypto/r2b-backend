@@ -39,3 +39,21 @@
 - [ ] Set up Play Console listing
 - [ ] Add RevenueCat for production in-app purchases
 - [ ] Add OCR for shopping list photo import (server-side LLM)
+
+## Store Discovery Redesign
+- [x] Research best free/no-key API for nearby store lookup (Overpass/OSM vs Google Places)
+- [x] Implement getNearbyStores(lat, lng) function using chosen API
+- [x] Rebuild Stores screen: get user location → show nearby stores list with real addresses → tap to add
+- [x] Remove manual address entry form entirely
+- [x] Show distance to each nearby store (e.g. "0.2 mi away")
+- [x] Add pull-to-refresh to reload nearby stores
+- [x] Handle location permission denied gracefully in the new flow
+
+## Permission & Geofencing Fixes
+- [x] Request notification permission automatically on first app open (not in Settings)
+- [x] Request foreground location permission on first app open
+- [x] Request background location permission on Android (separate step after foreground)
+- [x] Auto-start geofencing immediately after permissions are granted
+- [x] Show geofencing as active on Dashboard when stores exist and permissions are granted
+- [x] Fix onboarding permission steps to actually trigger system dialogs
+- [x] Ensure geofencing restarts automatically when app is reopened with existing stores
