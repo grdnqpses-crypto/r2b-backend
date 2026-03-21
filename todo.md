@@ -96,3 +96,6 @@
 ## Sort & Share Features
 - [x] Sort by distance toggle on Stores tab (nearest stores first)
 - [x] Share sheet button on My List screen to send shopping list via text/email
+
+## CRITICAL: Onboarding Close Bug
+- [x] App closes immediately after tutorial steps — fixed: animation callback was interrupted by system dialogs, leaving opacity at 0. Now sets step immediately and fades in.

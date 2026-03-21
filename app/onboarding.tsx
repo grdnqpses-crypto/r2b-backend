@@ -70,11 +70,18 @@ export default function OnboardingScreen() {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const currentStep = STEPS[step];
 
+  // Check existing permission status when arriving at a permission step (do NOT auto-request)
   useEffect(() => {
     if (currentStep.action === "notifications") {
-      requestNotifications();
+      Notifications.getPermissionsAsync().then(({ status }) => {
+        if (status === "granted") setNotifStatus("granted");
+        else if (status === "denied") setNotifStatus("denied");
+      });
     } else if (currentStep.action === "location_fg") {
-      requestForegroundLocation();
+      Location.getForegroundPermissionsAsync().then(({ status }) => {
+        if (status === "granted") setFgStatus("granted");
+        else if (status === "denied") setFgStatus("denied");
+      });
     } else if (currentStep.action === "location_bg") {
       Location.getBackgroundPermissionsAsync().then(({ status }) => {
         if (status === "granted") setBgStatus("granted");
@@ -82,11 +89,13 @@ export default function OnboardingScreen() {
     }
   }, [step]);
 
-  const animateToNextStep = (nextStep: number) => {
-    Animated.timing(fadeAnim, { toValue: 0, duration: 180, useNativeDriver: true }).start(() => {
-      setStep(nextStep);
-      Animated.timing(fadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
-    });
+  const animateToNextStep = (nextStepIndex: number) => {
+    // Set step immediately — do NOT rely on animation callback to set step.
+    // Relying on the callback caused a blank screen when system dialogs
+    // interrupted the animation chain (opacity stuck at 0).
+    fadeAnim.setValue(0);
+    setStep(nextStepIndex);
+    Animated.timing(fadeAnim, { toValue: 1, duration: 280, useNativeDriver: true }).start();
   };
 
   const nextStep = () => {
