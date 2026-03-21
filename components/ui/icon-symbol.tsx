@@ -37,6 +37,7 @@ const MAPPING = {
   "link": "link",
   "checkmark.circle.fill": "check-circle",
   "xmark": "close",
+  "square.and.arrow.up": "share",
 } as IconMapping;
 
 export function IconSymbol({

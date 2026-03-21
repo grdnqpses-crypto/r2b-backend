@@ -30,6 +30,7 @@ export default function StoresScreen() {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [searchText, setSearchText] = useState("");
   const [addingId, setAddingId] = useState<string | null>(null);
+  const [sortByDistance, setSortByDistance] = useState(true);
 
   const loadSavedStores = useCallback(async () => {
     const [storesData, tierData] = await Promise.all([getSavedStores(), getTier()]);
@@ -162,10 +163,12 @@ export default function StoresScreen() {
     ]);
   };
 
-  const filteredNearby = nearbyStores.filter((s) =>
-    !searchText || s.name.toLowerCase().includes(searchText.toLowerCase()) ||
-    s.category.toLowerCase().includes(searchText.toLowerCase())
-  );
+  const filteredNearby = nearbyStores
+    .filter((s) =>
+      !searchText || s.name.toLowerCase().includes(searchText.toLowerCase()) ||
+      s.category.toLowerCase().includes(searchText.toLowerCase())
+    )
+    .sort((a, b) => sortByDistance ? (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0) : 0);
 
   const isStoreAdded = (nearby: NearbyStore) =>
     savedStores.some((s) => Math.abs(s.lat - nearby.lat) < 0.0001 && Math.abs(s.lng - nearby.lng) < 0.0001);
@@ -284,6 +287,22 @@ export default function StoresScreen() {
               />
             </View>
 
+            {/* Sort toggle */}
+            <View style={styles.sortRow}>
+              <Text style={[styles.sortLabel, { color: colors.muted }]}>Sort:</Text>
+              <Pressable
+                style={[styles.sortBtn, sortByDistance && { backgroundColor: colors.primary }]}
+                onPress={() => setSortByDistance(true)}
+              >
+                <Text style={[styles.sortBtnText, { color: sortByDistance ? "#fff" : colors.muted }]}>Nearest first</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.sortBtn, !sortByDistance && { backgroundColor: colors.primary }]}
+                onPress={() => setSortByDistance(false)}
+              >
+                <Text style={[styles.sortBtnText, { color: !sortByDistance ? "#fff" : colors.muted }]}>A–Z</Text>
+              </Pressable>
+            </View>
             {loading ? (
               <View style={styles.centered}>
                 <ActivityIndicator size="large" color={colors.primary} />
@@ -363,7 +382,11 @@ const styles = StyleSheet.create({
   tabBar: { flexDirection: "row", borderRadius: 12, borderWidth: 1, padding: 3, marginBottom: 12, gap: 3 },
   tab: { flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center" },
   tabText: { fontSize: 14, fontWeight: "600" },
-  searchBar: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, marginBottom: 10 },
+  searchBar: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, marginBottom: 8 },
+  sortRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 },
+  sortLabel: { fontSize: 13, fontWeight: "500", marginRight: 2 },
+  sortBtn: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, backgroundColor: "transparent" },
+  sortBtnText: { fontSize: 13, fontWeight: "600" },
   searchInput: { flex: 1, fontSize: 15, paddingVertical: 10 },
   listContent: { paddingBottom: 24 },
   storeCard: { flexDirection: "row", alignItems: "center", padding: 12, borderRadius: 14, borderWidth: 1, gap: 12 },

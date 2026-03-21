@@ -92,3 +92,7 @@
 - [x] Android inline text input for referral code (replace Alert.alert with TextInput in onboarding)
 - [x] Arrival notification shows top 3 unchecked shopping list items in notification body
 - [x] List tab icon badge count showing number of unchecked items
+
+## Sort & Share Features
+- [x] Sort by distance toggle on Stores tab (nearest stores first)
+- [x] Share sheet button on My List screen to send shopping list via text/email

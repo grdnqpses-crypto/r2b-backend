@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { Share } from "react-native";
 import {
   View, Text, FlatList, Pressable, TextInput,
   StyleSheet, Alert, Platform, ActivityIndicator,
@@ -60,6 +61,28 @@ export default function ListScreen() {
     await loadItems();
   };
 
+  const handleShare = async () => {
+    const unchecked = items.filter((i) => !i.checked);
+    const checked = items.filter((i) => i.checked);
+    if (items.length === 0) {
+      Alert.alert("Nothing to share", "Add some items to your list first.");
+      return;
+    }
+    let message = "My Shopping List (Remember2Buy)\n\n";
+    if (unchecked.length > 0) {
+      message += unchecked.map((i) => `▢ ${i.text}`).join("\n");
+    }
+    if (checked.length > 0) {
+      if (unchecked.length > 0) message += "\n\n";
+      message += "Already bought:\n" + checked.map((i) => `✓ ${i.text}`).join("\n");
+    }
+    try {
+      await Share.share({ message, title: "My Shopping List" });
+    } catch {
+      // user cancelled — no-op
+    }
+  };
+
   const handleClearChecked = async () => {
     const checkedCount = items.filter((i) => i.checked).length;
     if (checkedCount === 0) return;
@@ -117,11 +140,19 @@ export default function ListScreen() {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.foreground }]}>My List</Text>
-          {checked.length > 0 && (
-            <Pressable style={({ pressed }) => [styles.clearBtn, { opacity: pressed ? 0.7 : 1 }]} onPress={handleClearChecked}>
-              <Text style={[styles.clearBtnText, { color: colors.error }]}>Clear bought</Text>
+          <View style={styles.headerActions}>
+            {checked.length > 0 && (
+              <Pressable style={({ pressed }) => [styles.clearBtn, { opacity: pressed ? 0.7 : 1 }]} onPress={handleClearChecked}>
+                <Text style={[styles.clearBtnText, { color: colors.error }]}>Clear bought</Text>
+              </Pressable>
+            )}
+            <Pressable
+              style={({ pressed }) => [styles.shareBtn, { backgroundColor: colors.primary + "18", opacity: pressed ? 0.7 : 1 }]}
+              onPress={handleShare}
+            >
+              <IconSymbol name="square.and.arrow.up" size={18} color={colors.primary} />
             </Pressable>
-          )}
+          </View>
         </View>
 
         {tier === "free" && (
@@ -198,8 +229,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 16, paddingBottom: 12 },
   title: { fontSize: 24, fontWeight: "700" },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   clearBtn: { paddingVertical: 6, paddingHorizontal: 10 },
   clearBtnText: { fontSize: 13, fontWeight: "500" },
+  shareBtn: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   limitBar: { flexDirection: "row", alignItems: "center", padding: 10, borderRadius: 10, borderWidth: 1, marginBottom: 10, gap: 8 },
   limitText: { fontSize: 12, minWidth: 50 },
   limitTrack: { flex: 1, height: 4, borderRadius: 2, overflow: "hidden" },
