@@ -3,18 +3,16 @@ import {
   View, Text, Pressable, StyleSheet, Platform, Alert, Linking,
   Animated, Dimensions, TextInput, KeyboardAvoidingView,
 } from "react-native";
-import { useRouter } from "expo-router";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
-import {
-  markOnboardingDone, applyReferralCode, getSavedStores,
-} from "@/lib/storage";
+import { applyReferralCode, getSavedStores } from "@/lib/storage";
 import { startGeofencing } from "@/lib/geofence";
 import { setupNotifications } from "@/lib/notifications";
+import { useOnboarding } from "@/lib/onboarding-context";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -60,7 +58,7 @@ const TUTORIAL_STEPS = [
 
 export default function OnboardingScreen() {
   const colors = useColors();
-  const router = useRouter();
+  const { completeOnboarding } = useOnboarding();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [notifStatus, setNotifStatus] = useState<PermStatus>("unknown");
@@ -105,8 +103,19 @@ export default function OnboardingScreen() {
     else animateToNextStep(next);
   };
 
+  /**
+   * CRITICAL FIX: Do NOT call router.replace() here.
+   *
+   * router.replace() crashes on Android with Expo SDK 54 + newArchEnabled: true
+   * (Expo Router 6 / bridgeless mode). See: https://github.com/expo/expo/issues/41030
+   *
+   * Instead, we call completeOnboarding() which:
+   * 1. Persists the onboarding flag to AsyncStorage
+   * 2. Updates the OnboardingContext state (isOnboardingComplete = true)
+   * 3. Stack.Protected in _layout.tsx detects the state change and automatically
+   *    redirects to (tabs) — zero navigation calls from our code.
+   */
   const finish = async () => {
-    await markOnboardingDone();
     try {
       const bg = await Location.getBackgroundPermissionsAsync();
       if (bg.status === "granted") {
@@ -114,7 +123,8 @@ export default function OnboardingScreen() {
         if (stores.length > 0) await startGeofencing(stores);
       }
     } catch {}
-    router.replace("/(tabs)" as any);
+    // This persists the flag AND updates context state, which triggers Stack.Protected redirect
+    await completeOnboarding();
   };
 
   const requestNotifications = async () => {

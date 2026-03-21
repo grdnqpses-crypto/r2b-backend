@@ -5,7 +5,8 @@ import "@/lib/notifications";
 import "@/global.css";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack } from "expo-router";
+import { SplashScreen } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -14,13 +15,16 @@ import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { trpc, createTRPCClient } from "@/lib/trpc";
-import { isOnboardingDone, getSavedStores } from "@/lib/storage";
+import { OnboardingProvider, useOnboarding } from "@/lib/onboarding-context";
+import { getSavedStores } from "@/lib/storage";
 import { checkLocationPermissions, startGeofencing } from "@/lib/geofence";
+
+// Keep the splash screen visible until we have loaded onboarding state
+SplashScreen.preventAutoHideAsync();
 
 /**
  * On every app launch, if background location is granted and stores exist,
- * restart geofencing automatically. This handles the case where the app
- * was killed and reopened.
+ * restart geofencing automatically.
  */
 async function autoStartGeofencing() {
   try {
@@ -34,31 +38,49 @@ async function autoStartGeofencing() {
   }
 }
 
-export const unstable_settings = {
-  anchor: "(tabs)",
-};
-
-function OnboardingGuard({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const segments = useSegments();
-  const [checked, setChecked] = useState(false);
+/**
+ * RootNavigator uses Stack.Protected to declaratively gate screens.
+ * This is the officially recommended pattern for SDK 53+ (Expo Router v5+).
+ *
+ * IMPORTANT: We do NOT call router.replace() anywhere. The router handles
+ * the redirect automatically when the guard condition changes.
+ * router.replace() is known to crash on Android with newArchEnabled: true
+ * (Expo SDK 54, Expo Router 6). See: https://github.com/expo/expo/issues/41030
+ */
+function RootNavigator() {
+  const { isLoaded, isOnboardingComplete } = useOnboarding();
 
   useEffect(() => {
-    (async () => {
-      const done = await isOnboardingDone();
-      const inOnboarding = (segments[0] as string) === "onboarding";
-      if (!done && !inOnboarding) {
-        router.replace("/onboarding" as any);
-      } else if (done) {
-        // Onboarding complete — auto-restart geofencing in background
+    if (isLoaded) {
+      SplashScreen.hideAsync();
+      if (isOnboardingComplete) {
         autoStartGeofencing();
       }
-      setChecked(true);
-    })();
-  }, []);
+    }
+  }, [isLoaded, isOnboardingComplete]);
 
-  if (!checked) return null;
-  return <>{children}</>;
+  // Keep splash screen up until we know onboarding state
+  if (!isLoaded) return null;
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      {/* Screens only accessible when onboarding is NOT complete */}
+      <Stack.Protected guard={!isOnboardingComplete}>
+        <Stack.Screen
+          name="onboarding"
+          options={{ animation: "fade", gestureEnabled: false }}
+        />
+      </Stack.Protected>
+
+      {/* Screens only accessible when onboarding IS complete */}
+      <Stack.Protected guard={isOnboardingComplete}>
+        <Stack.Screen name="(tabs)" />
+      </Stack.Protected>
+
+      {/* Always accessible */}
+      <Stack.Screen name="oauth/callback" />
+    </Stack>
+  );
 }
 
 export default function RootLayout() {
@@ -81,14 +103,10 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }}>
           <trpc.Provider client={trpcClient} queryClient={queryClient}>
             <QueryClientProvider client={queryClient}>
-              <OnboardingGuard>
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="(tabs)" />
-                  <Stack.Screen name="onboarding" options={{ animation: "fade", gestureEnabled: false }} />
-                  <Stack.Screen name="oauth/callback" />
-                </Stack>
-              </OnboardingGuard>
-              <StatusBar style="auto" />
+              <OnboardingProvider>
+                <RootNavigator />
+                <StatusBar style="auto" />
+              </OnboardingProvider>
             </QueryClientProvider>
           </trpc.Provider>
         </GestureHandlerRootView>
