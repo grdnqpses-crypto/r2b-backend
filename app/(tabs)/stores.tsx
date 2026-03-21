@@ -13,7 +13,7 @@ import {
   getSavedStores, addSavedStore, deleteSavedStore, getTier,
   FREE_STORE_LIMIT, type SavedStore, type Tier,
 } from "@/lib/storage";
-import { getNearbyStores, formatDistance, type NearbyStore } from "@/lib/nearby-stores";
+import { getNearbyStores, enrichStoreAddresses, formatDistance, type NearbyStore } from "@/lib/nearby-stores";
 import { startGeofencing, stopGeofencing } from "@/lib/geofence";
 import { setupNotifications } from "@/lib/notifications";
 
@@ -50,7 +50,17 @@ export default function StoresScreen() {
         accuracy: Location.Accuracy.Balanced,
       });
       const stores = await getNearbyStores(location.coords.latitude, location.coords.longitude);
-      setNearbyStores(stores);
+      // Phase 1: show stores immediately (some may have blank addresses)
+      setNearbyStores([...stores]);
+      setLoading(false);
+      // Phase 2: enrich missing addresses via reverse geocoding in background
+      // then force a re-render so the addresses appear
+      enrichStoreAddresses(stores).then(() => {
+        setNearbyStores([...stores]);
+      }).catch(() => {
+        // Non-fatal — addresses may remain blank for some stores
+      });
+      return; // skip the finally setLoading(false) since we already called it
     } catch (err: any) {
       if (err?.message?.includes("Overpass")) {
         setLocationError("Could not reach the store database. Please check your internet connection and try again.");

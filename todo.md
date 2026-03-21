@@ -57,3 +57,7 @@
 - [x] Show geofencing as active on Dashboard when stores exist and permissions are granted
 - [x] Fix onboarding permission steps to actually trigger system dialogs
 - [x] Ensure geofencing restarts automatically when app is reopened with existing stores
+
+## Address Display Fix
+- [x] Fix nearby stores showing no addresses — diagnose Overpass API response parsing
+- [x] Ensure address field is correctly extracted and displayed in the stores list

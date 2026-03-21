@@ -2,14 +2,20 @@
  * Nearby store discovery using the Overpass API (OpenStreetMap).
  * No API key required. Free to use.
  *
- * Queries for shops, supermarkets, pharmacies, and other retail
- * within a configurable radius of the user's current location.
+ * Strategy:
+ * 1. getNearbyStores() returns stores immediately with OSM addr: tags where available.
+ *    Stores without addr: tags get address = "" initially.
+ * 2. enrichStoreAddresses() can be called separately to fill in missing addresses
+ *    via Expo reverseGeocodeAsync, updating the array in-place.
+ *    The caller is responsible for triggering a re-render after this.
  */
+
+import * as Location from "expo-location";
 
 export interface NearbyStore {
   id: string;          // OSM node/way ID
   name: string;
-  address: string;     // Formatted address string
+  address: string;     // Formatted address string (may be empty until enriched)
   lat: number;
   lng: number;
   distanceMeters: number;
@@ -73,7 +79,7 @@ const AMENITY_CATEGORY_MAP: Record<string, string> = {
 };
 
 function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000; // Earth radius in meters
+  const R = 6371000;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
   const a =
@@ -84,7 +90,11 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function formatAddress(tags: Record<string, string>): string {
+/**
+ * Build a formatted address from OSM addr: tags.
+ * Returns empty string if no addr: tags are present.
+ */
+function formatAddressFromTags(tags: Record<string, string>): string {
   const parts: string[] = [];
   if (tags["addr:housenumber"] && tags["addr:street"]) {
     parts.push(`${tags["addr:housenumber"]} ${tags["addr:street"]}`);
@@ -97,6 +107,23 @@ function formatAddress(tags: Record<string, string>): string {
   return parts.join(", ");
 }
 
+/**
+ * Format an address from Expo's reverse geocode result.
+ * Returns empty string if no useful data.
+ */
+function formatAddressFromGeocode(result: Location.LocationGeocodedAddress): string {
+  const parts: string[] = [];
+  if (result.streetNumber && result.street) {
+    parts.push(`${result.streetNumber} ${result.street}`);
+  } else if (result.street) {
+    parts.push(result.street);
+  }
+  if (result.city) parts.push(result.city);
+  if (result.region) parts.push(result.region);
+  if (result.postalCode) parts.push(result.postalCode);
+  return parts.join(", ");
+}
+
 function getCategory(tags: Record<string, string>): string {
   const shopType = tags["shop"];
   const amenityType = tags["amenity"];
@@ -106,7 +133,6 @@ function getCategory(tags: Record<string, string>): string {
 }
 
 function buildOverpassQuery(lat: number, lng: number, radius: number): string {
-  // Query for nodes and ways that are shops or relevant amenities
   return `
 [out:json][timeout:25];
 (
@@ -128,6 +154,12 @@ interface OSMElement {
   tags?: Record<string, string>;
 }
 
+/**
+ * Fetch nearby stores from Overpass API.
+ * Returns immediately with OSM address data where available.
+ * Stores without OSM addr: tags will have address = "".
+ * Call enrichStoreAddresses() afterwards to fill in missing addresses.
+ */
 export async function getNearbyStores(
   lat: number,
   lng: number,
@@ -149,14 +181,14 @@ export async function getNearbyStores(
   const elements: OSMElement[] = data.elements ?? [];
 
   const stores: NearbyStore[] = [];
-  const seen = new Set<string>(); // deduplicate by name+approx location
+  const seen = new Set<string>();
 
   for (const el of elements) {
     const tags = el.tags ?? {};
     const name = tags["name"] ?? tags["brand"] ?? tags["operator"];
-    if (!name) continue; // Skip unnamed stores
+    if (!name) continue;
 
-    // Skip fast food, cafes, restaurants — focus on retail/grocery
+    // Skip fast food, cafes, restaurants
     const amenity = tags["amenity"];
     if (amenity && ["fast_food", "restaurant", "cafe", "bar", "pub"].includes(amenity)) continue;
 
@@ -165,10 +197,10 @@ export async function getNearbyStores(
     if (!elLat || !elLng) continue;
 
     const distance = haversineDistance(lat, lng, elLat, elLng);
-    const address = formatAddress(tags);
+    const address = formatAddressFromTags(tags);
     const category = getCategory(tags);
 
-    // Deduplicate: same name within 100m
+    // Deduplicate: same name within ~100m
     const dedupeKey = `${name.toLowerCase()}_${Math.round(elLat * 1000)}_${Math.round(elLng * 1000)}`;
     if (seen.has(dedupeKey)) continue;
     seen.add(dedupeKey);
@@ -189,6 +221,40 @@ export async function getNearbyStores(
   stores.sort((a, b) => a.distanceMeters - b.distanceMeters);
 
   return stores;
+}
+
+/**
+ * Enrich stores that are missing addresses using Expo reverse geocoding.
+ * Mutates the store objects in-place. Call setNearbyStores([...stores]) after this.
+ *
+ * Only processes the first `limit` stores without addresses to avoid rate limiting.
+ * Returns true when done so the caller can trigger a re-render.
+ */
+export async function enrichStoreAddresses(
+  stores: NearbyStore[],
+  limit = 30
+): Promise<void> {
+  const missing = stores.filter((s) => !s.address);
+  if (missing.length === 0) return;
+
+  const toEnrich = missing.slice(0, limit);
+
+  for (const store of toEnrich) {
+    try {
+      const results = await Location.reverseGeocodeAsync({
+        latitude: store.lat,
+        longitude: store.lng,
+      });
+      if (results.length > 0) {
+        const addr = formatAddressFromGeocode(results[0]);
+        if (addr) store.address = addr;
+      }
+    } catch {
+      // Non-fatal — leave address blank
+    }
+    // Small delay to avoid geocoder rate limiting
+    await new Promise((r) => setTimeout(r, 80));
+  }
 }
 
 export function formatDistance(meters: number): string {

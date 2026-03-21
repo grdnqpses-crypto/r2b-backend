@@ -1,4 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// Mock expo-location so the test runner doesn't try to parse native modules
+vi.mock("expo-location", () => ({
+  reverseGeocodeAsync: vi.fn().mockResolvedValue([]),
+  LocationGeocodedAddress: {},
+}));
+
 import { getNearbyStores, formatDistance } from "../lib/nearby-stores";
 
 // Mock fetch globally
