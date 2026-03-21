@@ -1,1093 +1,236 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
-  TextInput,
-  FlatList,
-  Pressable,
-  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
   Platform,
-  Modal,
-  Animated,
-  Easing,
+  StyleSheet,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
-import { useOnboarding } from "@/hooks/use-onboarding";
-import { useScanHistoryContext } from "@/lib/scan-history-provider";
-import type { ScanResult } from "@/hooks/use-scan-history";
-import { useCustomBeliefs } from "@/hooks/use-custom-beliefs";
-import { useBeliefStreak, getStreakMessage, getMilestoneLabel } from "@/hooks/use-belief-streak";
-import { Onboarding } from "@/components/onboarding";
-import { LiveScanner } from "@/components/live-scanner";
-import { ErrorBoundary } from "@/components/error-boundary";
-import { ResultsScreen } from "@/components/results-screen";
-import { BedtimeMessage } from "@/components/bedtime-message";
-import { CreateBeliefModal } from "@/components/create-belief-modal";
-import { JournalEntryModal } from "@/components/journal-entry-modal";
-import { BeliefMeditation } from "@/components/belief-meditation";
-import { ScanReport } from "@/components/scan-report";
-import { BeliefTimer } from "@/components/belief-timer";
-import { useAppSettings } from "@/app/(tabs)/settings";
-import { useAchievements } from "@/hooks/use-achievements";
-import {
-  BELIEF_CATEGORIES,
-  ALL_BELIEFS,
-  type BeliefOption,
-  type BeliefCategory,
-} from "@/constants/beliefs";
-import { getBeliefById } from "@/constants/beliefs";
-import { Haptics, LinearGradient } from "@/lib/safe-imports";
-import { DailyChallenge } from "@/components/daily-challenge";
-import { Sentry } from "@/lib/sentry";
-import { useSubscription } from "@/hooks/use-subscription";
-import { SubscriptionConsent } from "@/components/subscription-consent";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 
-type Screen =
-  | "home"
-  | "meditation"
-  | "scanning"
-  | "results"
-  | "bedtime"
-  | "create-belief"
-  | "journal"
-  | "report"
-  | "timer"
-  ;
+interface SelectedStore {
+  id: string;
+  name: string;
+  lat?: number;
+  lng?: number;
+}
 
-export default function DetectScreen() {
+interface ShoppingItem {
+  id: string;
+  name: string;
+  quantity: string;
+  checked: boolean;
+}
+
+export default function DashboardScreen() {
   const colors = useColors();
-  const onboarding = useOnboarding();
-
-  // homeReady: controls when the home screen content is rendered.
-  // - For new users: home screen mounts immediately (hidden under onboarding overlay)
-  // - For returning users: mount immediately (they skip onboarding entirely)
-  // - Only stays false while AsyncStorage is loading (onboarding.done === null)
-  const [homeReady, setHomeReady] = useState(false);
-  useEffect(() => {
-    if (onboarding.done !== null) {
-      const raf = requestAnimationFrame(() => setHomeReady(true));
-      return () => cancelAnimationFrame(raf);
-    }
-  }, [onboarding.done]);
-
-  const { history, saveScan, updateJournal } = useScanHistoryContext();
-  const { customBeliefs, addBelief } = useCustomBeliefs();
-  const { streak, scannedToday, newMilestones, recordScan, clearNewMilestones } = useBeliefStreak();
-  const { settings } = useAppSettings();
-  const achievements = useAchievements();
-  const subscription = useSubscription();
-
-  const insets = useSafeAreaInsets();
-  const [screen, setScreen] = useState<Screen>("home");
-  const [selectedBelief, setSelectedBelief] = useState<BeliefOption | null>(null);
-  const [intensity, setIntensity] = useState(7);
-  const [searchText, setSearchText] = useState("");
-  const [expandedCategory, setExpandedCategory] = useState<string | null>("childhood");
-  const [lastResult, setLastResult] = useState<ScanResult | null>(null);
-
-  // Onboarding overlay state — must be declared here (before any early returns)
-  const [onboardingVisible, setOnboardingVisible] = useState(!onboarding.done);
-  const onboardingOpacity = useRef(new Animated.Value(onboarding.done ? 0 : 1)).current;
-
-  // Consent overlay state — shown after onboarding completes, before home screen is usable
-  const [consentVisible, setConsentVisible] = useState(false);
-  const consentOpacity = useRef(new Animated.Value(0)).current;
-
-  // Sticky CTA bar animation
-  const ctaBarY = useRef(new Animated.Value(120)).current;
-  const ctaBarOpacity = useRef(new Animated.Value(0)).current;
-
-  // Scroll hint arrow — bounces to tell user to scroll down
-  const scrollHintOpacity = useRef(new Animated.Value(1)).current;
-  const scrollHintBounce = useRef(new Animated.Value(0)).current;
-  const [scrollHintVisible, setScrollHintVisible] = useState(true);
+  const [stores, setStores] = useState<SelectedStore[]>([]);
+  const [items, setItems] = useState<ShoppingItem[]>([]);
+  const [locationGranted, setLocationGranted] = useState(false);
+  const [userLat, setUserLat] = useState<number | null>(null);
+  const [userLng, setUserLng] = useState<number | null>(null);
+  const [nearestStore, setNearestStore] = useState<SelectedStore | null>(null);
+  const [distanceMiles, setDistanceMiles] = useState<number | null>(null);
+  const alertFiredRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!scrollHintVisible) return;
-    const anim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(scrollHintBounce, { toValue: 8, duration: 500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(scrollHintBounce, { toValue: 0, duration: 500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ])
-    );
-    anim.start();
-    return () => anim.stop();
-  }, [scrollHintVisible]);
-  const ctaPulse = useRef(new Animated.Value(1)).current;
-  const ctaPulseAnim = useRef<Animated.CompositeAnimation | null>(null);
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const s = await AsyncStorage.getItem("@r2b_selected_stores");
+      const i = await AsyncStorage.getItem("@r2b_shopping_items");
+      if (s) setStores(JSON.parse(s));
+      if (i) setItems(JSON.parse(i));
+    } catch {}
+  };
 
   useEffect(() => {
-    if (selectedBelief) {
-      Animated.parallel([
-        Animated.timing(ctaBarY, { toValue: 0, duration: 320, easing: Easing.out(Easing.back(1.4)), useNativeDriver: true }),
-        Animated.timing(ctaBarOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
-      ]).start(() => {
-        if (Platform.OS !== "web") {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        }
-        ctaPulseAnim.current = Animated.loop(
-          Animated.sequence([
-            Animated.timing(ctaPulse, { toValue: 1.04, duration: 500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-            Animated.timing(ctaPulse, { toValue: 1, duration: 500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-          ]),
-          { iterations: 3 }
-        );
-        ctaPulseAnim.current.start();
-      });
-    } else {
-      ctaPulseAnim.current?.stop();
-      Animated.parallel([
-        Animated.timing(ctaBarY, { toValue: 120, duration: 220, easing: Easing.in(Easing.ease), useNativeDriver: true }),
-        Animated.timing(ctaBarOpacity, { toValue: 0, duration: 180, useNativeDriver: true }),
-      ]).start();
-    }
-  }, [selectedBelief]);
-
-  // After subscription loads: if user has not yet consented and onboarding is done,
-  // show the consent overlay. This runs once when subscription state resolves.
-  useEffect(() => {
-    if (subscription.loading) return;
-    if (!onboarding.done) return; // onboarding overlay is still showing
-    if (!subscription.hasConsented) {
-      // Show consent screen
-      setConsentVisible(true);
-      Animated.timing(consentOpacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [subscription.loading, subscription.hasConsented, onboarding.done]);
-
-  // Combine built-in + custom beliefs for display
-  const allCategories: BeliefCategory[] = useMemo(() => {
-    const cats = [...BELIEF_CATEGORIES];
-    if (customBeliefs.length > 0) {
-      cats.push({
-        id: "custom",
-        name: "My Custom Beliefs",
-        emoji: "🎨",
-        beliefs: customBeliefs,
-      });
-    }
-    return cats;
-  }, [customBeliefs]);
-
-  const allBeliefs = useMemo(
-    () => [...ALL_BELIEFS, ...customBeliefs],
-    [customBeliefs]
-  );
-
-  const handleSelectBelief = useCallback((belief: BeliefOption) => {
-    setSelectedBelief(belief);
-    Sentry.addBreadcrumb({
-      message: `Belief selected: ${belief.emoji} ${belief.name}`,
-      category: "belief",
-      level: "info",
-      data: { beliefId: belief.id, category: belief.category },
-    });
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS === "web" && typeof navigator !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setUserLat(pos.coords.latitude);
+          setUserLng(pos.coords.longitude);
+          setLocationGranted(true);
+        },
+        () => setLocationGranted(false),
+        { enableHighAccuracy: true }
+      );
     }
   }, []);
 
-  const handleStartScan = useCallback(() => {
-    if (!selectedBelief) return;
-    Sentry.addBreadcrumb({
-      message: `Scan started: ${selectedBelief.emoji} ${selectedBelief.name} (intensity ${intensity})`,
-      category: "scan",
-      level: "info",
-      data: { beliefId: selectedBelief.id, intensity },
-    });
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-    if (settings.meditationEnabled) {
-      setScreen("meditation");
-    } else {
-      setScreen("scanning");
-    }
-  }, [selectedBelief, settings.meditationEnabled, intensity]);
-
-  const handleScanComplete = useCallback(
-    async (result: ScanResult) => {
-      Sentry.addBreadcrumb({
-        message: `Scan completed: ${result.beliefName} — score ${Math.round(result.score)}`,
-        category: "scan",
-        level: "info",
-        data: { beliefId: result.beliefId, score: result.score },
-      });
-      setLastResult(result);
-      await saveScan(result);
-      await recordScan(result.score, result.beliefName);
-      const totalScans = history.length + 1;
-      const uniqueBeliefs = [...new Set([...history.map(h => h.beliefId), result.beliefId])];
-      const uniqueCategories = [...new Set(uniqueBeliefs.map(id => {
-        const b = getBeliefById(id);
-        return b?.category || "custom";
-      }))];
-      achievements.checkAchievements({
-        totalScans,
-        currentStreak: streak.currentStreak,
-        personalBest: Math.max(result.score, streak.personalBest),
-        uniqueBeliefs,
-        uniqueCategories,
-        journalCount: history.filter(h => h.journalEntry).length,
-        usedMeditation: settings.meditationEnabled,
-      });
-      setScreen("results");
-    },
-    [saveScan, recordScan, history, streak, achievements, settings.meditationEnabled]
-  );
-
-  const handleBedtime = useCallback(() => setScreen("bedtime"), []);
-  const handleTimer = useCallback(() => setScreen("timer"), []);
-  const handleViewReport = useCallback(() => setScreen("report"), []);
-  const handleJournal = useCallback(() => setScreen("journal"), []);
-
-  const handleJournalSave = useCallback(
-    async (entry: string) => {
-      if (lastResult) {
-        await updateJournal(lastResult.id, entry);
-        setLastResult({ ...lastResult, journalEntry: entry });
-      }
-      setScreen("results");
-    },
-    [lastResult, updateJournal]
-  );
-
-  const handleCreateBelief = useCallback(
-    (belief: BeliefOption) => {
-      addBelief(belief);
-      setSelectedBelief(belief);
-      setExpandedCategory("custom");
-      setScreen("home");
-    },
-    [addBelief]
-  );
-
-  const handleOnboardingComplete = useCallback(() => {
-    Animated.timing(onboardingOpacity, {
-      toValue: 0,
-      duration: 400,
-      useNativeDriver: true,
-    }).start(() => {
-      setOnboardingVisible(false);
-      onboarding.complete();
-      // After onboarding fades out, show consent if not yet given
-      if (!subscription.hasConsented) {
-        setConsentVisible(true);
-        Animated.timing(consentOpacity, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }).start();
-      }
-    });
-  }, [onboarding, onboardingOpacity, subscription.hasConsented, consentOpacity]);
-
-  const handleConsentAgree = useCallback(async () => {
-    await subscription.startTrial();
-    // Fade out consent overlay
-    Animated.timing(consentOpacity, {
-      toValue: 0,
-      duration: 350,
-      useNativeDriver: true,
-    }).start(() => {
-      setConsentVisible(false);
-    });
-  }, [subscription, consentOpacity]);
-
-  // todaysBestScore MUST be above all early returns (Rules of Hooks)
-  const todaysBestScore = useMemo(() => {
-    const today = new Date().toDateString();
-    const todayScans = history.filter(h => new Date(h.date).toDateString() === today);
-    return todayScans.length > 0 ? Math.max(...todayScans.map(h => h.score)) : 0;
-  }, [history]);
-
-  // Show nothing until AsyncStorage check completes
-  if (onboarding.done === null) return null;
-  if (!homeReady) return null;
-
-  // Modal screens
-  if (screen === "create-belief") {
-    return (
-      <Modal visible animationType="slide" statusBarTranslucent>
-        <CreateBeliefModal
-          onSave={handleCreateBelief}
-          onCancel={() => setScreen("home")}
-        />
-      </Modal>
-    );
-  }
-
-  if (screen === "meditation" && selectedBelief) {
-    return (
-      <Modal visible animationType="fade" statusBarTranslucent>
-        <ErrorBoundary retryable onRetry={() => setScreen("home")}>
-          <BeliefMeditation
-            belief={selectedBelief}
-            onComplete={() => setScreen("scanning")}
-            onSkip={() => setScreen("scanning")}
-          />
-        </ErrorBoundary>
-      </Modal>
-    );
-  }
-
-  if (screen === "scanning" && selectedBelief) {
-    return (
-      <Modal visible animationType="slide" statusBarTranslucent>
-        <ErrorBoundary
-          retryable
-          onRetry={() => setScreen("home")}
-          onError={(error) => {
-            console.warn("[Scanner] Caught crash:", error.message);
-          }}
-        >
-          <LiveScanner
-            belief={selectedBelief}
-            intensity={intensity}
-            scanDuration={0}
-            soundEnabled={settings.soundEnabled}
-            storyEnabled={settings.storyNarrationEnabled}
-            onComplete={handleScanComplete}
-            onCancel={() => setScreen("home")}
-          />
-        </ErrorBoundary>
-      </Modal>
-    );
-  }
-
-  if (screen === "journal" && lastResult) {
-    return (
-      <Modal visible animationType="slide" statusBarTranslucent>
-        <ErrorBoundary retryable onRetry={() => setScreen("home")}>
-          <JournalEntryModal
-            beliefName={lastResult.beliefName}
-            beliefEmoji={lastResult.beliefEmoji}
-            score={lastResult.score}
-            existingEntry={lastResult.journalEntry}
-            onSave={handleJournalSave}
-            onSkip={() => setScreen("results")}
-          />
-        </ErrorBoundary>
-      </Modal>
-    );
-  }
-
-  if (screen === "report" && lastResult) {
-    return (
-      <Modal visible animationType="slide" statusBarTranslucent>
-        <ErrorBoundary retryable onRetry={() => setScreen("home")}>
-          <ScanReport
-            result={lastResult}
-            onDismiss={() => setScreen("results")}
-          />
-        </ErrorBoundary>
-      </Modal>
-    );
-  }
-
-  if (screen === "results" && lastResult) {
-    return (
-      <Modal visible animationType="slide" statusBarTranslucent>
-        <ErrorBoundary retryable onRetry={() => setScreen("home")}>
-          <ResultsScreen
-            result={lastResult}
-            onDismiss={() => setScreen("home")}
-            onBedtime={handleBedtime}
-            onTimer={handleTimer}
-            onJournal={handleJournal}
-            onReport={handleViewReport}
-          />
-        </ErrorBoundary>
-      </Modal>
-    );
-  }
-
-  if (screen === "timer" && lastResult) {
-    return (
-      <Modal visible animationType="fade" statusBarTranslucent>
-        <ErrorBoundary retryable onRetry={() => setScreen("home")}>
-          <BeliefTimer
-            beliefName={lastResult.beliefName}
-            beliefEmoji={lastResult.beliefEmoji}
-            score={lastResult.score}
-            onDismiss={() => setScreen("home")}
-          />
-        </ErrorBoundary>
-      </Modal>
-    );
-  }
-
-  if (screen === "bedtime" && lastResult) {
-    const belief = getBeliefById(lastResult.beliefId);
-    const customBelief = customBeliefs.find((b) => b.id === lastResult.beliefId);
-    const foundBelief = belief || customBelief;
-    return (
-      <Modal visible animationType="fade" statusBarTranslucent>
-        <ErrorBoundary retryable onRetry={() => setScreen("home")}>
-          <BedtimeMessage
-            beliefName={lastResult.beliefName}
-            beliefEmoji={lastResult.beliefEmoji}
-            message={foundBelief?.bedtimeMessage || "Time for bed! The magic works while you sleep."}
-            score={lastResult.score}
-            onDismiss={() => setScreen("home")}
-          />
-        </ErrorBoundary>
-      </Modal>
-    );
-  }
-
-  // Filter beliefs by search
-  const filteredBeliefs = searchText.trim()
-    ? allBeliefs.filter(
-        (b) =>
-          b.name.toLowerCase().includes(searchText.toLowerCase()) ||
-          b.category.toLowerCase().includes(searchText.toLowerCase())
-      )
-    : null;
-
-  const intensityLabels = ["", "Curious", "Hopeful", "Interested", "Believing", "Focused", "Convinced", "Strong", "Powerful", "Absolute", "Unshakeable"];
-
-  const renderCategory = ({ item: cat }: { item: BeliefCategory }) => {
-    const isExpanded = expandedCategory === cat.id;
-    return (
-      <View style={styles.categorySection}>
-        <Pressable
-          onPress={() => setExpandedCategory(isExpanded ? null : cat.id)}
-          style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
-        >
-          <View style={styles.categoryHeader}>
-            <Text style={[styles.categoryTitle, { color: colors.foreground }]}>
-              {cat.emoji} {cat.name}
-            </Text>
-            <View style={styles.categoryRight}>
-              <Text style={[styles.categoryCount, { color: colors.muted }]}>
-                {cat.beliefs.length}
-              </Text>
-              <Text style={[styles.expandIcon, { color: colors.muted }]}>
-                {isExpanded ? "▲" : "▼"}
-              </Text>
-            </View>
-          </View>
-        </Pressable>
-        {isExpanded && (
-          <View style={styles.beliefGrid}>
-            {cat.beliefs.map((belief) => (
-              <Pressable
-                key={belief.id}
-                onPress={() => handleSelectBelief(belief)}
-                style={({ pressed }) => [
-                  styles.beliefChip,
-                  {
-                    backgroundColor:
-                      selectedBelief?.id === belief.id ? colors.primary + "30" : colors.surface,
-                    borderColor:
-                      selectedBelief?.id === belief.id ? colors.primary : colors.border,
-                    opacity: pressed ? 0.8 : 1,
-                  },
-                ]}
-              >
-                <Text style={styles.beliefEmoji}>{belief.emoji}</Text>
-                <Text
-                  style={[
-                    styles.beliefChipName,
-                    {
-                      color:
-                        selectedBelief?.id === belief.id ? colors.primary : colors.foreground,
-                    },
-                  ]}
-                >
-                  {belief.name}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
-      </View>
-    );
+  const haversine = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 3958.8;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   };
 
-  const ListHeader = (
-    <View>
-      {/* Hero */}
-      <View style={styles.hero}>
-        <Text style={[styles.heroTagline, { color: colors.primary }]}>
-          🎵 DON'T STOP BELIEVING
-        </Text>
-        <Text style={[styles.heroTitle, { color: colors.foreground }]}>
-          Belief Field{"\n"}Detector
-        </Text>
-        <Text style={[styles.heroSub, { color: colors.muted }]}>
-          Your phone has 7 scientific sensors. When you believe deeply, they respond. Focus your mind — and watch the proof appear.
-        </Text>
-        <View style={[styles.heroBadge, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "30" }]}>
-          <Text style={[styles.heroBadgeText, { color: colors.primary }]}>
-            ⚗️ Real sensors. Real data. Real belief.
-          </Text>
-        </View>
-      </View>
+  useEffect(() => {
+    if (userLat === null || userLng === null || stores.length === 0) return;
+    let nearest: SelectedStore | null = null;
+    let minDist = Infinity;
+    for (const store of stores) {
+      if (!store.lat || !store.lng) continue;
+      const d = haversine(userLat, userLng, store.lat, store.lng);
+      if (d < minDist) { minDist = d; nearest = store; }
+    }
+    setNearestStore(nearest);
+    setDistanceMiles(nearest ? minDist : null);
 
-      {/* Daily Challenge */}
-      <DailyChallenge
-        currentStreak={streak.currentStreak}
-        totalScans={streak.totalScans}
-        personalBest={streak.personalBest}
-        scannedToday={scannedToday}
-        todaysBestScore={todaysBestScore}
-        onStartChallenge={() => {
-          const beliefToUse = selectedBelief ?? allBeliefs[0] ?? null;
-          if (!beliefToUse) return;
-          if (!selectedBelief) {
-            setSelectedBelief(beliefToUse);
+    if (nearest && minDist <= 0.3 && !alertFiredRef.current.has("approach_" + nearest.id)) {
+      alertFiredRef.current.add("approach_" + nearest.id);
+      const itemNames = items.filter((i) => !i.checked).map((i) => i.name).join(", ");
+      if (Platform.OS === "web" && typeof window !== "undefined" && "Notification" in window) {
+        Notification.requestPermission().then((perm) => {
+          if (perm === "granted") {
+            new Notification("Remember2Buy", {
+              body: `You are near ${nearest!.name}! Remember to buy: ${itemNames || "your items"}`,
+            });
           }
-          if (Platform.OS !== "web") {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          }
-          if (settings.meditationEnabled) {
-            setScreen("meditation");
-          } else {
-            setScreen("scanning");
-          }
-        }}
-      />
+        });
+      }
+    }
+  }, [userLat, userLng, stores, items]);
 
-      {/* New milestone notification */}
-      {newMilestones.length > 0 && (
-        <Pressable
-          onPress={clearNewMilestones}
-          style={({ pressed }) => [
-            styles.milestoneNotif,
-            { backgroundColor: colors.success + "15", borderColor: colors.success + "50", opacity: pressed ? 0.8 : 1 },
-          ]}
-        >
-          <Text style={[styles.milestoneNotifText, { color: colors.success }]}>
-            🎉 New milestone{newMilestones.length > 1 ? "s" : ""} earned!
-            {newMilestones.map((m) => " " + getMilestoneLabel(m).emoji).join("")}
-          </Text>
-          <Text style={[styles.milestoneNotifSub, { color: colors.muted }]}>Tap to dismiss</Text>
-        </Pressable>
-      )}
-
-      {/* Search */}
-      <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Text style={styles.searchIcon}>🔍</Text>
-        <TextInput
-          value={searchText}
-          onChangeText={setSearchText}
-          placeholder="Search beliefs..."
-          placeholderTextColor={colors.muted}
-          style={[styles.searchInput, { color: colors.foreground }]}
-          returnKeyType="done"
-        />
-      </View>
-
-      {/* Action buttons row */}
-      <View style={styles.actionRow}>
-        <Pressable
-          onPress={() => {
-            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setScreen("create-belief");
-          }}
-          style={({ pressed }) => [
-            styles.actionBtn,
-            {
-              backgroundColor: colors.primary + "12",
-              borderColor: colors.primary + "40",
-              opacity: pressed ? 0.8 : 1,
-            },
-          ]}
-        >
-          <Text style={styles.actionBtnIcon}>🎨</Text>
-          <Text style={[styles.actionBtnTitle, { color: colors.primary }]}>Create Belief</Text>
-          <Text style={[styles.actionBtnSub, { color: colors.muted }]}>Make your own</Text>
-        </Pressable>
-      </View>
-
-      {/* Search results */}
-      {filteredBeliefs && (
-        <View style={styles.searchResults}>
-          <Text style={[styles.searchResultsLabel, { color: colors.muted }]}>
-            {filteredBeliefs.length} results
-          </Text>
-          <View style={styles.beliefGrid}>
-            {filteredBeliefs.map((belief) => (
-              <Pressable
-                key={belief.id}
-                onPress={() => {
-                  handleSelectBelief(belief);
-                  setSearchText("");
-                }}
-                style={({ pressed }) => [
-                  styles.beliefChip,
-                  {
-                    backgroundColor:
-                      selectedBelief?.id === belief.id ? colors.primary + "30" : colors.surface,
-                    borderColor:
-                      selectedBelief?.id === belief.id ? colors.primary : colors.border,
-                    opacity: pressed ? 0.8 : 1,
-                  },
-                ]}
-              >
-                <Text style={styles.beliefEmoji}>{belief.emoji}</Text>
-                <Text
-                  style={[
-                    styles.beliefChipName,
-                    {
-                      color: selectedBelief?.id === belief.id ? colors.primary : colors.foreground,
-                    },
-                  ]}
-                >
-                  {belief.name}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {!filteredBeliefs && (
-        <View style={styles.sectionLabelRow}>
-          <Text style={[styles.sectionLabel, { color: colors.muted }]}>
-            CHOOSE YOUR BELIEF
-          </Text>
-          <Text style={[styles.sectionScrollHint, { color: colors.muted }]}>
-            scroll to see all ↓
-          </Text>
-        </View>
-      )}
-    </View>
-  );
-
-  const journalCount = history.filter((h) => h.journalEntry).length;
-
-  const ListFooter = (
-    <View>
-      {selectedBelief && (
-        <View style={[styles.selectedCard, { backgroundColor: colors.surface, borderColor: colors.primary + "60" }]}>
-          <Text style={styles.selectedEmoji}>{selectedBelief.emoji}</Text>
-          <Text style={[styles.selectedName, { color: colors.foreground }]}>
-            {selectedBelief.name}
-          </Text>
-          <Text style={[styles.selectedDesc, { color: colors.muted }]}>
-            {selectedBelief.description}
-          </Text>
-
-          <View style={styles.intensitySection}>
-            <Text style={[styles.intensityLabel, { color: colors.foreground }]}>
-              Belief Intensity: {intensity}/10
-            </Text>
-            <Text style={[styles.intensityWord, { color: colors.primary }]}>
-              {intensityLabels[intensity]}
-            </Text>
-            <View style={styles.intensityRow}>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                <Pressable
-                  key={n}
-                  onPress={() => {
-                    setIntensity(n);
-                    if (Platform.OS !== "web") {
-                      Haptics.selectionAsync();
-                    }
-                  }}
-                  style={({ pressed }) => [
-                    styles.intensityDot,
-                    {
-                      backgroundColor: n <= intensity ? colors.primary : colors.border,
-                      transform: [{ scale: n === intensity ? 1.3 : pressed ? 0.9 : 1 }],
-                    },
-                  ]}
-                />
-              ))}
-            </View>
-          </View>
-
-          <Pressable
-            onPress={handleStartScan}
-            style={({ pressed }) => [
-              styles.scanBtn,
-              {
-                backgroundColor: colors.primary,
-                opacity: pressed ? 0.9 : 1,
-                transform: [{ scale: pressed ? 0.97 : 1 }],
-              },
-            ]}
-          >
-            <Text style={styles.scanBtnText}>Begin Scan</Text>
-            <Text style={styles.scanBtnSub}>{settings.scanDuration}-second belief field detection{settings.soundEnabled ? ' with audio' : ''}</Text>
-          </Pressable>
-        </View>
-      )}
-
-      {journalCount > 0 && (
-        <View style={styles.journalPreview}>
-          <Text style={[styles.sectionLabel, { color: colors.muted }]}>BELIEF JOURNAL</Text>
-          {history
-            .filter((h) => h.journalEntry)
-            .slice(0, 2)
-            .map((scan) => (
-              <View
-                key={scan.id}
-                style={[styles.journalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-              >
-                <View style={styles.journalCardHeader}>
-                  <Text style={styles.journalCardEmoji}>{scan.beliefEmoji}</Text>
-                  <View style={styles.journalCardInfo}>
-                    <Text style={[styles.journalCardName, { color: colors.foreground }]}>
-                      {scan.beliefName}
-                    </Text>
-                    <Text style={[styles.journalCardDate, { color: colors.muted }]}>
-                      {new Date(scan.date).toLocaleDateString()} · Score: {scan.score}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={[styles.journalCardText, { color: colors.muted }]} numberOfLines={2}>
-                  "{scan.journalEntry}"
-                </Text>
-              </View>
-            ))}
-        </View>
-      )}
-
-      {history.length > 0 && (
-        <View style={styles.recentSection}>
-          <Text style={[styles.sectionLabel, { color: colors.muted }]}>RECENT SCANS</Text>
-          {history.slice(0, 3).map((scan) => (
-            <View
-              key={scan.id}
-              style={[styles.recentCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            >
-              <Text style={styles.recentEmoji}>{scan.beliefEmoji}</Text>
-              <View style={styles.recentInfo}>
-                <Text style={[styles.recentName, { color: colors.foreground }]}>{scan.beliefName}</Text>
-                <Text style={[styles.recentDate, { color: colors.muted }]}>
-                  {new Date(scan.date).toLocaleDateString()}
-                  {scan.journalEntry ? " · 📔" : ""}
-                </Text>
-              </View>
-              <View style={[styles.recentScore, { backgroundColor: colors.primary + "20" }]}>
-                <Text style={[styles.recentScoreText, { color: colors.primary }]}>{scan.score}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {/* Scroll to top hint at bottom of list */}
-      <View style={[styles.endOfListHint, { borderTopColor: colors.border + "60" }]}>
-        <Text style={[styles.endOfListText, { color: colors.muted }]}>✨ That's all the beliefs — scroll back up to select one</Text>
-      </View>
-
-      <View style={{ height: 40 }} />
-    </View>
-  );
+  const pendingItems = items.filter((i) => !i.checked);
+  const mapUrl =
+    userLat && userLng
+      ? `https://www.openstreetmap.org/export/embed.html?bbox=${userLng - 0.05},${userLat - 0.05},${userLng + 0.05},${userLat + 0.05}&layer=mapnik&marker=${userLat},${userLng}`
+      : null;
 
   return (
     <ScreenContainer>
-      <LinearGradient
-        colors={["rgba(155,122,255,0.08)", "transparent"]}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 0.3 }}
-      />
-      <FlatList
-        data={filteredBeliefs ? [] : allCategories}
-        keyExtractor={(item) => item.id}
-        renderItem={renderCategory}
-        ListHeaderComponent={ListHeader}
-        ListFooterComponent={ListFooter}
-        contentContainerStyle={[styles.listContent, selectedBelief ? { paddingBottom: 110 + insets.bottom } : { paddingBottom: 20 }]}
-        showsVerticalScrollIndicator={false}
-        onScroll={(e) => {
-          if (e.nativeEvent.contentOffset.y > 60 && scrollHintVisible) {
-            setScrollHintVisible(false);
-            Animated.timing(scrollHintOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start();
-          }
-        }}
-        scrollEventThrottle={16}
-      />
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+        <View style={[styles.header, { backgroundColor: colors.primary }]}>
+          <Text style={styles.headerTitle}>Remember2Buy</Text>
+          <Text style={styles.headerSub}>Your Smart Shopping Reminder</Text>
+        </View>
 
-      {/* Scroll hint arrow — visible until user scrolls */}
-      {scrollHintVisible && (
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.scrollHint,
-            {
-              opacity: scrollHintOpacity,
-              transform: [{ translateY: scrollHintBounce }],
-              bottom: selectedBelief ? 90 + insets.bottom : 24 + insets.bottom,
-            },
-          ]}
-        >
-          <View style={[styles.scrollHintBubble, { backgroundColor: colors.primary + "22", borderColor: colors.primary + "55" }]}>
-            <Text style={[styles.scrollHintText, { color: colors.primary }]}>Scroll for more beliefs ↓</Text>
-          </View>
-        </Animated.View>
-      )}
-
-      {/* Sticky CTA bar — slides up when a belief is selected */}
-      <Animated.View
-        style={[
-          styles.stickyBar,
-          {
-            backgroundColor: colors.background,
-            borderTopColor: colors.border,
-            paddingBottom: Math.max(insets.bottom, 12),
-            transform: [{ translateY: ctaBarY }],
-            opacity: ctaBarOpacity,
-          },
-        ]}
-        pointerEvents={selectedBelief ? "auto" : "none"}
-      >
-        <View style={styles.stickyBarInner}>
-          <View style={styles.stickyBeliefInfo}>
-            <Text style={styles.stickyEmoji}>{selectedBelief?.emoji ?? ""}</Text>
-            <View>
-              <Text style={[styles.stickyBeliefName, { color: colors.foreground }]} numberOfLines={1}>
-                {selectedBelief?.name ?? ""}
-              </Text>
-              <Text style={[styles.stickyBeliefSub, { color: colors.muted }]}>
-                Intensity {intensity}/10 · {settings.scanDuration}s scan
+        <View style={[styles.mapContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {Platform.OS === "web" && mapUrl ? (
+            <iframe
+              src={mapUrl}
+              style={{ width: "100%", height: 220, border: "none", borderRadius: 12 }}
+              title="Your Location"
+            />
+          ) : (
+            <View style={[styles.mapPlaceholder, { backgroundColor: colors.border }]}>
+              <IconSymbol name="map.fill" size={40} color={colors.muted} />
+              <Text style={[styles.mapPlaceholderText, { color: colors.muted }]}>
+                {locationGranted ? "Map loading..." : "Enable location to see map"}
               </Text>
             </View>
-          </View>
-          <Animated.View style={{ transform: [{ scale: ctaPulse }] }}>
-            <Pressable
-              onPress={handleStartScan}
-              style={({ pressed }) => [
-                styles.stickyBtn,
-                { backgroundColor: colors.primary, opacity: pressed ? 0.88 : 1 },
-              ]}
-            >
-              <Text style={styles.stickyBtnText}>⚡ Begin Scan</Text>
-            </Pressable>
-          </Animated.View>
+          )}
         </View>
-      </Animated.View>
 
-      {/* Onboarding overlay — fades out on complete, home screen is already mounted underneath */}
-      {onboardingVisible && (
-        <Animated.View
-          style={[
-            StyleSheet.absoluteFill,
-            { opacity: onboardingOpacity, zIndex: 999, backgroundColor: colors.background },
-          ]}
-          pointerEvents={onboardingVisible ? "auto" : "none"}
-        >
-          <Onboarding onComplete={handleOnboardingComplete} />
-        </Animated.View>
-      )}
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.row}>
+            <IconSymbol name="location.fill" size={20} color={locationGranted ? colors.success : colors.muted} />
+            <Text style={[styles.cardTitle, { color: colors.foreground }]}>
+              {locationGranted ? "Location Active" : "Location Required"}
+            </Text>
+          </View>
+          {!locationGranted && (
+            <Text style={[styles.cardSub, { color: colors.muted }]}>
+              Allow location access to receive store reminders
+            </Text>
+          )}
+          {nearestStore && distanceMiles !== null && (
+            <View style={[styles.nearestBadge, { backgroundColor: distanceMiles <= 0.3 ? colors.success + "22" : colors.primary + "11" }]}>
+              <Text style={[styles.nearestText, { color: distanceMiles <= 0.3 ? colors.success : colors.primary }]}>
+                {distanceMiles <= 0.3
+                  ? `You are near ${nearestStore.name}!`
+                  : `${nearestStore.name} is ${distanceMiles.toFixed(1)} mi away`}
+              </Text>
+            </View>
+          )}
+        </View>
 
-      {/* Subscription consent overlay — shown once after onboarding, before home is usable.
-          No skip button. User must agree to the 3-day trial + $0.99/week auto-renew terms. */}
-      {consentVisible && (
-        <Animated.View
-          style={[
-            StyleSheet.absoluteFill,
-            { opacity: consentOpacity, zIndex: 998, backgroundColor: colors.background },
-          ]}
-          pointerEvents={consentVisible ? "auto" : "none"}
-        >
-          <SubscriptionConsent
-            onAgree={handleConsentAgree}
-            error={subscription.error}
-          />
-        </Animated.View>
-      )}
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.row}>
+            <IconSymbol name="list.bullet" size={20} color={colors.primary} />
+            <Text style={[styles.cardTitle, { color: colors.foreground }]}>
+              Shopping List ({pendingItems.length} items)
+            </Text>
+          </View>
+          {pendingItems.length === 0 ? (
+            <Text style={[styles.cardSub, { color: colors.muted }]}>No items yet — go to My List to add items</Text>
+          ) : (
+            pendingItems.slice(0, 5).map((item) => (
+              <View key={item.id} style={styles.itemRow}>
+                <View style={[styles.bullet, { backgroundColor: colors.primary }]} />
+                <Text style={[styles.itemText, { color: colors.foreground }]}>
+                  {item.name}{item.quantity ? ` (${item.quantity})` : ""}
+                </Text>
+              </View>
+            ))
+          )}
+          {pendingItems.length > 5 && (
+            <Text style={[styles.cardSub, { color: colors.muted }]}>+{pendingItems.length - 5} more items</Text>
+          )}
+        </View>
+
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.row}>
+            <IconSymbol name="storefront.fill" size={20} color={colors.primary} />
+            <Text style={[styles.cardTitle, { color: colors.foreground }]}>My Stores ({stores.length})</Text>
+          </View>
+          {stores.length === 0 ? (
+            <Text style={[styles.cardSub, { color: colors.muted }]}>No stores selected — go to Stores tab</Text>
+          ) : (
+            stores.slice(0, 3).map((store) => (
+              <View key={store.id} style={styles.itemRow}>
+                <View style={[styles.bullet, { backgroundColor: colors.success }]} />
+                <Text style={[styles.itemText, { color: colors.foreground }]}>{store.name}</Text>
+              </View>
+            ))
+          )}
+          {stores.length > 3 && (
+            <Text style={[styles.cardSub, { color: colors.muted }]}>+{stores.length - 3} more stores</Text>
+          )}
+        </View>
+
+        <View style={[styles.card, { backgroundColor: colors.primary + "11", borderColor: colors.primary + "33" }]}>
+          <Text style={[styles.cardTitle, { color: colors.primary }]}>How It Works</Text>
+          <Text style={[styles.howStep, { color: colors.foreground }]}>1. Pick your stores in the Stores tab</Text>
+          <Text style={[styles.howStep, { color: colors.foreground }]}>2. Add items to your shopping list</Text>
+          <Text style={[styles.howStep, { color: colors.foreground }]}>3. Close the app — it runs in the background</Text>
+          <Text style={[styles.howStep, { color: colors.foreground }]}>4. Get reminded at 0.3 miles from the store</Text>
+          <Text style={[styles.howStep, { color: colors.foreground }]}>5. Get reminded again 6 min after arriving</Text>
+        </View>
+
+        <View style={{ height: 20 }} />
+      </ScrollView>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  listContent: { paddingHorizontal: 16, paddingBottom: 20 },
-  hero: { alignItems: "center", paddingTop: 12, paddingBottom: 20 },
-  heroTitle: { fontSize: 32, fontWeight: "900", textAlign: "center", lineHeight: 38 },
-  heroSub: { fontSize: 14, textAlign: "center", marginTop: 8, lineHeight: 20, paddingHorizontal: 20 },
-  searchBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    marginBottom: 12,
-    height: 48,
-  },
-  searchIcon: { fontSize: 16, marginRight: 8 },
-  searchInput: { flex: 1, fontSize: 15, height: 48 },
-  actionRow: { marginBottom: 16 },
-  actionBtn: {
-    flex: 1,
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 14,
-    alignItems: "center",
-  },
-  actionBtnIcon: { fontSize: 24, marginBottom: 4 },
-  actionBtnTitle: { fontSize: 14, fontWeight: "700" },
-  actionBtnSub: { fontSize: 11, marginTop: 2 },
-  searchResults: { marginBottom: 16 },
-  searchResultsLabel: { fontSize: 12, fontWeight: "500", marginBottom: 8 },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1.5,
-    marginBottom: 12,
-    marginTop: 8,
-  },
-  sectionLabelRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-    marginTop: 8,
-  },
-  sectionScrollHint: {
-    fontSize: 11,
-    fontWeight: "600",
-    opacity: 0.7,
-  },
-  categorySection: { marginBottom: 8 },
-  categoryHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  categoryTitle: { fontSize: 17, fontWeight: "700" },
-  categoryRight: { flexDirection: "row", alignItems: "center", gap: 8 },
-  categoryCount: { fontSize: 13, fontWeight: "600" },
-  expandIcon: { fontSize: 12 },
-  beliefGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
-  beliefChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 6,
-  },
-  beliefEmoji: { fontSize: 18 },
-  beliefChipName: { fontSize: 14, fontWeight: "600" },
-  selectedCard: {
-    borderRadius: 20,
-    borderWidth: 1.5,
-    padding: 24,
-    alignItems: "center",
-    marginTop: 16,
-  },
-  selectedEmoji: { fontSize: 56, marginBottom: 8 },
-  selectedName: { fontSize: 24, fontWeight: "800", marginBottom: 4 },
-  selectedDesc: { fontSize: 14, textAlign: "center", marginBottom: 20 },
-  intensitySection: { width: "100%", alignItems: "center", marginBottom: 20 },
-  intensityLabel: { fontSize: 15, fontWeight: "600", marginBottom: 4 },
-  intensityWord: { fontSize: 13, fontWeight: "700", marginBottom: 12 },
-  intensityRow: { flexDirection: "row", gap: 8, alignItems: "center" },
-  intensityDot: { width: 24, height: 24, borderRadius: 12 },
-  scanBtn: {
-    width: "100%",
-    paddingVertical: 18,
-    borderRadius: 18,
-    alignItems: "center",
-  },
-  scanBtnText: { fontSize: 18, fontWeight: "800", color: "#fff" },
-  scanBtnSub: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 2 },
-  journalPreview: { marginTop: 24 },
-  journalCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 14,
-    marginBottom: 8,
-  },
-  journalCardHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
-  journalCardEmoji: { fontSize: 28 },
-  journalCardInfo: { flex: 1 },
-  journalCardName: { fontSize: 15, fontWeight: "600" },
-  journalCardDate: { fontSize: 12, marginTop: 2 },
-  journalCardText: { fontSize: 13, lineHeight: 20, fontStyle: "italic" },
-  recentSection: { marginTop: 24 },
-  recentCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 14,
-    marginBottom: 8,
-    gap: 12,
-  },
-  recentEmoji: { fontSize: 28 },
-  recentInfo: { flex: 1 },
-  recentName: { fontSize: 15, fontWeight: "600" },
-  recentDate: { fontSize: 12, marginTop: 2 },
-  recentScore: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
-  recentScoreText: { fontSize: 18, fontWeight: "800" },
-  milestoneNotif: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 14,
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  milestoneNotifText: { fontSize: 14, fontWeight: "700" },
-  milestoneNotifSub: { fontSize: 11, marginTop: 4 },
-  heroTagline: { fontSize: 11, fontWeight: "700", letterSpacing: 1.5, marginBottom: 6, textTransform: "uppercase" },
-  heroBadge: { borderRadius: 20, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 6, marginTop: 8 },
-  heroBadgeText: { fontSize: 12, fontWeight: "600" },
-  stickyBar: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderTopWidth: 0.5,
-    paddingTop: 12,
-    paddingHorizontal: 16,
-  },
-  stickyBarInner: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  stickyBeliefInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    flex: 1,
-  },
-  stickyEmoji: { fontSize: 32 },
-  stickyBeliefName: { fontSize: 15, fontWeight: "700" },
-  stickyBeliefSub: { fontSize: 12, marginTop: 1 },
-  stickyBtn: {
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stickyBtnText: { color: "#fff", fontSize: 15, fontWeight: "800" },
-  scrollHint: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    alignItems: "center",
-  },
-  scrollHintBubble: {
-    borderRadius: 20,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  scrollHintText: { fontSize: 13, fontWeight: "700" },
-  endOfListHint: {
-    borderTopWidth: 1,
-    paddingTop: 20,
-    paddingBottom: 4,
-    alignItems: "center",
-  },
-  endOfListText: { fontSize: 12, fontWeight: "500", textAlign: "center" },
+  header: { paddingHorizontal: 20, paddingVertical: 20, alignItems: "center" },
+  headerTitle: { fontSize: 26, fontWeight: "800", color: "#FFFFFF", letterSpacing: 0.5 },
+  headerSub: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 2 },
+  mapContainer: { margin: 16, borderRadius: 12, overflow: "hidden", borderWidth: 1 },
+  mapPlaceholder: { height: 180, alignItems: "center", justifyContent: "center", gap: 8 },
+  mapPlaceholderText: { fontSize: 14 },
+  card: { marginHorizontal: 16, marginBottom: 12, borderRadius: 12, padding: 16, borderWidth: 1, gap: 8 },
+  row: { flexDirection: "row", alignItems: "center", gap: 8 },
+  cardTitle: { fontSize: 15, fontWeight: "700" },
+  cardSub: { fontSize: 13, lineHeight: 18 },
+  nearestBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginTop: 4 },
+  nearestText: { fontSize: 13, fontWeight: "600" },
+  itemRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  bullet: { width: 6, height: 6, borderRadius: 3 },
+  itemText: { fontSize: 14 },
+  howStep: { fontSize: 13, lineHeight: 22 },
 });

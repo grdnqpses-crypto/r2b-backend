@@ -1,8 +1,8 @@
 import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Platform } from "react-native";
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { Platform } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 
 export default function TabLayout() {
@@ -15,7 +15,6 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.muted,
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarStyle: {
@@ -26,63 +25,41 @@ export default function TabLayout() {
           borderTopColor: colors.border,
           borderTopWidth: 0.5,
         },
-        tabBarLabelStyle: {
-          fontSize: 10,
-        },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: "Detect",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="sensor.fill" color={color} />
-          ),
+          title: "Dashboard",
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="house.fill" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="sensor-lab"
+        name="list"
         options={{
-          title: "Lab",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="scope" color={color} />
-          ),
+          title: "My List",
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="list.bullet" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="history"
+        name="stores"
         options={{
-          title: "History",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="clock.fill" color={color} />
-          ),
+          title: "Stores",
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="storefront.fill" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="group"
+        name="coupons"
         options={{
-          title: "Group",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="group.fill" color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="learn"
-        options={{
-          title: "Learn",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="book.fill" color={color} />
-          ),
+          title: "Coupons",
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="tag.fill" color={color} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: "Settings",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="gear" color={color} />
-          ),
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="gearshape.fill" color={color} />,
         }}
       />
     </Tabs>

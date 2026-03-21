@@ -52,7 +52,7 @@ const config: ExpoConfig = {
     bundleIdentifier: env.iosBundleId,
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
-      NSMotionUsageDescription: "This app uses motion sensors to detect and measure your belief field intensity.",
+      NSMotionUsageDescription: "Remember2Buy uses motion to detect when you arrive at a store.",
       SKAdNetworkItems: [],
     },
   },
