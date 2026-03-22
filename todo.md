@@ -126,3 +126,8 @@
 - [x] Background "Always" location: request inline after foreground granted, if denied show explanation + "Try Again"
 - [x] If a permission is permanently denied (canAskAgain=false on Android), only then show "Open Settings" as the only option with clear explanation
 - [x] Remove skip buttons from Settings screen permission rows — they should always show the correct action
+
+## Bundle ID / Package Name Fix (Critical)
+- [x] Update app.config.ts: set androidPackage to com.remember2buy.shopping
+- [x] Update app.config.ts: set iosBundleId to com.remember2buy.shopping
+- [x] Set version to 2.3.0 and versionCode to 23 in app.config.ts

@@ -2,22 +2,8 @@
 import "./scripts/load-env.js";
 import type { ExpoConfig } from "expo/config";
 
-const rawBundleId = "space.manus.belief.field.detector.t20260218220634";
-const bundleId =
-  rawBundleId
-    .replace(/[-_]/g, ".")
-    .replace(/[^a-zA-Z0-9.]/g, "")
-    .replace(/\.+/g, ".")
-    .replace(/^\.+|\.+$/g, "")
-    .toLowerCase()
-    .split(".")
-    .map((segment) => {
-      return /^[a-zA-Z]/.test(segment) ? segment : "x" + segment;
-    })
-    .join(".") || "space.manus.app";
-
-const timestamp = bundleId.split(".").pop()?.replace(/^t/, "") ?? "";
-const schemeFromBundleId = `manus${timestamp}`;
+const bundleId = "com.remember2buy.shopping";
+const schemeFromBundleId = "remember2buy";
 
 const env = {
   appName: "Remember2Buy",
@@ -31,7 +17,7 @@ const env = {
 const config: ExpoConfig = {
   name: env.appName,
   slug: env.appSlug,
-  version: "1.0.0",
+  version: "2.3.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: env.scheme,
@@ -57,6 +43,7 @@ const config: ExpoConfig = {
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
     package: env.androidPackage,
+    versionCode: 23,
     permissions: [
       "ACCESS_FINE_LOCATION",
       "ACCESS_COARSE_LOCATION",
