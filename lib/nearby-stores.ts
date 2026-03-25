@@ -26,8 +26,12 @@ export interface NearbyStore {
 // Radius in meters for nearby search (5 km = ~3 miles)
 const SEARCH_RADIUS_METERS = 5000;
 
-// Overpass API public endpoint
-const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
+// Overpass API public endpoints — tried in order until one succeeds
+const OVERPASS_MIRRORS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.openstreetmap.ru/api/interpreter",
+];
 
 // OSM tags that map to store categories
 const SHOP_CATEGORY_MAP: Record<string, string> = {
@@ -160,6 +164,35 @@ interface OSMElement {
  * Stores without OSM addr: tags will have address = "".
  * Call enrichStoreAddresses() afterwards to fill in missing addresses.
  */
+
+/**
+ * Try each Overpass mirror in order, returning the first successful response.
+ * Throws an error with "Overpass" in the message if all mirrors fail.
+ */
+async function fetchOverpass(query: string): Promise<any> {
+  let lastError: Error = new Error("Overpass API unreachable");
+  for (const url of OVERPASS_MIRRORS) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000); // 15s per mirror
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `data=${encodeURIComponent(query)}`,
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (response.ok) {
+        return await response.json();
+      }
+      lastError = new Error(`Overpass API error: ${response.status}`);
+    } catch (err: any) {
+      lastError = new Error(`Overpass mirror failed: ${err?.message ?? err}`);
+    }
+  }
+  throw lastError;
+}
+
 export async function getNearbyStores(
   lat: number,
   lng: number,
@@ -167,17 +200,7 @@ export async function getNearbyStores(
 ): Promise<NearbyStore[]> {
   const query = buildOverpassQuery(lat, lng, radiusMeters);
 
-  const response = await fetch(OVERPASS_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `data=${encodeURIComponent(query)}`,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Overpass API error: ${response.status}`);
-  }
-
-  const data = await response.json();
+  const data = await fetchOverpass(query);
   const elements: OSMElement[] = data.elements ?? [];
 
   const stores: NearbyStore[] = [];
