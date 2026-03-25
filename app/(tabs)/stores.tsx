@@ -319,6 +319,11 @@ export default function StoresScreen() {
                 >
                   <Text style={styles.retryBtnText}>Try Again</Text>
                 </Pressable>
+                <View style={[styles.apiBusyTip, { backgroundColor: colors.warning + "18", borderColor: colors.warning + "40" }]}>
+                  <Text style={[styles.apiBusyTipText, { color: colors.warning }]}>
+                    💡 If you see this message, please tap Try Again — the store database is sometimes busy and may need a moment to respond.
+                  </Text>
+                </View>
               </View>
             ) : (
               <FlatList
@@ -409,4 +414,6 @@ const styles = StyleSheet.create({
   errorDesc: { fontSize: 14, textAlign: "center", lineHeight: 20, paddingHorizontal: 20 },
   retryBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, marginTop: 8 },
   retryBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
+  apiBusyTip: { marginTop: 16, marginHorizontal: 16, padding: 14, borderRadius: 12, borderWidth: 1 },
+  apiBusyTipText: { fontSize: 13, lineHeight: 19, textAlign: "center" },
 });
