@@ -141,3 +141,8 @@
 - [x] Implement i18next in the app and wire up all translated strings (index, list, stores, coupons, settings, onboarding)
 - [x] Set up Play Store listing with translated titles and descriptions for 28 languages
 - [ ] Save checkpoint with i18n changes and rebuild AAB
+
+## RTL + Notification i18n (Round 7)
+- [x] Add RTL layout support for Arabic and Hebrew locales using I18nManager
+- [x] Localize push notification strings in lib/notifications.ts and lib/tasks.ts
+- [x] Save checkpoint ready for AAB rebuild (version 3.0.0, versionCode 30)

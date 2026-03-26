@@ -249,7 +249,10 @@
   "notifications": {
     "arrivalTitle": "Du är nära {{storeName}}!",
     "arrivalBody": "Glöm inte: {{items}}",
-    "arrivalBodyEmpty": "Du har varor på din inköpslista!"
+    "arrivalBodyEmpty": "Du har varor på din inköpslista!",
+    "channelName": "Butiksvarningar",
+    "testTitle": "🛒 Remember2Buy Test",
+    "testBody": "Aviseringar fungerar! Du kommer att få en varning nära butiker."
   },
   "common": {
     "ok": "OK",

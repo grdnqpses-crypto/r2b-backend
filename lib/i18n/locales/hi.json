@@ -249,7 +249,10 @@
   "notifications": {
     "arrivalTitle": "आप {{storeName}} के पास हैं!",
     "arrivalBody": "यह न भूलें: {{items}}",
-    "arrivalBodyEmpty": "आपकी खरीदारी की सूची में आइटम हैं!"
+    "arrivalBodyEmpty": "आपकी खरीदारी की सूची में आइटम हैं!",
+    "channelName": "स्टोर अलर्ट",
+    "testTitle": "🛒 Remember2Buy परीक्षण",
+    "testBody": "सूचनाएं काम कर रही हैं! स्टोर के पास आने पर आपको अलर्ट मिलेगा।"
   },
   "common": {
     "ok": "ठीक है",

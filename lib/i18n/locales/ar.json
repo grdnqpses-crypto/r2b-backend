@@ -249,7 +249,10 @@
   "notifications": {
     "arrivalTitle": "أنت بالقرب من {{storeName}}!",
     "arrivalBody": "لا تنسَ: {{items}}",
-    "arrivalBodyEmpty": "لديك عناصر في قائمة التسوق الخاصة بك!"
+    "arrivalBodyEmpty": "لديك عناصر في قائمة التسوق الخاصة بك!",
+    "channelName": "تنبيهات المتاجر",
+    "testTitle": "🛒 اختبار Remember2Buy",
+    "testBody": "الإشعارات تعمل! ستتلقى تنبيهاً عند الاقتراب من المتاجر."
   },
   "common": {
     "ok": "موافق",

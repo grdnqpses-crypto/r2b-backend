@@ -249,7 +249,10 @@
   "notifications": {
     "arrivalTitle": "Είστε κοντά στο {{storeName}}!",
     "arrivalBody": "Μην ξεχνάτε: {{items}}",
-    "arrivalBodyEmpty": "Έχετε προϊόντα στη λίστα αγορών σας!"
+    "arrivalBodyEmpty": "Έχετε προϊόντα στη λίστα αγορών σας!",
+    "channelName": "Ειδοποιήσεις καταστημάτων",
+    "testTitle": "🛒 Δοκιμή Remember2Buy",
+    "testBody": "Οι ειδοποιήσεις λειτουργούν! Θα ειδοποιηθείτε κοντά σε καταστήματα."
   },
   "common": {
     "ok": "ΕΝΤΑΞΕΙ",

@@ -249,7 +249,10 @@
   "notifications": {
     "arrivalTitle": "{{storeName}} 근처에 있습니다!",
     "arrivalBody": "잊지 마세요: {{items}}",
-    "arrivalBodyEmpty": "쇼핑 리스트에 아이템이 있습니다!"
+    "arrivalBodyEmpty": "쇼핑 리스트에 아이템이 있습니다!",
+    "channelName": "매장 알림",
+    "testTitle": "🛒 Remember2Buy 테스트",
+    "testBody": "알림이 작동합니다! 매장 근처에서 알림을 받게 됩니다."
   },
   "common": {
     "ok": "확인",

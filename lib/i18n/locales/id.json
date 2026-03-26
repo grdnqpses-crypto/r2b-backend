@@ -249,7 +249,10 @@
   "notifications": {
     "arrivalTitle": "Anda dekat {{storeName}}!",
     "arrivalBody": "Jangan lupa: {{items}}",
-    "arrivalBodyEmpty": "Anda memiliki item di daftar belanja Anda!"
+    "arrivalBodyEmpty": "Anda memiliki item di daftar belanja Anda!",
+    "channelName": "Peringatan Toko",
+    "testTitle": "🛒 Tes Remember2Buy",
+    "testBody": "Notifikasi berfungsi! Anda akan diperingatkan di dekat toko."
   },
   "common": {
     "ok": "Oke",

@@ -249,7 +249,10 @@
   "notifications": {
     "arrivalTitle": "Sie sind in der Nähe von {{storeName}}!",
     "arrivalBody": "Nicht vergessen: {{items}}",
-    "arrivalBodyEmpty": "Sie haben Artikel auf Ihrer Einkaufsliste!"
+    "arrivalBodyEmpty": "Sie haben Artikel auf Ihrer Einkaufsliste!",
+    "channelName": "Geschäftswarnungen",
+    "testTitle": "🛒 Remember2Buy Test",
+    "testBody": "Benachrichtigungen funktionieren! Sie werden in der Nähe von Geschäften benachrichtigt."
   },
   "common": {
     "ok": "OK",

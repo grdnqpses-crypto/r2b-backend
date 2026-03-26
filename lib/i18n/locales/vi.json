@@ -249,7 +249,10 @@
   "notifications": {
     "arrivalTitle": "Bạn đang ở gần {{storeName}}!",
     "arrivalBody": "Đừng quên: {{items}}",
-    "arrivalBodyEmpty": "Bạn có các mặt hàng trong danh sách mua sắm của mình!"
+    "arrivalBodyEmpty": "Bạn có các mặt hàng trong danh sách mua sắm của mình!",
+    "channelName": "Cảnh báo cửa hàng",
+    "testTitle": "🛒 Kiểm tra Remember2Buy",
+    "testBody": "Thông báo đang hoạt động! Bạn sẽ được cảnh báo khi gần cửa hàng."
   },
   "common": {
     "ok": "OK",

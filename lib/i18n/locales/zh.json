@@ -249,7 +249,10 @@
   "notifications": {
     "arrivalTitle": "您在 {{storeName}} 附近！",
     "arrivalBody": "别忘了：{{items}}",
-    "arrivalBodyEmpty": "您的购物清单上有商品！"
+    "arrivalBodyEmpty": "您的购物清单上有商品！",
+    "channelName": "商店提醒",
+    "testTitle": "🛒 Remember2Buy 测试",
+    "testBody": "通知正常工作！您将在商店附近收到提醒。"
   },
   "common": {
     "ok": "确定",

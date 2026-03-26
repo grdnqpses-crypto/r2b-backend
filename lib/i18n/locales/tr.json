@@ -249,7 +249,10 @@
   "notifications": {
     "arrivalTitle": "{{storeName}} yakınındasınız!",
     "arrivalBody": "Unutmayın: {{items}}",
-    "arrivalBodyEmpty": "Alışveriş listenizde ürünler var!"
+    "arrivalBodyEmpty": "Alışveriş listenizde ürünler var!",
+    "channelName": "Mağaza Uyarıları",
+    "testTitle": "🛒 Remember2Buy Testi",
+    "testBody": "Bildirimler çalışıyor! Mağazaların yakınında uyarı alacaksınız."
   },
   "common": {
     "ok": "Tamam",

@@ -249,7 +249,10 @@
   "notifications": {
     "arrivalTitle": "אתה קרוב ל-{{storeName}}!",
     "arrivalBody": "אל תשכח: {{items}}",
-    "arrivalBodyEmpty": "יש לך פריטים ברשימת הקניות!"
+    "arrivalBodyEmpty": "יש לך פריטים ברשימת הקניות!",
+    "channelName": "התראות חנויות",
+    "testTitle": "🛒 בדיקת Remember2Buy",
+    "testBody": "ההתראות עובדות! תקבל התראה ליד חנויות."
   },
   "common": {
     "ok": "אישור",

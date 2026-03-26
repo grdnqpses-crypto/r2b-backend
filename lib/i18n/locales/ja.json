@@ -248,7 +248,10 @@
   "notifications": {
     "arrivalTitle": "{{storeName}}の近くにいます！",
     "arrivalBody": "忘れずに: {{items}}",
-    "arrivalBodyEmpty": "買い物リストにアイテムがあります！"
+    "arrivalBodyEmpty": "買い物リストにアイテムがあります！",
+    "channelName": "店舗アラート",
+    "testTitle": "🛒 Remember2Buyテスト",
+    "testBody": "通知が機能しています！店舗の近くでアラートが届きます。"
   },
   "common": {
     "ok": "OK",

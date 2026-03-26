@@ -249,7 +249,10 @@
   "notifications": {
     "arrivalTitle": "U bent in de buurt van {{storeName}}!",
     "arrivalBody": "Vergeet niet: {{items}}",
-    "arrivalBodyEmpty": "U heeft items op uw boodschappenlijst!"
+    "arrivalBodyEmpty": "U heeft items op uw boodschappenlijst!",
+    "channelName": "Winkelwaarschuwingen",
+    "testTitle": "🛒 Remember2Buy Test",
+    "testBody": "Meldingen werken! U wordt gewaarschuwd in de buurt van winkels."
   },
   "common": {
     "ok": "OK",

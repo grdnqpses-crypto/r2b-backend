@@ -249,7 +249,10 @@
   "notifications": {
     "arrivalTitle": "คุณอยู่ใกล้ {{storeName}} แล้ว!",
     "arrivalBody": "อย่าลืม: {{items}}",
-    "arrivalBodyEmpty": "คุณมีรายการในรายการช้อปปิ้งของคุณ!"
+    "arrivalBodyEmpty": "คุณมีรายการในรายการช้อปปิ้งของคุณ!",
+    "channelName": "การแจ้งเตือนร้านค้า",
+    "testTitle": "🛒 ทดสอบ Remember2Buy",
+    "testBody": "การแจ้งเตือนทำงานแล้ว! คุณจะได้รับการแจ้งเตือนใกล้ร้านค้า"
   },
   "common": {
     "ok": "ตกลง",

@@ -249,7 +249,10 @@
   "notifications": {
     "arrivalTitle": "Вы рядом с {{storeName}}!",
     "arrivalBody": "Не забудьте: {{items}}",
-    "arrivalBodyEmpty": "У вас есть товары в списке покупок!"
+    "arrivalBodyEmpty": "У вас есть товары в списке покупок!",
+    "channelName": "Оповещения о магазинах",
+    "testTitle": "🛒 Тест Remember2Buy",
+    "testBody": "Уведомления работают! Вы получите оповещение рядом с магазинами."
   },
   "common": {
     "ok": "ОК",
