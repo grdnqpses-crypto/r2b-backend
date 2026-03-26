@@ -146,3 +146,7 @@
 - [x] Add RTL layout support for Arabic and Hebrew locales using I18nManager
 - [x] Localize push notification strings in lib/notifications.ts and lib/tasks.ts
 - [x] Save checkpoint ready for AAB rebuild (version 3.0.0, versionCode 30)
+
+## Notification Polish (Round 8)
+- [x] Add localized "and X more" overflow string to all 21 locale files and wire into tasks.ts
+- [x] Localize Android notification channel name via Expo notifications plugin string resources (handled at runtime via i18n.t() in notifications.ts)

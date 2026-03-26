@@ -251,7 +251,8 @@
     "arrivalBodyEmpty": "買い物リストにアイテムがあります！",
     "channelName": "店舗アラート",
     "testTitle": "🛒 Remember2Buyテスト",
-    "testBody": "通知が機能しています！店舗の近くでアラートが届きます。"
+    "testBody": "通知が機能しています！店舗の近くでアラートが届きます。",
+    "andXMore": "他{{count}}件"
   },
   "common": {
     "ok": "OK",

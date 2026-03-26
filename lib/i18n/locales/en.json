@@ -252,7 +252,8 @@
     "arrivalBodyEmpty": "You have items on your shopping list!",
     "channelName": "Store Alerts",
     "testTitle": "🛒 Remember2Buy Test",
-    "testBody": "Notifications are working! You'll be alerted near stores."
+    "testBody": "Notifications are working! You'll be alerted near stores.",
+    "andXMore": "and {{count}} more"
   },
   "common": {
     "ok": "OK",

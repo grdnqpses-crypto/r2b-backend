@@ -251,7 +251,8 @@
     "arrivalBodyEmpty": "Hai articoli nella tua lista della spesa!",
     "channelName": "Avvisi negozi",
     "testTitle": "🛒 Test Remember2Buy",
-    "testBody": "Le notifiche funzionano! Sarai avvisato vicino ai negozi."
+    "testBody": "Le notifiche funzionano! Sarai avvisato vicino ai negozi.",
+    "andXMore": "e altri {{count}}"
   },
   "common": {
     "ok": "OK",

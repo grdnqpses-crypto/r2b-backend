@@ -252,7 +252,8 @@
     "arrivalBodyEmpty": "Alışveriş listenizde ürünler var!",
     "channelName": "Mağaza Uyarıları",
     "testTitle": "🛒 Remember2Buy Testi",
-    "testBody": "Bildirimler çalışıyor! Mağazaların yakınında uyarı alacaksınız."
+    "testBody": "Bildirimler çalışıyor! Mağazaların yakınında uyarı alacaksınız.",
+    "andXMore": "ve {{count}} daha"
   },
   "common": {
     "ok": "Tamam",

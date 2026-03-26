@@ -252,7 +252,8 @@
     "arrivalBodyEmpty": "Du har varor på din inköpslista!",
     "channelName": "Butiksvarningar",
     "testTitle": "🛒 Remember2Buy Test",
-    "testBody": "Aviseringar fungerar! Du kommer att få en varning nära butiker."
+    "testBody": "Aviseringar fungerar! Du kommer att få en varning nära butiker.",
+    "andXMore": "och {{count}} till"
   },
   "common": {
     "ok": "OK",

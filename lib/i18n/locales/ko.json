@@ -252,7 +252,8 @@
     "arrivalBodyEmpty": "쇼핑 리스트에 아이템이 있습니다!",
     "channelName": "매장 알림",
     "testTitle": "🛒 Remember2Buy 테스트",
-    "testBody": "알림이 작동합니다! 매장 근처에서 알림을 받게 됩니다."
+    "testBody": "알림이 작동합니다! 매장 근처에서 알림을 받게 됩니다.",
+    "andXMore": "외 {{count}}개 더"
   },
   "common": {
     "ok": "확인",

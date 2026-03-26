@@ -64,7 +64,7 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
           return i18n.t("notifications.arrivalBodyEmpty");
         }
         const lines = listItems.map((item, idx) => `${idx + 1}. ${item.text}`);
-        if (extra > 0) lines.push(`...+${extra}`);
+        if (extra > 0) lines.push(i18n.t("notifications.andXMore", { count: extra }));
         return lines.join("\n");
       };
 

@@ -252,7 +252,8 @@
     "arrivalBodyEmpty": "יש לך פריטים ברשימת הקניות!",
     "channelName": "התראות חנויות",
     "testTitle": "🛒 בדיקת Remember2Buy",
-    "testBody": "ההתראות עובדות! תקבל התראה ליד חנויות."
+    "testBody": "ההתראות עובדות! תקבל התראה ליד חנויות.",
+    "andXMore": "ועוד {{count}}"
   },
   "common": {
     "ok": "אישור",

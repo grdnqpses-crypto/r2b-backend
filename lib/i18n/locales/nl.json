@@ -252,7 +252,8 @@
     "arrivalBodyEmpty": "U heeft items op uw boodschappenlijst!",
     "channelName": "Winkelwaarschuwingen",
     "testTitle": "🛒 Remember2Buy Test",
-    "testBody": "Meldingen werken! U wordt gewaarschuwd in de buurt van winkels."
+    "testBody": "Meldingen werken! U wordt gewaarschuwd in de buurt van winkels.",
+    "andXMore": "en {{count}} meer"
   },
   "common": {
     "ok": "OK",
