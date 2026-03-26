@@ -6,6 +6,7 @@ import {
 import { useFocusEffect } from "expo-router";
 import * as Notifications from "expo-notifications";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -29,6 +30,7 @@ import { setupNotifications, sendTestNotification } from "@/lib/notifications";
 export default function SettingsScreen() {
   const colors = useColors();
   const colorScheme = useColorScheme();
+  const { t } = useTranslation();
   const [tier, setTierState] = useState<Tier>("free");
   const [locationPerms, setLocationPerms] = useState({ foreground: false, background: false });
   const [notifGranted, setNotifGranted] = useState(false);
@@ -79,26 +81,26 @@ export default function SettingsScreen() {
       if (stores.length > 0) {
         await startGeofencing(stores);
         setGeofencingActive(true);
-        Alert.alert("Location Access Granted", "Geofencing is now active. You will receive alerts near your stores.");
+        Alert.alert(t("settings.location"), t("dashboard.addStoresToStart"));
       } else {
-        Alert.alert("Location Access Granted", "Add stores in the Stores tab to start receiving alerts.");
+        Alert.alert(t("settings.location"), t("stores.noSavedStoresSubtitle"));
       }
     } else if (perms.foreground) {
       Alert.alert(
-        "Background Location Needed",
-        "For alerts when the app is closed, please allow 'Always' location access in Settings.",
+        t("settings.backgroundLocation"),
+        t("onboarding.locationBg.description"),
         [
-          { text: "Open Settings", onPress: () => Linking.openSettings() },
-          { text: "Later", style: "cancel" },
+          { text: t("settings.openSettings"), onPress: () => Linking.openSettings() },
+          { text: t("common.cancel"), style: "cancel" },
         ]
       );
     } else {
       Alert.alert(
-        "Location Denied",
-        "Location access is required for store alerts. Please enable it in Settings.",
+        t("settings.location"),
+        t("stores.permissionDenied"),
         [
-          { text: "Open Settings", onPress: () => Linking.openSettings() },
-          { text: "Cancel", style: "cancel" },
+          { text: t("settings.openSettings"), onPress: () => Linking.openSettings() },
+          { text: t("common.cancel"), style: "cancel" },
         ]
       );
     }
@@ -106,7 +108,6 @@ export default function SettingsScreen() {
 
   const handleEnableNotifications = async () => {
     if (notifDenied) {
-      // Already denied — can only fix via device Settings
       Linking.openSettings();
       return;
     }
@@ -115,7 +116,6 @@ export default function SettingsScreen() {
     if (granted) {
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
-      // Permission dialog was shown but denied — now it's denied
       setNotifDenied(true);
       Linking.openSettings();
     }
@@ -129,12 +129,12 @@ export default function SettingsScreen() {
   const handleToggleGeofencing = async (value: boolean) => {
     if (value) {
       if (!locationPerms.background) {
-        Alert.alert("Location Required", "Please grant 'Always' location access first.");
+        Alert.alert(t("settings.location"), t("onboarding.locationBg.title"));
         return;
       }
       const stores = await getSavedStores();
       if (stores.length === 0) {
-        Alert.alert("No Stores", "Add stores in the Stores tab first.");
+        Alert.alert(t("stores.noSavedStores"), t("stores.noSavedStoresSubtitle"));
         return;
       }
       await startGeofencing(stores);
@@ -148,17 +148,16 @@ export default function SettingsScreen() {
 
   const handleUpgrade = () => {
     Alert.alert(
-      "Upgrade to Premium",
+      t("settings.upgradeToPremium"),
       "Premium features:\n\n• Unlimited stores\n• Unlimited shopping items\n• Photo import (OCR)\n• Priority support\n\nPrice: $1.99/week or $4.99/month\n\n(In-app purchase integration coming soon)",
       [
-        { text: "Not Now", style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
-          text: "Upgrade",
+          text: t("settings.upgradeToPremium"),
           onPress: async () => {
-            // In production, this would trigger RevenueCat purchase flow
             await setTier("premium");
             setTierState("premium");
-            Alert.alert("Welcome to Premium!", "You now have unlimited stores and items.");
+            Alert.alert(t("settings.premium"), t("settings.upgradeToPremium"));
           },
         },
       ]
@@ -166,7 +165,7 @@ export default function SettingsScreen() {
   };
 
   const handleRestorePurchases = () => {
-    Alert.alert("Restore Purchases", "Checking for previous purchases... (RevenueCat integration required for production)");
+    Alert.alert(t("settings.subscription"), "Checking for previous purchases... (RevenueCat integration required for production)");
   };
 
   const PermissionRow = ({
@@ -182,7 +181,7 @@ export default function SettingsScreen() {
     onPress: () => void;
     description: string;
   }) => {
-    const btnLabel = granted ? "Granted" : denied ? "Open Settings" : "Enable";
+    const btnLabel = granted ? t("settings.enabled") : denied ? t("settings.openSettings") : t("settings.enable");
     const btnBg = granted ? colors.success + "20" : denied ? colors.warning : colors.primary;
     const btnTextColor = granted ? colors.success : "#fff";
     return (
@@ -190,7 +189,7 @@ export default function SettingsScreen() {
         <View style={styles.settingInfo}>
           <Text style={[styles.settingLabel, { color: colors.foreground }]}>{label}</Text>
           <Text style={[styles.settingDesc, { color: denied && !granted ? colors.error : colors.muted }]}>
-            {denied && !granted ? "Blocked — tap to open device Settings" : description}
+            {denied && !granted ? t("onboarding.notifications.blockedMessage") : description}
           </Text>
         </View>
         <Pressable
@@ -209,38 +208,38 @@ export default function SettingsScreen() {
   return (
     <ScreenContainer>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.title, { color: colors.foreground }]}>Settings</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>{t("settings.title")}</Text>
 
         {/* Permissions Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.muted }]}>PERMISSIONS</Text>
+          <Text style={[styles.sectionTitle, { color: colors.muted }]}>{t("settings.permissions").toUpperCase()}</Text>
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <PermissionRow
-              label="Location (Always)"
+              label={t("settings.backgroundLocation")}
               granted={locationPerms.background}
               onPress={handleRequestLocation}
-              description="Required for background store alerts"
+              description={t("onboarding.locationBg.description")}
             />
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
             <PermissionRow
-              label="Notifications"
+              label={t("settings.notifications")}
               granted={notifGranted}
               denied={notifDenied}
               onPress={handleEnableNotifications}
-              description="Required to receive store alerts"
+              description={t("onboarding.notifications.description")}
             />
           </View>
         </View>
 
         {/* Geofencing Toggle */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.muted }]}>MONITORING</Text>
+          <Text style={[styles.sectionTitle, { color: colors.muted }]}>{t("settings.geofencing").toUpperCase()}</Text>
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.settingRow, { borderColor: colors.border }]}>
               <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: colors.foreground }]}>Background Alerts</Text>
+                <Text style={[styles.settingLabel, { color: colors.foreground }]}>{t("settings.geofencing")}</Text>
                 <Text style={[styles.settingDesc, { color: colors.muted }]}>
-                  {geofencingActive ? "Monitoring your stores" : "Not monitoring"}
+                  {geofencingActive ? t("settings.geofencingActive") : t("settings.geofencingInactive")}
                 </Text>
               </View>
               <Switch
@@ -256,8 +255,8 @@ export default function SettingsScreen() {
               onPress={handleTestNotification}
             >
               <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: colors.foreground }]}>Test Notification</Text>
-                <Text style={[styles.settingDesc, { color: colors.muted }]}>Send a test alert now</Text>
+                <Text style={[styles.settingLabel, { color: colors.foreground }]}>{t("settings.sendTestNotification")}</Text>
+                <Text style={[styles.settingDesc, { color: colors.muted }]}>{t("settings.notifications")}</Text>
               </View>
               <IconSymbol name="chevron.right" size={16} color={colors.muted} />
             </Pressable>
@@ -266,18 +265,18 @@ export default function SettingsScreen() {
 
         {/* Subscription Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.muted }]}>SUBSCRIPTION</Text>
+          <Text style={[styles.sectionTitle, { color: colors.muted }]}>{t("settings.subscription").toUpperCase()}</Text>
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.settingRow, { borderColor: colors.border }]}>
               <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: colors.foreground }]}>Current Plan</Text>
+                <Text style={[styles.settingLabel, { color: colors.foreground }]}>{t("settings.subscription")}</Text>
                 <Text style={[styles.settingDesc, { color: colors.muted }]}>
-                  {tier === "premium" ? "Premium — Unlimited everything" : "Free — Limited stores & items"}
+                  {tier === "premium" ? t("settings.premium") : t("settings.free")}
                 </Text>
               </View>
               <View style={[styles.tierBadge, { backgroundColor: tier === "premium" ? colors.premium + "20" : colors.border }]}>
                 <Text style={[styles.tierText, { color: tier === "premium" ? colors.premium : colors.muted }]}>
-                  {tier === "premium" ? "PREMIUM" : "FREE"}
+                  {tier === "premium" ? t("settings.premium").toUpperCase() : t("settings.free").toUpperCase()}
                 </Text>
               </View>
             </View>
@@ -289,13 +288,13 @@ export default function SettingsScreen() {
                   onPress={handleUpgrade}
                 >
                   <IconSymbol name="crown.fill" size={18} color="#fff" />
-                  <Text style={styles.upgradeBtnText}>Upgrade to Premium</Text>
+                  <Text style={styles.upgradeBtnText}>{t("settings.upgradeToPremium")}</Text>
                 </Pressable>
                 <Pressable
                   style={({ pressed }) => [styles.restoreBtn, { opacity: pressed ? 0.7 : 1 }]}
                   onPress={handleRestorePurchases}
                 >
-                  <Text style={[styles.restoreBtnText, { color: colors.muted }]}>Restore Purchases</Text>
+                  <Text style={[styles.restoreBtnText, { color: colors.muted }]}>{t("settings.subscription")}</Text>
                 </Pressable>
               </>
             )}
@@ -304,19 +303,19 @@ export default function SettingsScreen() {
 
         {/* Distance Unit Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.muted }]}>DISPLAY</Text>
+          <Text style={[styles.sectionTitle, { color: colors.muted }]}>{t("settings.distanceUnit").toUpperCase()}</Text>
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.settingRow, { borderColor: colors.border }]}>
               <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: colors.foreground }]}>Distance Unit</Text>
-                <Text style={[styles.settingDesc, { color: colors.muted }]}>Used on Dashboard and Stores screens</Text>
+                <Text style={[styles.settingLabel, { color: colors.foreground }]}>{t("settings.distanceUnit")}</Text>
+                <Text style={[styles.settingDesc, { color: colors.muted }]}>{t("settings.distanceUnit")}</Text>
               </View>
               <View style={styles.unitToggleRow}>
                 <Pressable
                   style={({ pressed }) => [styles.unitBtn, { backgroundColor: distanceUnit === "miles" ? colors.primary : colors.border, opacity: pressed ? 0.8 : 1 }]}
                   onPress={() => handleDistanceUnitToggle("miles")}
                 >
-                  <Text style={[styles.unitBtnText, { color: distanceUnit === "miles" ? "#fff" : colors.muted }]}>mi</Text>
+                  <Text style={[styles.unitBtnText, { color: distanceUnit === "miles" ? "#fff" : colors.muted }]}>{t("settings.miles").slice(0, 2)}</Text>
                 </Pressable>
                 <Pressable
                   style={({ pressed }) => [styles.unitBtn, { backgroundColor: distanceUnit === "km" ? colors.primary : colors.border, opacity: pressed ? 0.8 : 1 }]}
@@ -331,21 +330,26 @@ export default function SettingsScreen() {
 
         {/* About Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.muted }]}>ABOUT</Text>
+          <Text style={[styles.sectionTitle, { color: colors.muted }]}>{t("settings.about").toUpperCase()}</Text>
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.settingRow, { borderColor: colors.border }]}>
-              <Text style={[styles.settingLabel, { color: colors.foreground }]}>Version</Text>
+              <Text style={[styles.settingLabel, { color: colors.foreground }]}>{t("settings.version", { version: "1.0.0" })}</Text>
               <Text style={[styles.settingValue, { color: colors.muted }]}>1.0.0</Text>
             </View>
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
             <View style={[styles.settingRow, { borderColor: colors.border }]}>
-              <Text style={[styles.settingLabel, { color: colors.foreground }]}>Alert Radius</Text>
-              <Text style={[styles.settingValue, { color: colors.muted }]}>0.3 miles</Text>
+              <Text style={[styles.settingLabel, { color: colors.foreground }]}>{t("settings.privacyPolicy")}</Text>
+              <IconSymbol name="chevron.right" size={16} color={colors.muted} />
             </View>
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
             <View style={[styles.settingRow, { borderColor: colors.border }]}>
-              <Text style={[styles.settingLabel, { color: colors.foreground }]}>Follow-up Alert</Text>
-              <Text style={[styles.settingValue, { color: colors.muted }]}>6 min after arrival</Text>
+              <Text style={[styles.settingLabel, { color: colors.foreground }]}>{t("settings.termsOfService")}</Text>
+              <IconSymbol name="chevron.right" size={16} color={colors.muted} />
+            </View>
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <View style={[styles.settingRow, { borderColor: colors.border }]}>
+              <Text style={[styles.settingLabel, { color: colors.foreground }]}>{t("settings.contactSupport")}</Text>
+              <IconSymbol name="chevron.right" size={16} color={colors.muted} />
             </View>
           </View>
         </View>
@@ -353,13 +357,13 @@ export default function SettingsScreen() {
         {/* Developer Panel — only visible when dev mode is active */}
         {devMode && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.warning }]}>DEVELOPER</Text>
+            <Text style={[styles.sectionTitle, { color: colors.warning }]}>{t("settings.developerMode").toUpperCase()}</Text>
             <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.warning + "50" }]}>
               <Pressable
                 style={({ pressed }) => [styles.settingRow, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
                 onPress={async () => {
                   await AsyncStorage.removeItem("r2b_onboarding_done");
-                  Alert.alert("Done", "Onboarding reset. Restart the app to see it.");
+                  Alert.alert(t("common.done"), "Onboarding reset. Restart the app to see it.");
                 }}
               >
                 <View style={styles.settingInfo}>
@@ -374,7 +378,7 @@ export default function SettingsScreen() {
                 onPress={async () => {
                   await setTier("premium");
                   setTierState("premium");
-                  Alert.alert("Done", "Tier set to Premium (no expiry).");
+                  Alert.alert(t("common.done"), "Tier set to Premium (no expiry).");
                 }}
               >
                 <View style={styles.settingInfo}>
@@ -389,7 +393,7 @@ export default function SettingsScreen() {
                 onPress={async () => {
                   await setTier("free");
                   setTierState("free");
-                  Alert.alert("Done", "Tier reset to Free.");
+                  Alert.alert(t("common.done"), "Tier reset to Free.");
                 }}
               >
                 <View style={styles.settingInfo}>
@@ -408,7 +412,7 @@ export default function SettingsScreen() {
                 }}
               >
                 <View style={styles.settingInfo}>
-                  <Text style={[styles.settingLabel, { color: colors.warning }]}>Disable Developer Mode</Text>
+                  <Text style={[styles.settingLabel, { color: colors.warning }]}>{t("settings.developerMode")} — Disable</Text>
                   <Text style={[styles.settingDesc, { color: colors.muted }]}>Tap title 11× on Dashboard to re-enable</Text>
                 </View>
                 <IconSymbol name="chevron.right" size={16} color={colors.muted} />

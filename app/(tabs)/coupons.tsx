@@ -1,11 +1,12 @@
 import { useCallback, useState } from "react";
 import {
   View, Text, FlatList, Pressable, StyleSheet,
-  Alert, Platform, Modal, Image, ScrollView, TextInput,
+  Alert, Platform, Modal, Image, ScrollView,
 } from "react-native";
 import { useFocusEffect } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -16,27 +17,28 @@ import {
 
 export default function CouponsScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const [coupons, setCoupons] = useState<Coupon[]>([]);
-  const [tier, setTier] = useState<Tier>("free");
+  const [tier, setTierState] = useState<Tier>("free");
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
   const [loading, setLoading] = useState(false);
 
   const loadCoupons = useCallback(async () => {
     const [couponsData, tierData] = await Promise.all([getCoupons(), getTier()]);
     setCoupons(couponsData);
-    setTier(tierData);
+    setTierState(tierData);
   }, []);
 
   useFocusEffect(useCallback(() => { loadCoupons(); }, [loadCoupons]));
 
   const handleAddFromCamera = async () => {
     if (tier !== "premium") {
-      Alert.alert("Premium Feature", "Coupon storage is a Premium feature. Upgrade to save unlimited coupons.", [{ text: "OK" }]);
+      Alert.alert(t("coupons.premiumFeature"), t("coupons.premiumMessage"), [{ text: t("common.ok") }]);
       return;
     }
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Camera Permission", "Camera access is required to scan coupons.", [{ text: "OK" }]);
+      Alert.alert(t("coupons.cameraPermission"), t("coupons.cameraPermissionMessage"), [{ text: t("common.ok") }]);
       return;
     }
     const result = await ImagePicker.launchCameraAsync({ quality: 0.8, base64: false });
@@ -47,7 +49,7 @@ export default function CouponsScreen() {
       await loadCoupons();
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
-      Alert.alert("Error", "Failed to save coupon.");
+      Alert.alert(t("common.error"), t("coupons.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -55,7 +57,7 @@ export default function CouponsScreen() {
 
   const handleAddFromLibrary = async () => {
     if (tier !== "premium") {
-      Alert.alert("Premium Feature", "Coupon storage is a Premium feature. Upgrade to save unlimited coupons.", [{ text: "OK" }]);
+      Alert.alert(t("coupons.premiumFeature"), t("coupons.premiumMessage"), [{ text: t("common.ok") }]);
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
@@ -66,20 +68,24 @@ export default function CouponsScreen() {
       await loadCoupons();
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
-      Alert.alert("Error", "Failed to save coupon.");
+      Alert.alert(t("common.error"), t("coupons.saveFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteCoupon = (id: string) => {
-    Alert.alert("Delete Coupon", "Remove this coupon?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: async () => {
-        await deleteCoupon(id);
-        await loadCoupons();
-        setSelectedCoupon(null);
-      }},
+    Alert.alert(t("coupons.deleteCoupon"), t("coupons.deleteConfirm"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("common.delete"),
+        style: "destructive",
+        onPress: async () => {
+          await deleteCoupon(id);
+          await loadCoupons();
+          setSelectedCoupon(null);
+        },
+      },
     ]);
   };
 
@@ -93,7 +99,7 @@ export default function CouponsScreen() {
         {item.storeName && <Text style={[styles.couponStore, { color: colors.foreground }]} numberOfLines={1}>{item.storeName}</Text>}
         {item.description && <Text style={[styles.couponDesc, { color: colors.muted }]} numberOfLines={2}>{item.description}</Text>}
         <Text style={[styles.couponDate, { color: colors.muted }]}>
-          Added {new Date(item.addedAt).toLocaleDateString()}
+          {t("coupons.added")} {new Date(item.addedAt).toLocaleDateString()}
         </Text>
       </View>
       <IconSymbol name="chevron.right" size={16} color={colors.muted} />
@@ -104,8 +110,8 @@ export default function CouponsScreen() {
     <ScreenContainer>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Coupons</Text>
-          <Text style={[styles.subtitle, { color: colors.muted }]}>{coupons.length} saved</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("coupons.title")}</Text>
+          <Text style={[styles.subtitle, { color: colors.muted }]}>{t("coupons.saved", { count: coupons.length })}</Text>
         </View>
 
         {/* Add Buttons */}
@@ -116,7 +122,7 @@ export default function CouponsScreen() {
           >
             <IconSymbol name="camera.fill" size={18} color={tier === "premium" ? "#fff" : colors.muted} />
             <Text style={[styles.addBtnText, { color: tier === "premium" ? "#fff" : colors.muted }]}>
-              Scan {tier !== "premium" ? "🔒" : ""}
+              {t("coupons.scan")} {tier !== "premium" ? "🔒" : ""}
             </Text>
           </Pressable>
           <Pressable
@@ -125,7 +131,7 @@ export default function CouponsScreen() {
           >
             <IconSymbol name="photo.fill" size={18} color={tier === "premium" ? "#fff" : colors.muted} />
             <Text style={[styles.addBtnText, { color: tier === "premium" ? "#fff" : colors.muted }]}>
-              Import {tier !== "premium" ? "🔒" : ""}
+              {t("coupons.importPhoto")} {tier !== "premium" ? "🔒" : ""}
             </Text>
           </Pressable>
         </View>
@@ -135,10 +141,8 @@ export default function CouponsScreen() {
           <View style={[styles.upsellCard, { backgroundColor: colors.premium + "15", borderColor: colors.premium + "40" }]}>
             <IconSymbol name="crown.fill" size={20} color={colors.premium} />
             <View style={{ flex: 1 }}>
-              <Text style={[styles.upsellTitle, { color: colors.premium }]}>Premium Feature</Text>
-              <Text style={[styles.upsellDesc, { color: colors.foreground }]}>
-                Save and organize coupons from your camera or photo library. Upgrade to Premium to unlock.
-              </Text>
+              <Text style={[styles.upsellTitle, { color: colors.premium }]}>{t("coupons.premiumFeature")}</Text>
+              <Text style={[styles.upsellDesc, { color: colors.foreground }]}>{t("coupons.upsellDesc")}</Text>
             </View>
           </View>
         )}
@@ -147,11 +151,9 @@ export default function CouponsScreen() {
         {coupons.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>🏷️</Text>
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No coupons saved</Text>
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("coupons.noCoupons")}</Text>
             <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
-              {tier === "premium"
-                ? "Scan or import coupon images to save them here."
-                : "Upgrade to Premium to save and organize your coupons."}
+              {tier === "premium" ? t("coupons.noCouponsSubtitlePremium") : t("coupons.noCouponsSubtitleFree")}
             </Text>
           </View>
         ) : (
@@ -171,7 +173,7 @@ export default function CouponsScreen() {
         {selectedCoupon && (
           <View style={[styles.modal, { backgroundColor: colors.background }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Coupon</Text>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("coupons.coupon")}</Text>
               <Pressable onPress={() => setSelectedCoupon(null)}>
                 <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
               </Pressable>
@@ -193,7 +195,7 @@ export default function CouponsScreen() {
                 onPress={() => handleDeleteCoupon(selectedCoupon.id)}
               >
                 <IconSymbol name="trash.fill" size={16} color={colors.error} />
-                <Text style={[styles.deleteBtnText, { color: colors.error }]}>Delete Coupon</Text>
+                <Text style={[styles.deleteBtnText, { color: colors.error }]}>{t("coupons.deleteCoupon")}</Text>
               </Pressable>
             </ScrollView>
           </View>

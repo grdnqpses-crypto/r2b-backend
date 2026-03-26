@@ -7,6 +7,7 @@ import { Image } from "expo-image";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -43,29 +44,9 @@ const STEPS: Step[] = [
   { id: "referral",    type: "referral",   action: "referral" },
 ];
 
-const TUTORIAL_STEPS = [
-  {
-    emoji: "📝",
-    title: "Add What You Need",
-    subtitle: "Build your shopping list before you leave home. Add items by name — milk, batteries, birthday card — whatever you need.",
-    tip: "Step 1 of 3",
-  },
-  {
-    emoji: "🏪",
-    title: "Pick Your Stores",
-    subtitle: "Choose the stores you shop at. Remember2Buy finds them near you automatically — no typing addresses.",
-    tip: "Step 2 of 3",
-  },
-  {
-    emoji: "🔔",
-    title: "Get Alerted Automatically",
-    subtitle: "When you drive or walk near a store, your phone buzzes with a reminder. No more driving past the store and forgetting!",
-    tip: "Step 3 of 3",
-  },
-];
-
 export default function OnboardingScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { completeOnboarding } = useOnboarding();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -75,6 +56,28 @@ export default function OnboardingScreen() {
   const [referralCode, setReferralCode] = useState("");
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const currentStep = STEPS[step];
+
+  // Tutorial steps defined inline using t() — will be called inside render
+  const TUTORIAL_STEPS = [
+    {
+      emoji: "📝",
+      title: t("onboarding.tutorial.step1Title"),
+      subtitle: t("onboarding.tutorial.step1Subtitle"),
+      tip: t("onboarding.tutorial.step1Tip"),
+    },
+    {
+      emoji: "🏪",
+      title: t("onboarding.tutorial.step2Title"),
+      subtitle: t("onboarding.tutorial.step2Subtitle"),
+      tip: t("onboarding.tutorial.step2Tip"),
+    },
+    {
+      emoji: "🔔",
+      title: t("onboarding.tutorial.step3Title"),
+      subtitle: t("onboarding.tutorial.step3Subtitle"),
+      tip: t("onboarding.tutorial.step3Tip"),
+    },
+  ];
 
   // When arriving at a permission step, check existing status immediately
   useEffect(() => {
@@ -124,9 +127,6 @@ export default function OnboardingScreen() {
   }, [step]);
 
   const animateToNextStep = (nextStepIndex: number) => {
-    // Set step immediately — do NOT rely on animation callback to set step.
-    // Relying on the callback caused a blank screen when system dialogs
-    // interrupted the animation chain (opacity stuck at 0).
     fadeAnim.setValue(0);
     setStep(nextStepIndex);
     Animated.timing(fadeAnim, { toValue: 1, duration: 280, useNativeDriver: true }).start();
@@ -141,15 +141,7 @@ export default function OnboardingScreen() {
 
   /**
    * CRITICAL FIX: Do NOT call router.replace() here.
-   *
-   * router.replace() crashes on Android with Expo SDK 54 + newArchEnabled: true
-   * (Expo Router 6 / bridgeless mode). See: https://github.com/expo/expo/issues/41030
-   *
-   * Instead, we call completeOnboarding() which:
-   * 1. Persists the onboarding flag to AsyncStorage
-   * 2. Updates the OnboardingContext state (isOnboardingComplete = true)
-   * 3. Stack.Protected in _layout.tsx detects the state change and automatically
-   *    redirects to (tabs) — zero navigation calls from our code.
+   * See onboarding.tsx comments for full explanation.
    */
   const finish = async () => {
     try {
@@ -162,7 +154,6 @@ export default function OnboardingScreen() {
     await completeOnboarding();
   };
 
-  // Request notification permission — updates state with canAskAgain awareness
   const requestNotifications = async () => {
     setLoading(true);
     try {
@@ -182,7 +173,6 @@ export default function OnboardingScreen() {
     }
   };
 
-  // Request foreground location — updates state with canAskAgain awareness
   const requestForegroundLocation = async () => {
     setLoading(true);
     try {
@@ -201,7 +191,6 @@ export default function OnboardingScreen() {
     }
   };
 
-  // Request background location — must have foreground first
   const requestBackgroundLocation = async () => {
     setLoading(true);
     try {
@@ -209,7 +198,6 @@ export default function OnboardingScreen() {
       if (status === "granted") {
         setBgStatus("granted");
       } else {
-        // Android background location denial: canAskAgain is often false after first denial
         const { canAskAgain } = await Location.getBackgroundPermissionsAsync();
         setBgStatus(canAskAgain ? "denied_retriable" : "denied_permanent");
       }
@@ -227,15 +215,11 @@ export default function OnboardingScreen() {
       if (notifStatus === "granted") {
         nextStep();
       } else if (notifStatus === "denied_permanent") {
-        // Permanently denied — must open Settings
         Linking.openSettings();
       } else {
-        // unknown or denied_retriable — request the permission
         await requestNotifications();
-        // Only advance if granted after the request
         const { status } = await Notifications.getPermissionsAsync();
         if (status === "granted") nextStep();
-        // If still denied, stay on this step — the UI will show the retry/settings UI
       }
     } else if (currentStep.action === "location_fg") {
       if (fgStatus === "granted") {
@@ -263,12 +247,12 @@ export default function OnboardingScreen() {
         const success = await applyReferralCode(referralCode.trim());
         setLoading(false);
         if (success) {
-          Alert.alert("Referral Applied!", "You got 1 week of Premium free! Enjoy unlimited stores and items.", [
-            { text: "Let's Go!", onPress: finish },
+          Alert.alert(t("onboarding.referral.applied"), t("onboarding.referral.appliedMessage"), [
+            { text: t("onboarding.referral.ok"), onPress: finish },
           ]);
         } else {
-          Alert.alert("Invalid Code", "That referral code is invalid or has already been used.", [
-            { text: "OK", onPress: finish },
+          Alert.alert(t("onboarding.referral.invalid"), t("onboarding.referral.invalidMessage"), [
+            { text: t("onboarding.referral.ok"), onPress: finish },
           ]);
         }
       } else {
@@ -280,61 +264,59 @@ export default function OnboardingScreen() {
   };
 
   const getButtonLabel = () => {
-    if (loading) return "Please wait...";
-    if (currentStep.id === "ad") return "Show Me How →";
-    if (currentStep.type === "tutorial") return step === 3 ? "Got It — Let's Set Up" : "Next →";
+    if (loading) return t("onboarding.buttons.pleaseWait");
+    if (currentStep.id === "ad") return t("onboarding.ad.cta");
+    if (currentStep.type === "tutorial") return step === 3 ? t("onboarding.tutorial.letsSetUp") : t("onboarding.tutorial.next");
     if (currentStep.action === "notifications") {
-      if (notifStatus === "granted") return "Continue →";
-      if (notifStatus === "denied_permanent") return "Open Settings";
-      if (notifStatus === "denied_retriable") return "Try Again";
-      return "Enable Notifications";
+      if (notifStatus === "granted") return t("onboarding.buttons.continue");
+      if (notifStatus === "denied_permanent") return t("onboarding.notifications.openSettings");
+      if (notifStatus === "denied_retriable") return t("onboarding.notifications.tryAgain");
+      return t("onboarding.notifications.enableButton");
     }
     if (currentStep.action === "location_fg") {
-      if (fgStatus === "granted") return "Continue →";
-      if (fgStatus === "denied_permanent") return "Open Settings";
-      if (fgStatus === "denied_retriable") return "Try Again";
-      return "Allow Location";
+      if (fgStatus === "granted") return t("onboarding.buttons.continue");
+      if (fgStatus === "denied_permanent") return t("onboarding.locationFg.openSettings");
+      if (fgStatus === "denied_retriable") return t("onboarding.locationFg.tryAgain");
+      return t("onboarding.locationFg.enableButton");
     }
     if (currentStep.action === "location_bg") {
-      if (bgStatus === "granted") return "Continue →";
-      if (bgStatus === "denied_permanent") return "Open Settings";
-      if (bgStatus === "denied_retriable") return "Try Again";
-      return "Allow 'Always' Location";
+      if (bgStatus === "granted") return t("onboarding.buttons.continue");
+      if (bgStatus === "denied_permanent") return t("onboarding.locationBg.openSettings");
+      if (bgStatus === "denied_retriable") return t("onboarding.locationBg.tryAgain");
+      return t("onboarding.locationBg.enableButton");
     }
-    if (currentStep.action === "referral") return referralCode.trim() ? "Apply Code" : "Skip for Now";
-    return "Continue";
+    if (currentStep.action === "referral") return referralCode.trim() ? t("onboarding.referral.applyCode") : t("onboarding.referral.skipForNow");
+    return t("onboarding.buttons.continue");
   };
 
-  // Returns a status badge for the current permission step
   const getStatusBadge = (): { label: string; color: string } | null => {
     if (currentStep.action === "notifications") {
-      if (notifStatus === "granted") return { label: "✓ Notifications enabled", color: colors.success };
-      if (notifStatus === "denied_retriable") return { label: "Tap 'Try Again' to re-request permission", color: colors.warning };
-      if (notifStatus === "denied_permanent") return { label: "Blocked — tap 'Open Settings' to enable", color: colors.error };
+      if (notifStatus === "granted") return { label: "✓ " + t("onboarding.notifications.title"), color: colors.success };
+      if (notifStatus === "denied_retriable") return { label: t("onboarding.notifications.retriableMessage"), color: colors.warning };
+      if (notifStatus === "denied_permanent") return { label: t("onboarding.notifications.blockedMessage"), color: colors.error };
     }
     if (currentStep.action === "location_fg") {
-      if (fgStatus === "granted") return { label: "✓ Location access granted", color: colors.success };
-      if (fgStatus === "denied_retriable") return { label: "Tap 'Try Again' to re-request permission", color: colors.warning };
-      if (fgStatus === "denied_permanent") return { label: "Blocked — tap 'Open Settings' to enable", color: colors.error };
+      if (fgStatus === "granted") return { label: "✓ " + t("onboarding.locationFg.title"), color: colors.success };
+      if (fgStatus === "denied_retriable") return { label: t("onboarding.locationFg.retriableMessage"), color: colors.warning };
+      if (fgStatus === "denied_permanent") return { label: t("onboarding.locationFg.blockedMessage"), color: colors.error };
     }
     if (currentStep.action === "location_bg") {
-      if (bgStatus === "granted") return { label: "✓ Background location granted", color: colors.success };
-      if (bgStatus === "denied_retriable") return { label: "Tap 'Try Again' and choose 'Allow all the time'", color: colors.warning };
-      if (bgStatus === "denied_permanent") return { label: "Blocked — tap 'Open Settings' to enable", color: colors.error };
+      if (bgStatus === "granted") return { label: "✓ " + t("onboarding.locationBg.title"), color: colors.success };
+      if (bgStatus === "denied_retriable") return { label: t("onboarding.locationBg.retriableMessage"), color: colors.warning };
+      if (bgStatus === "denied_permanent") return { label: t("onboarding.locationBg.blockedMessage"), color: colors.error };
     }
     return null;
   };
 
-  // Returns explanation text shown below the badge when permission is denied
   const getDeniedExplanation = (): string | null => {
     if (currentStep.action === "notifications" && (notifStatus === "denied_retriable" || notifStatus === "denied_permanent")) {
-      return "Remember2Buy needs notifications to alert you when you arrive near a store. Without this, the app cannot remind you to shop.";
+      return t("onboarding.notifications.description");
     }
     if (currentStep.action === "location_fg" && (fgStatus === "denied_retriable" || fgStatus === "denied_permanent")) {
-      return "Location access is required to detect when you are near a store. Without it, the app cannot trigger any alerts.";
+      return t("onboarding.locationFg.description");
     }
     if (currentStep.action === "location_bg" && (bgStatus === "denied_retriable" || bgStatus === "denied_permanent")) {
-      return "Background location ('Allow all the time') lets the app alert you even when it is not open. This is the core feature of Remember2Buy.";
+      return t("onboarding.locationBg.description");
     }
     return null;
   };
@@ -346,7 +328,6 @@ export default function OnboardingScreen() {
   const showDots = step > 0;
   const totalDots = STEPS.length - 1;
 
-  // Determine button background color — warning for "Try Again", error-tinted for "Open Settings"
   const getBtnColor = () => {
     if (currentStep.type === "permission") {
       const s = currentStep.action === "notifications" ? notifStatus
@@ -380,18 +361,14 @@ export default function OnboardingScreen() {
           {currentStep.id === "ad" && (
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.adContainer}>
               <View style={[styles.adBadge, { backgroundColor: colors.primary + "18", borderColor: colors.primary + "40" }]}>
-                <Text style={[styles.adBadgeText, { color: colors.primary }]}>💡 For the cost of a bottled soda</Text>
+                <Text style={[styles.adBadgeText, { color: colors.primary }]}>{t("onboarding.ad.price")}</Text>
               </View>
               <Text style={[styles.adHeadline, { color: colors.foreground }]}>
-                {"NEVER feel that\n"}
-                <Text style={{ color: colors.primary }}>{"\"I FORGOT TO BUY\""}</Text>
-                {"\nfeeling ever again!"}
+                {t("onboarding.ad.headline")}
               </Text>
               <View style={[styles.adDivider, { backgroundColor: colors.primary }]} />
               <Text style={[styles.adBody, { color: colors.muted }]}>
-                <Text style={{ fontWeight: "700", color: colors.foreground }}>Remember2Buy</Text>
-                {" reminds you what's on your shopping list when you are "}
-                <Text style={{ fontWeight: "700", color: colors.foreground }}>actually in the store shopping!</Text>
+                {t("onboarding.ad.subheadline")}
               </Text>
               {/* App screenshots */}
               <View style={styles.screenshotsRow}>
@@ -408,9 +385,9 @@ export default function OnboardingScreen() {
               </View>
               <View style={styles.adFeatures}>
                 {[
-                  { icon: "🛒", text: "Your list, always ready" },
-                  { icon: "📍", text: "Alerts when you're near a store" },
-                  { icon: "🔕", text: "No more forgotten items" },
+                  { icon: "🛒", text: t("onboarding.ad.feature1") },
+                  { icon: "📍", text: t("onboarding.ad.feature2") },
+                  { icon: "🔕", text: t("onboarding.ad.feature3") },
                 ].map((f) => (
                   <View key={f.icon} style={[styles.adFeatureRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <Text style={styles.adFeatureIcon}>{f.icon}</Text>
@@ -440,16 +417,16 @@ export default function OnboardingScreen() {
                  currentStep.action === "location_fg" ? "📍" : "🔍"}
               </Text>
               <Text style={[styles.permTitle, { color: colors.foreground }]}>
-                {currentStep.action === "notifications" ? "Enable Alerts" :
-                 currentStep.action === "location_fg" ? "Allow Location Access" :
-                 "Allow 'Always' Location"}
+                {currentStep.action === "notifications" ? t("onboarding.notifications.title") :
+                 currentStep.action === "location_fg" ? t("onboarding.locationFg.title") :
+                 t("onboarding.locationBg.title")}
               </Text>
               <Text style={[styles.permSubtitle, { color: colors.muted }]}>
                 {currentStep.action === "notifications"
-                  ? "Get notified the moment you arrive near a store with items on your list."
+                  ? t("onboarding.notifications.description")
                   : currentStep.action === "location_fg"
-                  ? "Remember2Buy needs your location to detect when you're near a store."
-                  : "To alert you in the background, tap 'Allow all the time' on the next screen. This is how the app works when your phone is in your pocket."}
+                  ? t("onboarding.locationFg.description")
+                  : t("onboarding.locationBg.description")}
               </Text>
               {badge && (
                 <View style={[styles.badge, { backgroundColor: badge.color + "20" }]}>
@@ -471,18 +448,16 @@ export default function OnboardingScreen() {
             >
               <View style={styles.permContainer}>
                 <Text style={styles.permEmoji}>🎁</Text>
-                <Text style={[styles.permTitle, { color: colors.foreground }]}>Have a Referral Code?</Text>
-                <Text style={[styles.permSubtitle, { color: colors.muted }]}>
-                  Enter a friend's code to get 1 week of Premium free.
-                </Text>
+                <Text style={[styles.permTitle, { color: colors.foreground }]}>{t("onboarding.referral.title")}</Text>
+                <Text style={[styles.permSubtitle, { color: colors.muted }]}>{t("onboarding.referral.skipForNow")}</Text>
                 <View style={[styles.referralInput, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                   <IconSymbol name="gift.fill" size={18} color={colors.primary} />
                   <TextInput
                     style={[styles.referralTextInput, { color: colors.foreground }]}
-                    placeholder="Enter code (e.g. R2B-ABC123)"
+                    placeholder={t("onboarding.referral.placeholder")}
                     placeholderTextColor={colors.muted}
                     value={referralCode}
-                    onChangeText={(t) => setReferralCode(t.toUpperCase())}
+                    onChangeText={(txt) => setReferralCode(txt.toUpperCase())}
                     autoCapitalize="characters"
                     autoCorrect={false}
                     returnKeyType="done"
@@ -512,7 +487,7 @@ export default function OnboardingScreen() {
               style={({ pressed }) => [styles.skipBtn, { opacity: pressed ? 0.7 : 1 }]}
               onPress={finish}
             >
-              <Text style={[styles.skipBtnText, { color: colors.muted }]}>Skip for Now</Text>
+              <Text style={[styles.skipBtnText, { color: colors.muted }]}>{t("onboarding.skipForNow")}</Text>
             </Pressable>
           )}
         </View>

@@ -131,3 +131,13 @@
 - [x] Update app.config.ts: set androidPackage to com.remember2buy.shopping
 - [x] Update app.config.ts: set iosBundleId to com.remember2buy.shopping
 - [x] Set version to 2.3.0 and versionCode to 23 in app.config.ts
+
+## Branding Cleanup (Critical)
+- [ ] Remove all "belief-field-detector" / "Belief" references from app.config.ts, package.json, and any other project files — replace with Remember2Buy everywhere
+
+## Internationalization & Worldwide Release
+- [x] Audit all user-facing strings in the app
+- [x] Create i18n translation files for 21 world languages using i18next (en, es, fr, de, pt, it, nl, ru, ja, ko, zh, ar, hi, tr, pl, sv, id, th, vi, el, he)
+- [x] Implement i18next in the app and wire up all translated strings (index, list, stores, coupons, settings, onboarding)
+- [x] Set up Play Store listing with translated titles and descriptions for 28 languages
+- [ ] Save checkpoint with i18n changes and rebuild AAB

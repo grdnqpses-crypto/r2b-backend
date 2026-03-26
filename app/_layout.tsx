@@ -2,6 +2,7 @@
 // TaskManager.defineTask and Notifications.setNotificationHandler must run at module scope.
 import "@/lib/tasks";
 import "@/lib/notifications";
+import "@/lib/i18n"; // Initialize i18next with all 21 locales
 import "@/global.css";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

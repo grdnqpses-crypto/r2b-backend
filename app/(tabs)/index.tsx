@@ -17,6 +17,7 @@ import {
 import { useFocusEffect, useRouter } from "expo-router";
 import * as Location from "expo-location";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -54,6 +55,7 @@ function formatDistance(meters: number, unit: DistanceUnit): string {
 export default function DashboardScreen() {
   const colors = useColors();
   const router = useRouter();
+  const { t } = useTranslation();
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [stores, setStores] = useState<SavedStore[]>([]);
   const [tier, setTierState] = useState<Tier>("free");
@@ -186,11 +188,11 @@ export default function DashboardScreen() {
                 </View>
               )}
             </View>
-            <Text style={[styles.subtitle, { color: colors.muted }]}>Never forget to buy something</Text>
+            <Text style={[styles.subtitle, { color: colors.muted }]}>{t("dashboard.subtitle")}</Text>
           </Pressable>
           {tier === "premium" && (
             <View style={[styles.premiumBadge, { backgroundColor: "#a855f7" }]}>
-              <Text style={styles.premiumText}>PREMIUM</Text>
+              <Text style={styles.premiumText}>{t("dashboard.premiumBadge")}</Text>
             </View>
           )}
         </View>
@@ -215,14 +217,14 @@ export default function DashboardScreen() {
             </View>
             <View style={styles.statusText}>
               <Text style={[styles.statusTitle, { color: colors.foreground }]}>
-                {geofencingActive ? "Alerts Active" : "Alerts Inactive"}
+                {geofencingActive ? t("dashboard.alertsActive") : t("dashboard.alertsInactive")}
               </Text>
               <Text style={[styles.statusSubtitle, { color: colors.muted }]}>
                 {geofencingActive
-                  ? `Monitoring ${stores.length} store${stores.length !== 1 ? "s" : ""} — you'll be notified when nearby`
+                  ? t("dashboard.monitoringStores", { count: stores.length })
                   : locationGranted
-                  ? "Add stores to start receiving alerts"
-                  : "Enable location access to activate alerts"}
+                  ? t("dashboard.addStoresToStart")
+                  : t("dashboard.enableLocationToActivate")}
               </Text>
             </View>
           </View>
@@ -231,7 +233,7 @@ export default function DashboardScreen() {
               style={({ pressed }) => [styles.fixButton, { backgroundColor: colors.warning, opacity: pressed ? 0.8 : 1 }]}
               onPress={() => router.push("/(tabs)/settings" as never)}
             >
-              <Text style={styles.fixButtonText}>Fix Location Permissions →</Text>
+              <Text style={styles.fixButtonText}>{t("dashboard.fixLocationPermissions")}</Text>
             </Pressable>
           )}
         </View>
@@ -243,21 +245,21 @@ export default function DashboardScreen() {
             onPress={() => router.push("/(tabs)/list" as never)}
           >
             <Text style={[styles.summaryNumber, { color: colors.primary }]}>{uncheckedItems.length}</Text>
-            <Text style={[styles.summaryLabel, { color: colors.muted }]}>Items to buy</Text>
+            <Text style={[styles.summaryLabel, { color: colors.muted }]}>{t("dashboard.itemsToBuy")}</Text>
           </Pressable>
           <Pressable
             style={({ pressed }) => [styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 }]}
             onPress={() => router.push("/(tabs)/stores" as never)}
           >
-            <Text style={[styles.summaryNumber, { color: colors.primary }]}>{stores.length}</Text>
-            <Text style={[styles.summaryLabel, { color: colors.muted }]}>{stores.length === 1 ? "Store" : "Stores"} tracked</Text>
+            <Text style={[styles.summaryNumber, { color: colors.foreground }]}>{stores.length}</Text>
+            <Text style={[styles.summaryLabel, { color: colors.muted }]}>{t("dashboard.stores")}</Text>
           </Pressable>
           <Pressable
             style={({ pressed }) => [styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 }]}
             onPress={() => router.push("/(tabs)/list" as never)}
           >
             <Text style={[styles.summaryNumber, { color: colors.success }]}>{checkedItems.length}</Text>
-            <Text style={[styles.summaryLabel, { color: colors.muted }]}>Bought</Text>
+            <Text style={[styles.summaryLabel, { color: colors.muted }]}>{t("dashboard.bought")}</Text>
           </Pressable>
         </View>
 
@@ -265,9 +267,9 @@ export default function DashboardScreen() {
         {storesWithDistance.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Monitored Stores</Text>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("dashboard.monitoredStores")}</Text>
               <Pressable onPress={() => router.push("/(tabs)/stores" as never)}>
-                <Text style={[styles.seeAll, { color: colors.primary }]}>Manage →</Text>
+                <Text style={[styles.seeAll, { color: colors.primary }]}>{t("dashboard.manage")}</Text>
               </Pressable>
             </View>
             {storesWithDistance.map((store) => {
@@ -289,15 +291,15 @@ export default function DashboardScreen() {
                   <View style={styles.storeRight}>
                     {isNearby ? (
                       <View style={[styles.nearbyBadge, { backgroundColor: colors.success + "20" }]}>
-                        <Text style={[styles.nearbyText, { color: colors.success }]}>🛖 You're here!</Text>
+                        <Text style={[styles.nearbyText, { color: colors.success }]}>🛖 {t("dashboard.youreHere")}</Text>
                       </View>
                     ) : distLabel ? (
                       <View style={[styles.distanceBadge, { backgroundColor: colors.primary + "15" }]}>
-                        <Text style={[styles.distanceText, { color: colors.primary }]}>{distLabel} away</Text>
+                        <Text style={[styles.distanceText, { color: colors.primary }]}>{t("stores.distanceAway", { distance: distLabel })}</Text>
                       </View>
                     ) : (
                       <View style={[styles.activeBadge, { backgroundColor: colors.success + "20" }]}>
-                        <Text style={[styles.activeText, { color: colors.success }]}>Active</Text>
+                        <Text style={[styles.activeText, { color: colors.success }]}>{t("dashboard.active")}</Text>
                       </View>
                     )}
                   </View>
@@ -311,9 +313,9 @@ export default function DashboardScreen() {
         {uncheckedItems.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Shopping List</Text>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("dashboard.shoppingList")}</Text>
               <Pressable onPress={() => router.push("/(tabs)/list" as never)}>
-                <Text style={[styles.seeAll, { color: colors.primary }]}>See all →</Text>
+                <Text style={[styles.seeAll, { color: colors.primary }]}>{t("dashboard.seeAll")}</Text>
               </Pressable>
             </View>
             {uncheckedItems.slice(0, 5).map((item) => (
@@ -324,7 +326,7 @@ export default function DashboardScreen() {
             ))}
             {uncheckedItems.length > 5 && (
               <Pressable onPress={() => router.push("/(tabs)/list" as never)}>
-                <Text style={[styles.moreItems, { color: colors.primary }]}>+{uncheckedItems.length - 5} more items — tap to see all</Text>
+                <Text style={[styles.moreItems, { color: colors.primary }]}>{t("dashboard.moreItems", { count: uncheckedItems.length - 5 })}</Text>
               </Pressable>
             )}
           </View>
@@ -334,22 +336,22 @@ export default function DashboardScreen() {
         {stores.length === 0 && uncheckedItems.length === 0 && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>🛒</Text>
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Get Started</Text>
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("dashboard.getStarted")}</Text>
             <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
-              Add stores and shopping items to get alerts when you're nearby.
+              {t("dashboard.getStartedSubtitle")}
             </Text>
             <View style={styles.emptyActions}>
               <Pressable
                 style={({ pressed }) => [styles.emptyButton, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
                 onPress={() => router.push("/(tabs)/stores" as never)}
               >
-                <Text style={styles.emptyButtonText}>Add a Store</Text>
+                <Text style={styles.emptyButtonText}>{t("dashboard.addAStore")}</Text>
               </Pressable>
               <Pressable
                 style={({ pressed }) => [styles.emptyButtonOutline, { borderColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
                 onPress={() => router.push("/(tabs)/list" as never)}
               >
-                <Text style={[styles.emptyButtonOutlineText, { color: colors.primary }]}>Add Items</Text>
+                <Text style={[styles.emptyButtonOutlineText, { color: colors.primary }]}>{t("dashboard.addItems")}</Text>
               </Pressable>
             </View>
           </View>

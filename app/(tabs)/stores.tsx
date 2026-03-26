@@ -6,6 +6,7 @@ import {
 import { useFocusEffect } from "expo-router";
 import * as Location from "expo-location";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -21,10 +22,11 @@ type Tab = "nearby" | "saved";
 
 export default function StoresScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>("nearby");
   const [savedStores, setSavedStores] = useState<SavedStore[]>([]);
   const [nearbyStores, setNearbyStores] = useState<NearbyStore[]>([]);
-  const [tier, setTier] = useState<Tier>("free");
+  const [tier, setTierState] = useState<Tier>("free");
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -35,7 +37,7 @@ export default function StoresScreen() {
   const loadSavedStores = useCallback(async () => {
     const [storesData, tierData] = await Promise.all([getSavedStores(), getTier()]);
     setSavedStores(storesData);
-    setTier(tierData);
+    setTierState(tierData);
   }, []);
 
   const loadNearbyStores = useCallback(async (showLoader = true) => {
@@ -44,34 +46,29 @@ export default function StoresScreen() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        setLocationError("Location access is required to find nearby stores. Please enable it in Settings.");
+        setLocationError(t("stores.permissionDenied"));
         return;
       }
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
       const stores = await getNearbyStores(location.coords.latitude, location.coords.longitude);
-      // Phase 1: show stores immediately (some may have blank addresses)
       setNearbyStores([...stores]);
       setLoading(false);
-      // Phase 2: enrich missing addresses via reverse geocoding in background
-      // then force a re-render so the addresses appear
       enrichStoreAddresses(stores).then(() => {
         setNearbyStores([...stores]);
-      }).catch(() => {
-        // Non-fatal — addresses may remain blank for some stores
-      });
-      return; // skip the finally setLoading(false) since we already called it
+      }).catch(() => {});
+      return;
     } catch (err: any) {
       if (err?.message?.includes("Overpass")) {
-        setLocationError("Could not reach the store database. Please check your internet connection and try again.");
+        setLocationError(t("stores.networkError"));
       } else {
-        setLocationError("Could not get your location. Please try again.");
+        setLocationError(t("stores.locationError"));
       }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -100,26 +97,23 @@ export default function StoresScreen() {
   const handleAddStore = async (nearby: NearbyStore) => {
     if (atLimit) {
       Alert.alert(
-        "Free Limit Reached",
-        `Free accounts can monitor up to ${FREE_STORE_LIMIT} store. Upgrade to Premium for unlimited stores.`,
-        [{ text: "OK" }]
+        t("stores.freeLimitReached"),
+        t("stores.freeLimitMessage", { limit: FREE_STORE_LIMIT }),
+        [{ text: t("common.ok") }]
       );
       return;
     }
-    // Check if already added
     const alreadyAdded = savedStores.some(
       (s) => Math.abs(s.lat - nearby.lat) < 0.0001 && Math.abs(s.lng - nearby.lng) < 0.0001
     );
     if (alreadyAdded) {
-      Alert.alert("Already Added", `${nearby.name} is already in your monitored stores.`);
+      Alert.alert(t("stores.alreadyAdded"), `${nearby.name} ${t("stores.alreadyAddedMessage")}`);
       return;
     }
 
     setAddingId(nearby.id);
     try {
-      // Request notification permission if not yet granted
       await setupNotifications();
-
       const newStore = await addSavedStore({
         name: nearby.name,
         address: nearby.address || `${nearby.lat.toFixed(5)}, ${nearby.lng.toFixed(5)}`,
@@ -132,22 +126,22 @@ export default function StoresScreen() {
       await loadSavedStores();
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(
-        "Store Added!",
-        `${nearby.name} is now being monitored. You'll get an alert when you're within 0.3 miles.`,
-        [{ text: "Got it" }]
+        t("stores.storeAdded"),
+        t("stores.storeAddedMessage", { name: nearby.name }),
+        [{ text: t("stores.gotIt") }]
       );
     } catch {
-      Alert.alert("Error", "Failed to add store. Please try again.");
+      Alert.alert(t("common.error"), t("common.retry"));
     } finally {
       setAddingId(null);
     }
   };
 
   const handleDeleteStore = (id: string, name: string) => {
-    Alert.alert("Remove Store", `Stop monitoring ${name}?`, [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert(t("stores.removeStore"), t("stores.removeStoreConfirm", { name }), [
+      { text: t("common.cancel"), style: "cancel" },
       {
-        text: "Remove",
+        text: t("stores.remove"),
         style: "destructive",
         onPress: async () => {
           await deleteSavedStore(id);
@@ -197,10 +191,7 @@ export default function StoresScreen() {
         <Pressable
           style={({ pressed }) => [
             styles.addBtn,
-            {
-              backgroundColor: added ? colors.success + "20" : colors.primary,
-              opacity: pressed ? 0.8 : 1,
-            },
+            { backgroundColor: added ? colors.success + "20" : colors.primary, opacity: pressed ? 0.8 : 1 },
           ]}
           onPress={() => !added && handleAddStore(item)}
           disabled={added || isAdding}
@@ -228,7 +219,7 @@ export default function StoresScreen() {
           <Text style={[styles.storeAddress, { color: colors.muted }]} numberOfLines={1}>{item.address}</Text>
         ) : null}
         <View style={[styles.activeTag, { backgroundColor: colors.success + "18" }]}>
-          <Text style={[styles.activeTagText, { color: colors.success }]}>Monitoring active</Text>
+          <Text style={[styles.activeTagText, { color: colors.success }]}>{t("stores.monitoringActive")}</Text>
         </View>
       </View>
       <Pressable
@@ -245,9 +236,9 @@ export default function StoresScreen() {
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Stores</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("stores.title")}</Text>
           <Text style={[styles.subtitle, { color: colors.muted }]}>
-            Monitoring {savedStores.length} of {tier === "free" ? FREE_STORE_LIMIT : "∞"} stores
+            {t("stores.monitoringCount", { count: savedStores.length, max: tier === "free" ? FREE_STORE_LIMIT : "∞" })}
           </Text>
         </View>
 
@@ -258,7 +249,7 @@ export default function StoresScreen() {
             onPress={() => handleTabChange("nearby")}
           >
             <Text style={[styles.tabText, { color: activeTab === "nearby" ? "#fff" : colors.muted }]}>
-              Nearby
+              {t("stores.nearby")}
             </Text>
           </Pressable>
           <Pressable
@@ -266,7 +257,7 @@ export default function StoresScreen() {
             onPress={() => handleTabChange("saved")}
           >
             <Text style={[styles.tabText, { color: activeTab === "saved" ? "#fff" : colors.muted }]}>
-              My Stores ({savedStores.length})
+              {t("stores.myStores")} ({savedStores.length})
             </Text>
           </Pressable>
         </View>
@@ -274,12 +265,11 @@ export default function StoresScreen() {
         {/* Nearby Tab */}
         {activeTab === "nearby" && (
           <>
-            {/* Search */}
             <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <IconSymbol name="magnifyingglass" size={16} color={colors.muted} />
               <TextInput
                 style={[styles.searchInput, { color: colors.foreground }]}
-                placeholder="Filter stores..."
+                placeholder={t("stores.filterStores")}
                 placeholderTextColor={colors.muted}
                 value={searchText}
                 onChangeText={setSearchText}
@@ -289,12 +279,12 @@ export default function StoresScreen() {
 
             {/* Sort toggle */}
             <View style={styles.sortRow}>
-              <Text style={[styles.sortLabel, { color: colors.muted }]}>Sort:</Text>
+              <Text style={[styles.sortLabel, { color: colors.muted }]}>{t("stores.sort")}:</Text>
               <Pressable
                 style={[styles.sortBtn, sortByDistance && { backgroundColor: colors.primary }]}
                 onPress={() => setSortByDistance(true)}
               >
-                <Text style={[styles.sortBtnText, { color: sortByDistance ? "#fff" : colors.muted }]}>Nearest first</Text>
+                <Text style={[styles.sortBtnText, { color: sortByDistance ? "#fff" : colors.muted }]}>{t("stores.nearestFirst")}</Text>
               </Pressable>
               <Pressable
                 style={[styles.sortBtn, !sortByDistance && { backgroundColor: colors.primary }]}
@@ -303,25 +293,26 @@ export default function StoresScreen() {
                 <Text style={[styles.sortBtnText, { color: !sortByDistance ? "#fff" : colors.muted }]}>A–Z</Text>
               </Pressable>
             </View>
+
             {loading ? (
               <View style={styles.centered}>
                 <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={[styles.loadingText, { color: colors.muted }]}>Finding stores near you...</Text>
+                <Text style={[styles.loadingText, { color: colors.muted }]}>{t("stores.findingStores")}</Text>
               </View>
             ) : locationError ? (
               <View style={styles.centered}>
                 <Text style={styles.errorEmoji}>📍</Text>
-                <Text style={[styles.errorText, { color: colors.foreground }]}>Location Unavailable</Text>
+                <Text style={[styles.errorText, { color: colors.foreground }]}>{t("stores.locationUnavailable")}</Text>
                 <Text style={[styles.errorDesc, { color: colors.muted }]}>{locationError}</Text>
                 <Pressable
                   style={({ pressed }) => [styles.retryBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
                   onPress={() => loadNearbyStores()}
                 >
-                  <Text style={styles.retryBtnText}>Try Again</Text>
+                  <Text style={styles.retryBtnText}>{t("common.tryAgain")}</Text>
                 </Pressable>
                 <View style={[styles.apiBusyTip, { backgroundColor: colors.warning + "18", borderColor: colors.warning + "40" }]}>
                   <Text style={[styles.apiBusyTipText, { color: colors.warning }]}>
-                    💡 If you see this message, please tap Try Again — the store database is sometimes busy and may need a moment to respond.
+                    {t("stores.apiBusyTip")}
                   </Text>
                 </View>
               </View>
@@ -334,19 +325,13 @@ export default function StoresScreen() {
                 showsVerticalScrollIndicator={false}
                 ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
                 refreshControl={
-                  <RefreshControl
-                    refreshing={refreshing}
-                    onRefresh={handleRefresh}
-                    tintColor={colors.primary}
-                  />
+                  <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
                 }
                 ListEmptyComponent={
                   <View style={styles.centered}>
                     <Text style={styles.errorEmoji}>🏪</Text>
-                    <Text style={[styles.errorText, { color: colors.foreground }]}>No stores found nearby</Text>
-                    <Text style={[styles.errorDesc, { color: colors.muted }]}>
-                      Pull down to refresh or try in a different area.
-                    </Text>
+                    <Text style={[styles.errorText, { color: colors.foreground }]}>{t("stores.noStoresFound")}</Text>
+                    <Text style={[styles.errorDesc, { color: colors.muted }]}>{t("stores.noStoresFoundDesc")}</Text>
                   </View>
                 }
               />
@@ -366,10 +351,8 @@ export default function StoresScreen() {
             ListEmptyComponent={
               <View style={styles.centered}>
                 <Text style={styles.errorEmoji}>📌</Text>
-                <Text style={[styles.errorText, { color: colors.foreground }]}>No stores added yet</Text>
-                <Text style={[styles.errorDesc, { color: colors.muted }]}>
-                  Switch to the Nearby tab to find and add stores.
-                </Text>
+                <Text style={[styles.errorText, { color: colors.foreground }]}>{t("stores.noSavedStores")}</Text>
+                <Text style={[styles.errorDesc, { color: colors.muted }]}>{t("stores.noSavedStoresSubtitle")}</Text>
               </View>
             }
           />

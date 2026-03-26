@@ -4,6 +4,7 @@ import { Platform, View, Text, StyleSheet } from "react-native";
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { getShoppingItems } from "@/lib/storage";
 import { useFocusEffect } from "expo-router";
@@ -58,6 +59,7 @@ const badgeStyles = StyleSheet.create({
 
 export default function TabLayout() {
   const colors = useColors();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const bottomPadding = Platform.OS === "web" ? 12 : Math.max(insets.bottom, 8);
   const tabBarHeight = 56 + bottomPadding;
@@ -81,35 +83,35 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Dashboard",
+          title: t("tabs.dashboard"),
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="house.fill" color={color} />,
         }}
       />
       <Tabs.Screen
         name="list"
         options={{
-          title: "My List",
+          title: t("tabs.list"),
           tabBarIcon: ({ color }) => <ListTabIcon color={color} />,
         }}
       />
       <Tabs.Screen
         name="stores"
         options={{
-          title: "Stores",
+          title: t("tabs.stores"),
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="storefront.fill" color={color} />,
         }}
       />
       <Tabs.Screen
         name="coupons"
         options={{
-          title: "Coupons",
+          title: t("tabs.coupons"),
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="tag.fill" color={color} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          title: "Settings",
+          title: t("tabs.settings"),
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="gearshape.fill" color={color} />,
         }}
       />

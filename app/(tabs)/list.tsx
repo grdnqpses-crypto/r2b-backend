@@ -7,6 +7,7 @@ import {
 import { useFocusEffect } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -18,6 +19,7 @@ import {
 
 export default function ListScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [tier, setTier] = useState<Tier>("free");
   const [inputText, setInputText] = useState("");
@@ -39,7 +41,11 @@ export default function ListScreen() {
     const text = inputText.trim();
     if (!text) return;
     if (atLimit) {
-      Alert.alert("Free Limit Reached", `Free accounts can track up to ${FREE_ITEM_LIMIT} items. Upgrade to Premium for unlimited items.`, [{ text: "OK" }]);
+      Alert.alert(
+        t("list.freeLimitReached"),
+        t("list.freeLimitMessage", { limit: FREE_ITEM_LIMIT }),
+        [{ text: t("common.ok") }]
+      );
       return;
     }
     setLoading(true);
@@ -65,19 +71,19 @@ export default function ListScreen() {
     const unchecked = items.filter((i) => !i.checked);
     const checked = items.filter((i) => i.checked);
     if (items.length === 0) {
-      Alert.alert("Nothing to share", "Add some items to your list first.");
+      Alert.alert(t("list.nothingToShare"), t("list.nothingToShareMessage"));
       return;
     }
-    let message = "My Shopping List (Remember2Buy)\n\n";
+    let message = `${t("app.name")} — ${t("list.myList")}\n\n`;
     if (unchecked.length > 0) {
       message += unchecked.map((i) => `▢ ${i.text}`).join("\n");
     }
     if (checked.length > 0) {
       if (unchecked.length > 0) message += "\n\n";
-      message += "Already bought:\n" + checked.map((i) => `✓ ${i.text}`).join("\n");
+      message += checked.map((i) => `✓ ${i.text}`).join("\n");
     }
     try {
-      await Share.share({ message, title: "My Shopping List" });
+      await Share.share({ message, title: t("list.myList") });
     } catch {
       // user cancelled — no-op
     }
@@ -86,24 +92,28 @@ export default function ListScreen() {
   const handleClearChecked = async () => {
     const checkedCount = items.filter((i) => i.checked).length;
     if (checkedCount === 0) return;
-    Alert.alert("Clear Bought Items", `Remove ${checkedCount} checked item${checkedCount !== 1 ? "s" : ""}?`, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Clear", style: "destructive", onPress: async () => { await clearCheckedItems(); await loadItems(); } },
-    ]);
+    Alert.alert(
+      t("list.clearBoughtItems"),
+      t(checkedCount === 1 ? "list.clearBoughtConfirm" : "list.clearBoughtConfirm_plural", { count: checkedCount }),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        { text: t("list.confirmClearButton"), style: "destructive", onPress: async () => { await clearCheckedItems(); await loadItems(); } },
+      ]
+    );
   };
 
   const handleImportPhoto = async () => {
     if (tier !== "premium") {
-      Alert.alert("Premium Feature", "Photo import is a Premium feature. Upgrade to import shopping lists from photos.", [{ text: "OK" }]);
+      Alert.alert(t("list.premiumFeature"), t("list.photoImportPremium"), [{ text: t("common.ok") }]);
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
     if (result.canceled || !result.assets[0]) return;
     setOcrLoading(true);
     try {
-      Alert.alert("Photo Import", "OCR processing requires a server connection. Please add items manually.", [{ text: "OK" }]);
+      Alert.alert(t("coupons.importPhoto"), t("list.photoImportNote"), [{ text: t("common.ok") }]);
     } catch {
-      Alert.alert("Error", "Failed to process image.");
+      Alert.alert(t("common.error"), t("common.retry"));
     } finally {
       setOcrLoading(false);
     }
@@ -139,11 +149,11 @@ export default function ListScreen() {
     <ScreenContainer>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.foreground }]}>My List</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("list.myList")}</Text>
           <View style={styles.headerActions}>
             {checked.length > 0 && (
               <Pressable style={({ pressed }) => [styles.clearBtn, { opacity: pressed ? 0.7 : 1 }]} onPress={handleClearChecked}>
-                <Text style={[styles.clearBtnText, { color: colors.error }]}>Clear bought</Text>
+                <Text style={[styles.clearBtnText, { color: colors.error }]}>{t("list.clearBought")}</Text>
               </Pressable>
             )}
             <Pressable
@@ -157,21 +167,21 @@ export default function ListScreen() {
 
         {tier === "free" && (
           <View style={[styles.limitBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.limitText, { color: colors.muted }]}>{uncheckedCount}/{FREE_ITEM_LIMIT} items</Text>
+            <Text style={[styles.limitText, { color: colors.muted }]}>{uncheckedCount}/{FREE_ITEM_LIMIT} {t("list.title")}</Text>
             <View style={[styles.limitTrack, { backgroundColor: colors.border }]}>
               <View style={[styles.limitFill, {
                 backgroundColor: atLimit ? colors.error : colors.primary,
                 width: `${Math.min((uncheckedCount / FREE_ITEM_LIMIT) * 100, 100)}%` as any,
               }]} />
             </View>
-            <Text style={[styles.upgradeLink, { color: colors.premium }]}>Upgrade for unlimited</Text>
+            <Text style={[styles.upgradeLink, { color: colors.premium }]}>{t("list.upgradeForUnlimited")}</Text>
           </View>
         )}
 
         <View style={[styles.inputRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <TextInput
             style={[styles.input, { color: colors.foreground }]}
-            placeholder="Add an item..."
+            placeholder={t("list.addAnItem")}
             placeholderTextColor={colors.muted}
             value={inputText}
             onChangeText={setInputText}
@@ -197,7 +207,7 @@ export default function ListScreen() {
               <>
                 <IconSymbol name="plus.circle.fill" size={16} color={tier === "premium" ? colors.primary : colors.muted} />
                 <Text style={[styles.importBtnText, { color: tier === "premium" ? colors.primary : colors.muted }]}>
-                  Import Photo {tier !== "premium" ? "🔒" : ""}
+                  {t("list.importPhotoLabel")} {tier !== "premium" ? "🔒" : ""}
                 </Text>
               </>
             )}
@@ -207,8 +217,8 @@ export default function ListScreen() {
         {allItems.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>📝</Text>
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No items yet</Text>
-            <Text style={[styles.emptySubtitle, { color: colors.muted }]}>Add items above to start your shopping list.</Text>
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("list.noItemsYet")}</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.muted }]}>{t("list.noItemsSubtitle")}</Text>
           </View>
         ) : (
           <FlatList
