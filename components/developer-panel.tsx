@@ -30,7 +30,7 @@ export function DeveloperPanel({ devMode, onUpdate, onDisable, onDismiss }: Prop
     {
       key: "showAlgorithmDetails",
       label: "Algorithm Details",
-      desc: "Display the belief scoring algorithm's internal calculations",
+      desc: "Display the scoring algorithm's internal calculations",
     },
     {
       key: "showPerformanceMetrics",
@@ -88,7 +88,7 @@ export function DeveloperPanel({ devMode, onUpdate, onDisable, onDismiss }: Prop
           <Text style={[styles.infoTitle, { color: colors.foreground }]}>Build Information</Text>
           <View style={styles.infoRow}>
             <Text style={[styles.infoLabel, { color: colors.muted }]}>App Version</Text>
-            <Text style={[styles.infoValue, { color: colors.foreground }]}>1.0.0</Text>
+            <Text style={[styles.infoValue, { color: colors.foreground }]}>3.0.0 (30)</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={[styles.infoLabel, { color: colors.muted }]}>Platform</Text>
@@ -103,7 +103,7 @@ export function DeveloperPanel({ devMode, onUpdate, onDisable, onDismiss }: Prop
           <View style={styles.infoRow}>
             <Text style={[styles.infoLabel, { color: colors.muted }]}>Bundle ID</Text>
             <Text style={[styles.infoValue, { color: colors.foreground }]} numberOfLines={1}>
-              space.manus.belief.field.detector
+              com.remember2buy.shopping
             </Text>
           </View>
           <View style={styles.infoRow}>
@@ -145,21 +145,14 @@ export function DeveloperPanel({ devMode, onUpdate, onDisable, onDismiss }: Prop
               <Text style={[styles.infoValue, { color: colors.success }]}>Configured</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: colors.muted }]}>Product ID (Monthly)</Text>
-              <Text style={[styles.infoValue, { color: colors.foreground }]}>belief_premium_monthly</Text>
+              <Text style={[styles.infoLabel, { color: colors.muted }]}>Product ID (Weekly)</Text>
+              <Text style={[styles.infoValue, { color: colors.foreground }]}>premium_weekly_199</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: colors.muted }]}>Product ID (Annual)</Text>
-              <Text style={[styles.infoValue, { color: colors.foreground }]}>belief_premium_annual</Text>
+              <Text style={[styles.infoLabel, { color: colors.muted }]}>Trial Period</Text>
+              <Text style={[styles.infoValue, { color: colors.foreground }]}>3-day free trial</Text>
             </View>
-            <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: colors.muted }]}>Product ID (Family)</Text>
-              <Text style={[styles.infoValue, { color: colors.foreground }]}>belief_premium_family</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: colors.muted }]}>Apple IAP</Text>
-              <Text style={[styles.infoValue, { color: colors.success }]}>Configured</Text>
-            </View>
+
             <View style={styles.infoRow}>
               <Text style={[styles.infoLabel, { color: colors.muted }]}>Signing Key</Text>
               <Text style={[styles.infoValue, { color: colors.success }]}>Google Play Managed</Text>

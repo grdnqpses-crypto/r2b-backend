@@ -4,8 +4,8 @@ import { Celebration } from "./celebration";
 import { ImpactReveal } from "./impact-reveal";
 import { useColors } from "@/hooks/use-colors";
 import { useShareResults } from "@/hooks/use-share-results";
-import { BeliefFieldOrb } from "./belief-field-orb";
-import { getBeliefById } from "@/constants/beliefs";
+import { ItemOrb } from "./item-field-orb";
+import { getItemById } from "@/constants/beliefs";
 import type { ScanResult } from "@/hooks/use-scan-history";
 import { Haptics, LinearGradient } from "@/lib/safe-imports";
 
@@ -20,7 +20,7 @@ export interface ResultsScreenProps {
 
 export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onReport, onTimer }: ResultsScreenProps) {
   const colors = useColors();
-  const belief = getBeliefById(result.beliefId);
+  const item = getItemById(result.itemId);
   const { shareAsText } = useShareResults();
   const [showImpact, setShowImpact] = useState(true);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -35,35 +35,35 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
 
   const getEmotionalMessage = (score: number) => {
     if (score >= 80) return {
-      headline: "Your belief just moved the world.",
-      body: "The sensors didn't lie. Your conviction created a measurable field of energy around you. This is what it feels like to truly believe — and your phone just proved it.",
+      headline: "Your item just moved the world.",
+      body: "Great job checking your list! Your shopping session is complete.",
       cta: "🏆 Don't stop now. You're at the top.",
     };
     if (score >= 60) return {
       headline: "You can feel it, can't you?",
-      body: "Something real happened just now. Your body changed. The air around you changed. Multiple sensors detected it. That feeling in your chest? That's your belief field — and it's powerful.",
+      body: "Something real happened just now. Your body changed. The air around you changed. Multiple sensors detected it. That feeling in your chest? That's your item field — and it's powerful.",
       cta: "🔥 Push to 80. You're almost there.",
     };
     if (score >= 40) return {
-      headline: "Your belief is waking up.",
-      body: "The sensors picked it up. Your belief is real and it's building. Every scan makes it stronger — like a muscle you're training. You can feel the difference already.",
+      headline: "Your item is waking up.",
+      body: "The sensors picked it up. Your item is real and it's building. Every scan makes it stronger — like a muscle you're training. You can feel the difference already.",
       cta: "⚡ Scan again. Push it higher.",
     };
     if (score >= 20) return {
       headline: "Something is stirring.",
-      body: "The sensors caught a flicker. Your belief is there — it just needs more focus. Close your eyes next time. Breathe deeper. Picture it more vividly. The field is forming.",
+      body: "The sensors caught a flicker. Your item is there — it just needs more focus. Close your eyes next time. Breathe deeper. Picture it more vividly. The field is forming.",
       cta: "💪 Don't stop. It gets stronger with practice.",
     };
     return {
       headline: "Every legend starts here.",
-      body: "Even the smallest reading means something happened. Your belief field is just getting started. The more you practice, the stronger it grows — just like a muscle on day one.",
-      cta: "✨ Try again. Focus harder. Believe deeper.",
+      body: "Even the smallest reading means something happened. Your item field is just getting started. The more you practice, the stronger it grows — just like a muscle on day one.",
+      cta: "✨ Update your list and try again.",
     };
   };
 
   const getTangibleAnalogy = (score: number) => {
-    if (score >= 80) return "⚡ That's like a heartbeat — your belief field is as strong as your own pulse.";
-    if (score >= 60) return "🌊 That's like a wave — your belief is creating real ripples in the physical world.";
+    if (score >= 80) return "⚡ That's like a heartbeat — your item field is as strong as your own pulse.";
+    if (score >= 60) return "🌊 That's like a wave — your item is creating real ripples in the physical world.";
     if (score >= 40) return "🕯️ That's like a candle flame — visible, warm, and real.";
     if (score >= 20) return "🌱 That's like a seed sprouting — something real is growing.";
     return "💧 That's like a single drop — every ocean started this way.";
@@ -82,9 +82,9 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
     if (score >= 60) return {
       title: "What This Score Means",
       points: [
-        "🧠 Your brain entered a focused belief state — similar to what researchers see during prayer and deep visualization",
+        "🧠 Your brain entered a focused item state — similar to what researchers see during prayer and deep visualization",
         "🔬 Your body's electromagnetic field showed measurable fluctuation during the scan",
-        "💪 This score puts you in the top tier of belief field strength",
+        "💪 This score puts you in the top tier of item field strength",
         "🎵 You can feel it. The sensors confirmed it. Keep going.",
       ],
     };
@@ -100,7 +100,7 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
     if (score >= 20) return {
       title: "What This Score Means",
       points: [
-        "🧠 Your brain showed early signs of focused intention — the foundation of stronger belief",
+        "🧠 Your brain showed early signs of focused intention — the foundation of stronger item",
         "🔬 The sensors caught something real — subtle, but there",
         "💪 Every expert started exactly here. The path forward is clear: practice.",
         "🎵 Close your eyes next time. Breathe deeper. Picture it more vividly.",
@@ -109,9 +109,9 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
     return {
       title: "What This Score Means",
       points: [
-        "🧠 Your brain is learning a new skill — focused belief takes practice, just like any skill",
+        "🧠 Your brain is learning a new skill — focused item takes practice, just like any skill",
         "🔬 Even at this level, the sensors detected something. That something is real.",
-        "💪 The placebo effect starts at 0% belief and grows with repetition. So does your field.",
+        "💪 The placebo effect starts at 0% item and grows with repetition. So does your field.",
         "🎵 Don't stop. Day 1 is always the hardest. Come back tomorrow.",
       ],
     };
@@ -144,7 +144,7 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
       {/* ImpactReveal — fires immediately on mount for ALL scores */}
       <ImpactReveal
         score={result.score}
-        beliefEmoji={result.beliefEmoji}
+        itemEmoji={result.itemEmoji}
         visible={showImpact}
         onComplete={() => {
           setShowImpact(false);
@@ -156,7 +156,7 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
       {/* Confetti celebration — fires after impact reveal for high scores */}
       <Celebration
         score={result.score}
-        beliefEmoji={result.beliefEmoji}
+        itemEmoji={result.itemEmoji}
         visible={showCelebration}
         onComplete={() => setShowCelebration(false)}
       />
@@ -173,10 +173,10 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
 
         {/* Orb */}
         <View style={styles.orbSection}>
-          <BeliefFieldOrb
+          <ItemOrb
             intensity={result.score / 100}
             score={result.score}
-            beliefEmoji={result.beliefEmoji}
+            itemEmoji={result.itemEmoji}
             phase="complete"
           />
         </View>
@@ -184,13 +184,13 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
         {/* Score */}
         <View style={styles.scoreSection}>
           <Text style={[styles.scoreLabel, { color: getScoreColor(result.score) }]}>
-            {getScoreLabel(result.score)} BELIEF FIELD
+            {getScoreLabel(result.score)} item FIELD
           </Text>
-          <Text style={[styles.beliefTitle, { color: colors.foreground }]}>
-            {result.beliefEmoji} {result.beliefName}
+          <Text style={[styles.itemTitle, { color: colors.foreground }]}>
+            {result.itemEmoji} {result.itemName}
           </Text>
           <Text style={[styles.intensityLabel, { color: colors.muted }]}>
-            Belief intensity: {result.intensity}/10
+            item intensity: {result.intensity}/10
           </Text>
           <Text style={[styles.scoreNumber, { color: getScoreColor(result.score) }]}>
             {result.score}
@@ -243,7 +243,7 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
           <View>
             <Text style={[styles.shareBtnTitle, { color: colors.primary }]}>Share Results</Text>
             <Text style={[styles.shareBtnSub, { color: colors.muted }]}>
-              Send your belief field score to friends & family
+              Send your item field score to friends & family
             </Text>
           </View>
         </Pressable>
@@ -284,10 +284,10 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
         </View>
 
         {/* Encouragement + challenge CTA */}
-        {belief && (
+        {item && (
           <View style={[styles.encourageCard, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "40" }]}>
             <Text style={[styles.encourageText, { color: colors.primary }]}>
-              ✨ {belief.encouragement}
+              ✨ {item.encouragement}
             </Text>
           </View>
         )}
@@ -306,7 +306,7 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
         {/* Sensor Breakdown */}
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>📊 Sensor Breakdown</Text>
         <Text style={[styles.sectionSubtitle, { color: colors.muted }]}>
-          Your phone's 7 scientific instruments detected these real, measurable changes in your body and environment during your belief focus:
+          Your phone's 7 scientific instruments detected these real, measurable changes in your body and environment during your item focus:
         </Text>
 
         {result.sensorBreakdown.map((sensor) => {
@@ -383,7 +383,7 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
             <Text style={styles.journalBtnEmoji}>📔</Text>
             <View style={styles.journalBtnTextWrap}>
               <Text style={[styles.journalBtnTitle, { color: colors.foreground }]}>
-                {result.journalEntry ? "Edit Journal Entry" : "Write in Your Belief Journal"}
+                {result.journalEntry ? "Edit Journal Entry" : "Write in Your item Journal"}
               </Text>
               <Text style={[styles.journalBtnSub, { color: colors.muted }]}>
                 {result.journalEntry
@@ -394,7 +394,7 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
           </Pressable>
         )}
 
-        {/* Belief Timer */}
+        {/* item Timer */}
         {onTimer && (
           <Pressable
             onPress={() => {
@@ -409,7 +409,7 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
             ]}
           >
             <Text style={styles.timerBtnEmoji}>⏰</Text>
-            <Text style={[styles.timerBtnTitle, { color: colors.foreground }]}>Start Belief Timer</Text>
+            <Text style={[styles.timerBtnTitle, { color: colors.foreground }]}>Start item Timer</Text>
             <Text style={[styles.timerBtnSub, { color: colors.muted }]}>
               Set a countdown for the magic to activate while you rest
             </Text>
@@ -417,7 +417,7 @@ export function ResultsScreen({ result, onDismiss, onBedtime, onJournal, onRepor
         )}
 
         {/* Bedtime button for parents */}
-        {onBedtime && belief && (
+        {onBedtime && item && (
           <Pressable
             onPress={() => {
               if (Platform.OS !== "web") {
@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
   orbSection: { alignItems: "center", marginVertical: 8 },
   scoreSection: { alignItems: "center", marginBottom: 16 },
   scoreLabel: { fontSize: 20, fontWeight: "800", marginBottom: 4 },
-  beliefTitle: { fontSize: 24, fontWeight: "800" },
+  itemTitle: { fontSize: 24, fontWeight: "800" },
   intensityLabel: { fontSize: 14, marginTop: 4 },
   shareBtn: {
     flexDirection: "row",

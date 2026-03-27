@@ -1,9 +1,9 @@
 /**
- * PremiumPaywall — Subscription paywall for Belief Field Detector.
+ * PremiumPaywall — Subscription paywall for Remember 2 Buy.
  *
  * Pricing:
- *   - $0.99/week with a 3-day free trial (auto-renewing)
- *   - Referral: share with a friend → both get 1 extra free week
+ *   - $1.99/week auto-renewing
+ *   - Freemium: 1 store & 3 items free, Premium unlocks everything
  *
  * Google Play Billing integration note:
  *   In production, replace the `onActivate` mock with a real call to
@@ -11,9 +11,9 @@
  *   the Play Store / App Store subscription purchase flow.
  *
  *   Recommended: RevenueCat (https://revenuecat.com)
- *   - Product ID: "belief_weekly_099"
- *   - Free trial: 3 days
- *   - Price: $0.99/week
+ *   - Product ID: "premium_weekly_199"
+ *   - No free trial
+ *   - Price: $1.99/week
  *
  *   The `onActivate` callback is called after a successful purchase
  *   or free trial start, and should update the premium state.
@@ -25,8 +25,8 @@ import { Haptics, LinearGradient } from "@/lib/safe-imports";
 import { useReferral } from "@/hooks/use-referral";
 
 interface PremiumPaywallProps {
-  reason: "scan-limit" | "locked-belief" | "locked-feature" | "general";
-  beliefName?: string;
+  reason: "store-limit" | "item-limit" | "locked-feature" | "general";
+  itemName?: string;
   featureName?: string;
   scansRemaining?: number;
   onActivate: (family: boolean) => void;
@@ -34,25 +34,25 @@ interface PremiumPaywallProps {
 }
 
 const PREMIUM_FEATURES = [
-  { emoji: "♾️", title: "Unlimited Scans", desc: "Scan as many times as you want, every day" },
-  { emoji: "🌍", title: "All 45+ Beliefs", desc: "Every belief category — childhood, religion, spiritual, seasonal, supernatural, and more" },
-  { emoji: "⏱️", title: "Extended Scans", desc: "Choose 30s, 60s, or 90s scan duration" },
-  { emoji: "🔬", title: "Full Sensor Detail", desc: "See every sensor's baseline, peak, and deviation with scientific explanations" },
-  { emoji: "🎭", title: "Belief Stories", desc: "Immersive narrated experiences during scans" },
-  { emoji: "🧘", title: "Guided Meditation", desc: "Pre-scan breathing exercises with voice guidance" },
-  { emoji: "📔", title: "Belief Journal", desc: "Write reflections after each scan with guided prompts" },
-  { emoji: "📈", title: "Belief Strength Tracker", desc: "See how your belief grows stronger over time with charts" },
-  { emoji: "👥", title: "Group Belief Sessions", desc: "Scan together with friends and family, combine your fields" },
+  { emoji: "♾️", title: "Unlimited Lists", desc: "Create as many shopping lists as you need" },
+  { emoji: "🌍", title: "Unlimited Stores", desc: "Add as many stores as you need — grocery, pharmacy, hardware, and more" },
+  { emoji: "⏱️", title: "Unlimited Items", desc: "Add unlimited items to any list" },
+  { emoji: "🔬", title: "Coupon Section", desc: "Save and organize coupons alongside your shopping lists" },
+  { emoji: "🎭", title: "Smart Reminders", desc: "Get notified the moment you arrive at any store" },
+  { emoji: "🧘", title: "Family Sharing", desc: "Share lists with family members in real time" },
+  { emoji: "📔", title: "Purchase History", desc: "Track what you've bought and how much you've spent" },
+  { emoji: "📈", title: "Savings Tracker", desc: "See how much you save with coupons over time" },
+  { emoji: "👥", title: "Multiple Profiles", desc: "Create separate shopping profiles for each family member" },
   { emoji: "🎁", title: "Referral Rewards", desc: "Share with friends — you both get a free week" },
   { emoji: "📄", title: "Scan Reports", desc: "Generate shareable image cards with full sensor data" },
-  { emoji: "🔥", title: "Belief Streaks", desc: "Track daily practice with milestones and personal bests" },
-  { emoji: "🎨", title: "Custom Beliefs", desc: "Create your own beliefs with custom emoji and descriptions" },
-  { emoji: "🌙", title: "Bedtime Magic Mode", desc: "Beautiful bedtime messages that help kids go to sleep" },
+  { emoji: "🔥", title: "Store Alerts", desc: "Get GPS alerts when you're near any store on your list" },
+  { emoji: "🎨", title: "Custom Categories", desc: "Organize items into custom categories with your own labels" },
+  { emoji: "🌙", title: "Barcode Scanner", desc: "Scan barcodes to quickly add items to your list" },
 ];
 
 export function PremiumPaywall({
   reason,
-  beliefName,
+  itemName,
   featureName,
   scansRemaining,
   onActivate,
@@ -66,29 +66,29 @@ export function PremiumPaywall({
 
   const getHeaderText = () => {
     switch (reason) {
-      case "scan-limit":
+      case "store-limit":
         return scansRemaining === 0
-          ? "You've used all 3 free scans today"
-          : `You have ${scansRemaining} free scan${scansRemaining === 1 ? "" : "s"} left today`;
-      case "locked-belief":
-        return `${beliefName} is a Premium belief`;
+          ? "You've reached your free store limit"
+          : `You have reached the free plan limit`;
+      case "item-limit":
+        return `Unlock unlimited stores & items`;
       case "locked-feature":
         return `${featureName} is a Premium feature`;
       default:
-        return "Unlock the full Belief Field experience";
+        return "Unlock the full Remember 2 Buy experience";
     }
   };
 
   const getSubtext = () => {
     switch (reason) {
-      case "scan-limit":
-        return "Upgrade to Believer for unlimited scans every day — measure your belief as often as you want.";
-      case "locked-belief":
-        return "Free users can scan 5 core beliefs. Upgrade to access all 45+ beliefs across every category.";
+      case "store-limit":
+        return "Upgrade to Premium for unlimited stores, unlimited items, and the coupon section.";
+      case "item-limit":
+        return "Free users get 1 store and 3 items. Upgrade to add unlimited stores and items.";
       case "locked-feature":
-        return "This feature is available with a Believer subscription. Unlock it to deepen your belief experience.";
+        return "This feature requires Premium. Upgrade to unlock it.";
       default:
-        return "Get unlimited scans, all beliefs, guided meditation, belief stories, group sessions, and much more.";
+        return "Get unlimited stores, unlimited items, the coupon section, and much more.";
     }
   };
 
@@ -116,7 +116,7 @@ export function PremiumPaywall({
         {/* Header */}
         <Text style={styles.crownEmoji}>👑</Text>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-          Become a Believer
+          Unlock Remember 2 Buy Premium
         </Text>
         <Text style={[styles.headerReason, { color: colors.primary }]}>
           {getHeaderText()}
@@ -159,18 +159,18 @@ export function PremiumPaywall({
             <View style={[styles.popularBadge, { backgroundColor: colors.primary }]}>
               <Text style={styles.popularText}>⭐ MOST POPULAR</Text>
             </View>
-            <Text style={[styles.planName, { color: colors.foreground }]}>Believer</Text>
+            <Text style={[styles.planName, { color: colors.foreground }]}>Premium</Text>
             <View style={styles.priceRow}>
-              <Text style={[styles.planPrice, { color: colors.primary }]}>$0.99</Text>
-              <Text style={[styles.planPeriod, { color: colors.muted }]}>/week</Text>
+              <Text style={[styles.planPrice, { color: colors.primary }]}>$1.99</Text>
+              <Text style={[styles.planPeriod, { color: colors.muted }]}>/week, auto-renewing</Text>
             </View>
             <View style={[styles.trialBadge, { backgroundColor: colors.primary + "20", borderColor: colors.primary + "40" }]}>
               <Text style={[styles.trialText, { color: colors.primary }]}>
-                🆓 3-Day Free Trial — No charge for 3 days
+                ✓ Instant access — cancel anytime
               </Text>
             </View>
             <Text style={[styles.planAnnual, { color: colors.muted }]}>
-              ~$4.29/month · Cancel anytime
+              ~$8.63/month · Auto-renews weekly
             </Text>
             <Pressable
               onPress={() => {
@@ -185,7 +185,7 @@ export function PremiumPaywall({
               <Text style={styles.ctaBtnText}>
                 {hasFreeWeeks
                   ? `Start Free — ${referral.freeWeeksRemaining + 0} week${referral.freeWeeksRemaining !== 1 ? "s" : ""} free`
-                  : "Start 3-Day Free Trial"}
+                  : "Start Premium — $1.99/week"}
               </Text>
             </Pressable>
           </Pressable>
@@ -205,19 +205,19 @@ export function PremiumPaywall({
             ]}
           >
             <Text style={[styles.planName, { color: colors.foreground }]}>
-              True Believers (Family)
+              Family Premium
             </Text>
             <View style={styles.priceRow}>
               <Text style={[styles.planPrice, { color: colors.primary }]}>$1.99</Text>
-              <Text style={[styles.planPeriod, { color: colors.muted }]}>/week</Text>
+              <Text style={[styles.planPeriod, { color: colors.muted }]}>/week, auto-renewing</Text>
             </View>
             <View style={[styles.trialBadge, { backgroundColor: colors.primary + "20", borderColor: colors.primary + "40" }]}>
               <Text style={[styles.trialText, { color: colors.primary }]}>
-                🆓 3-Day Free Trial — up to 6 family profiles
+                ✓ Up to 6 family profiles
               </Text>
             </View>
             <Text style={[styles.planAnnual, { color: colors.muted }]}>
-              ~$8.57/month · That's just $1.43/person for a family of 6
+              ~$8.63/month · Auto-renews weekly
             </Text>
             <Pressable
               onPress={() => {
@@ -229,7 +229,7 @@ export function PremiumPaywall({
                 { backgroundColor: colors.primary, opacity: pressed ? 0.9 : 1 },
               ]}
             >
-              <Text style={styles.ctaBtnText}>Start 3-Day Free Trial</Text>
+              <Text style={styles.ctaBtnText}>Start Premium — $1.99/week</Text>
             </Pressable>
           </Pressable>
         </View>
@@ -266,14 +266,14 @@ export function PremiumPaywall({
         {/* Trust signals */}
         <View style={styles.trustSection}>
           <Text style={[styles.trustText, { color: colors.muted }]}>
-            ✓ 3-day free trial  ·  ✓ Cancel anytime  ·  ✓ No commitment
+            ✓ Cancel anytime  ·  ✓ No commitment  ·  ✓ Instant access
           </Text>
           <Text style={[styles.trustSubtext, { color: colors.muted }]}>
-            Subscription auto-renews at $0.99/week unless cancelled.{"\n"}
+            Subscription auto-renews at $1.99/week unless cancelled.{"\n"}
             Manage or cancel in Google Play / App Store settings.
           </Text>
           <Pressable
-            onPress={() => Linking.openURL("https://beliefdetec-3mwrpobt.manus.space/privacy")}
+            onPress={() => Linking.openURL("https://remember2buy.com/privacy")}
             style={{ marginTop: 8 }}
           >
             <Text style={[styles.legalLink, { color: colors.muted }]}>

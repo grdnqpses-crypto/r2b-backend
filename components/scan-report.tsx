@@ -45,7 +45,7 @@ export function ScanReport({ result, onDismiss }: ScanReportProps) {
         if (canShare) {
           await Sharing.shareAsync(uri, {
             mimeType: "image/png",
-            dialogTitle: "Share Belief Field Report",
+            dialogTitle: "Share item Field Report",
           });
         }
       }
@@ -79,7 +79,7 @@ export function ScanReport({ result, onDismiss }: ScanReportProps) {
         {/* Header */}
         <Text style={[styles.pageTitle, { color: colors.foreground }]}>Scan Report</Text>
         <Text style={[styles.pageSubtitle, { color: colors.muted }]}>
-          A complete record of your belief field scan with all sensor data
+          A complete record of your item field scan with all sensor data
         </Text>
 
         {/* Shareable card */}
@@ -98,23 +98,23 @@ export function ScanReport({ result, onDismiss }: ScanReportProps) {
 
             {/* Title bar */}
             <View style={styles.reportHeader}>
-              <Text style={styles.reportBrand}>BELIEF FIELD DETECTOR</Text>
+              <Text style={styles.reportBrand}>item FIELD DETECTOR</Text>
               <Text style={styles.reportDate}>{dateStr}</Text>
             </View>
 
             {/* Score hero */}
             <View style={styles.scoreHero}>
-              <Text style={styles.reportEmoji}>{result.beliefEmoji}</Text>
-              <Text style={styles.reportBeliefName}>{result.beliefName}</Text>
+              <Text style={styles.reportEmoji}>{result.itemEmoji}</Text>
+              <Text style={styles.reportItemName}>{result.itemName}</Text>
               <View style={[styles.scoreBadge, { backgroundColor: scoreColor + "20", borderColor: scoreColor + "60" }]}>
                 <Text style={[styles.scoreNumber, { color: scoreColor }]}>{result.score}</Text>
                 <Text style={[styles.scoreMax, { color: scoreColor + "80" }]}>/100</Text>
               </View>
               <Text style={[styles.scoreLabel, { color: scoreColor }]}>
-                {getScoreLabel(result.score)} Belief Field
+                {getScoreLabel(result.score)} item Field
               </Text>
               <Text style={styles.intensityText}>
-                Belief Intensity: {result.intensity}/10
+                item Intensity: {result.intensity}/10
               </Text>
             </View>
 
@@ -168,7 +168,7 @@ export function ScanReport({ result, onDismiss }: ScanReportProps) {
             {/* Footer */}
             <View style={styles.reportFooter}>
               <Text style={styles.footerText}>Measured with 7 scientific phone sensors</Text>
-              <Text style={styles.footerText}>Belief Field Detector App</Text>
+              <Text style={styles.footerText}>item Field Detector App</Text>
             </View>
           </View>
         </ViewShot>
@@ -177,7 +177,7 @@ export function ScanReport({ result, onDismiss }: ScanReportProps) {
         <View style={[styles.explainCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.explainTitle, { color: colors.foreground }]}>📋 What This Report Shows</Text>
           <Text style={[styles.explainText, { color: colors.muted }]}>
-            This report contains a complete record of your belief field scan. It shows your overall score, the belief you focused on, and detailed readings from each sensor in your phone. The deviation percentage shows how much each sensor changed from its baseline during your focused belief.
+            This report contains a complete record of your item field scan. It shows your overall score, the item you focused on, and detailed readings from each sensor in your phone. The deviation percentage shows how much each sensor changed from its baseline during your focused item.
           </Text>
         </View>
 
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
   reportDate: { fontSize: 11, color: "#9BA1A6", marginTop: 4 },
   scoreHero: { alignItems: "center", marginBottom: 20 },
   reportEmoji: { fontSize: 48, marginBottom: 8 },
-  reportBeliefName: { fontSize: 22, fontWeight: "800", color: "#fff", marginBottom: 12 },
+  reportItemName: { fontSize: 22, fontWeight: "800", color: "#fff", marginBottom: 12 },
   scoreBadge: {
     flexDirection: "row",
     alignItems: "baseline",

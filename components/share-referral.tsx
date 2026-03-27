@@ -91,8 +91,8 @@ export function ShareReferral({ onDismiss, onFreeWeekEarned }: ShareReferralProp
           <Text style={styles.heroEmoji}>🎁</Text>
           <Text style={styles.heroTitle}>Invite a Friend</Text>
           <Text style={styles.heroDesc}>
-            When your friend installs Belief Field Detector using your code,{" "}
-            <Text style={{ fontWeight: "800" }}>you both get 1 free week of premium</Text> — unlimited scans, all beliefs, full sensor lab.
+            When your friend installs item Field Detector using your code,{" "}
+            <Text style={{ fontWeight: "800" }}>you both get 1 free week of premium</Text> — unlimited stores, unlimited items, full coupon section.
           </Text>
         </LinearGradient>
 
@@ -205,7 +205,7 @@ export function ShareReferral({ onDismiss, onFreeWeekEarned }: ShareReferralProp
           <Text style={[styles.howTitle, { color: colors.foreground }]}>How It Works</Text>
           {[
             { step: "1", text: "Tap \"Share My Referral Link\" above" },
-            { step: "2", text: "Your friend installs Belief Field Detector" },
+            { step: "2", text: "Your friend installs item Field Detector" },
             { step: "3", text: "They enter your code in the Share & Earn screen" },
             { step: "4", text: "You both instantly get 1 free week of premium!" },
           ].map(({ step, text }) => (

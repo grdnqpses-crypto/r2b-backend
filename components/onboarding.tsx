@@ -13,10 +13,10 @@ const SLIDES = [
   {
     emoji: "🎵",
     title: "Don't Stop\nBelieving",
-    subtitle: "Your belief is about to become visible",
-    body: "You've always felt it. That deep knowing in your chest when you believe in something. That warmth when you think about what matters most to you. That certainty that some things are real, even when you can't see them.\n\nNow, for the first time, you can actually SEE it.",
+    subtitle: "Your item is about to become visible",
+    body: "You've always felt it. That deep knowing in your chest when you stay organized. That warmth when you think about what matters most to you. That certainty that some things are real, even when you can't see them.\n\nNow, for the first time, you can actually SEE it.",
     highlight:
-      "Your phone has 7 scientific instruments. When you believe, they respond. This is your belief — measured, proven, and real.",
+      "Add stores, add items, check them off. It's that simple — and it works.",
     sensors: [
       "📊 Accelerometer",
       "🔄 Gyroscope",
@@ -30,35 +30,35 @@ const SLIDES = [
   {
     emoji: "🧠",
     title: "Your Brain Can't Tell\nthe Difference",
-    subtitle: "Neuroscience of Belief — The Science Is Real",
+    subtitle: "Neuroscience of item — The Science Is Real",
     body: "Here's what neuroscientists have proven: when you vividly imagine something — truly picture it in your mind — your brain activates the EXACT same regions as when you actually see it.\n\nClose your eyes and picture a lemon. Your mouth just watered. That's not imagination — that's your brain making it real.",
     highlight:
-      "When you deeply believe in something, your brain is literally experiencing it as real. That's not wishful thinking — that's peer-reviewed neuroscience.",
+      "Organized shoppers save time and money. Remember 2 Buy makes it effortless.",
     sensors: [],
   },
   {
     emoji: "💊",
-    title: "Belief Physically\nChanges Your Body",
+    title: "item Physically\nChanges Your Body",
     subtitle: "The Placebo Effect — Proven for Decades",
-    body: "Doctors have documented this for 70 years: when people believe a sugar pill is real medicine, their bodies respond with measurable physical changes — reduced pain, lower blood pressure, stronger immune response, even tumor shrinkage.\n\nThink about that. A SUGAR PILL. Just because they believed.",
+    body: "Doctors have documented this for 70 years: when people stay organized and use a simple list, their bodies respond with measurable physical changes — less stress, more savings, fewer forgotten items.\n\nThink about that. A SIMPLE LIST. Just because they stayed organized.",
     highlight:
-      "If belief can heal the body, what else can it do? Your phone's sensors are about to answer that question — for YOUR belief, right now.",
+      "If item can heal the body, what else can it do? Your phone's sensors are about to answer that question — for YOUR item, right now.",
     sensors: [],
   },
   {
     emoji: "🌊",
-    title: "Belief Leaves a\nReal Footprint",
+    title: "item Leaves a\nReal Footprint",
     subtitle: "Your Conviction Changes the World Around You",
-    body: "When you believe deeply, your body changes in ways you can't feel — but sensors can.\n\n• Your muscles produce micro-tremors (accelerometer catches them)\n• Your breathing shifts air pressure (barometer detects it)\n• Your body's electromagnetic field fluctuates (magnetometer reads it)\n• Even how you hold your phone changes (gyroscope tracks it)",
+    body: "When you shop smarter, your life changes in ways you can't always see — but your wallet can.\n\n• Your muscles produce micro-tremors (accelerometer catches them)\n• Your breathing shifts air pressure (barometer detects it)\n• Your body's electromagnetic field fluctuates (magnetometer reads it)\n• Even how you hold your phone changes (gyroscope tracks it)",
     highlight:
-      "We're not proving what you believe in exists. We're measuring the real, scientific footprint that your belief leaves on the physical world. And that footprint is real.",
+      "Remember 2 Buy keeps your shopping organized, on budget, and stress-free.",
     sensors: [],
   },
   {
     emoji: "🏆",
     title: "This Is Your\nChallenge",
     subtitle: "See It. Feel It. Prove It. Don't Stop.",
-    body: "Choose what you believe in. Focus your mind. Believe as hard as you can. Watch every sensor respond.\n\nThen do it again tomorrow. And the next day. Watch your score climb. Watch your belief field grow stronger. Track your progress. Challenge your friends.\n\nBecause belief, like a muscle, gets stronger every time you use it.",
+    body: "Add your stores and items. Check off what you buy. Watch your savings grow.\n\nThen do it again tomorrow. And the next day. Watch your score climb. Watch your budget improve. Track your progress. Challenge your friends.\n\nBecause organized shopping saves time and money.",
     highlight:
       "Your first scan is waiting. Don't stop believing — and never stop growing. 🎵",
     sensors: [],

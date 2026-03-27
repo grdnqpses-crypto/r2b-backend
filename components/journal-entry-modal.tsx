@@ -13,8 +13,8 @@ import { useColors } from "@/hooks/use-colors";
 import { Haptics } from "@/lib/safe-imports";
 
 interface JournalEntryModalProps {
-  beliefName: string;
-  beliefEmoji: string;
+  itemName: string;
+  itemEmoji: string;
   score: number;
   existingEntry?: string;
   onSave: (entry: string) => void;
@@ -25,14 +25,14 @@ const PROMPTS = [
   "How did you feel during the scan?",
   "What were you thinking about while focusing?",
   "Did anything surprise you about the results?",
-  "How strong was your belief in that moment?",
-  "What would make your belief even stronger?",
+  "How strong was your item in that moment?",
+  "What would make your item even stronger?",
   "Describe the feeling in one word, then explain...",
 ];
 
 export function JournalEntryModal({
-  beliefName,
-  beliefEmoji,
+  itemName,
+  itemEmoji,
   score,
   existingEntry,
   onSave,
@@ -61,16 +61,16 @@ export function JournalEntryModal({
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerEmoji}>📔</Text>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Belief Journal</Text>
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>item Journal</Text>
           <Text style={[styles.headerSub, { color: colors.muted }]}>
-            Record how you felt during your {beliefEmoji} {beliefName} scan
+            Record notes for your {itemEmoji} {itemName} shopping trip
           </Text>
         </View>
 
         {/* Score reminder */}
         <View style={[styles.scoreReminder, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" }]}>
           <Text style={[styles.scoreText, { color: colors.primary }]}>
-            Your belief field score: {score}/100
+            Your item field score: {score}/100
           </Text>
         </View>
 

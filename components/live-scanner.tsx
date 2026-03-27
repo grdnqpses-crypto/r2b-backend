@@ -4,14 +4,14 @@ import { useColors } from "@/hooks/use-colors";
 import { useSensorEngine } from "@/hooks/use-sensors";
 import { useScanAudio } from "@/hooks/use-scan-audio";
 import { SensorCard } from "./sensor-card";
-import { BeliefFieldOrb } from "./belief-field-orb";
+import { ItemOrb } from "./item-field-orb";
 import { SilentErrorBoundary } from "./error-boundary";
-import type { BeliefOption } from "@/constants/beliefs";
+import type { ItemOption } from "@/constants/beliefs";
 import type { ScanResult } from "@/hooks/use-scan-history";
 import { generateInterpretation, generateSummary } from "@/hooks/use-scan-history";
-import { getThemeForBelief, type BeliefTheme } from "@/constants/belief-themes";
-import { getStoryForBelief } from "@/constants/belief-stories";
-import { useBeliefStory } from "@/hooks/use-belief-story";
+import { getThemeForItem, type ItemTheme } from "@/constants/item-themes";
+import { getStoryForitem } from "@/constants/item-stories";
+import { useItemStory } from "@/hooks/use-item-story";
 import { isFeatureHealthy, reportFeatureFailure } from "@/hooks/use-diagnostics";
 
 // ─── Safe lazy imports ──────────────────────────────────────────
@@ -93,7 +93,7 @@ type WarmUpPhase = "warmup" | "animating" | "sensors" | "audio" | "ready";
 
 // ─── Component ──────────────────────────────────────────────────
 interface LiveScannerProps {
-  belief: BeliefOption;
+  item: ItemOption;
   intensity: number;
   scanDuration?: number;
   soundEnabled?: boolean;
@@ -103,7 +103,7 @@ interface LiveScannerProps {
 }
 
 export function LiveScanner({
-  belief,
+  item,
   intensity,
   scanDuration = 60,
   soundEnabled = true,
@@ -124,18 +124,18 @@ export function LiveScanner({
   // Sensors only start when warmUpPhase reaches "sensors"
   const sensorsReady = warmUpPhase === "sensors" || warmUpPhase === "audio" || warmUpPhase === "ready";
 
-  const theme: BeliefTheme = useMemo(
-    () => getThemeForBelief(belief.category),
-    [belief.category]
+  const theme: ItemTheme = useMemo(
+    () => getThemeForitem(item.category),
+    [item.category]
   );
 
   // Only pass isScanning=true when sensors are ready
   const sensorState = useSensorEngine(sensorsReady, intensity, scanDuration);
   const scanAudio = useScanAudio();
-  const beliefStory = useBeliefStory();
+  const itemStory = useItemStory();
   const story = useMemo(
-    () => (storyEnabled ? getStoryForBelief(belief.id) : null),
-    [belief.id, storyEnabled]
+    () => (storyEnabled ? getStoryForitem(item.id) : null),
+    [item.id, storyEnabled]
   );
   const [storyActive, setStoryActive] = useState(false);
 
@@ -200,7 +200,7 @@ export function LiveScanner({
         // Start story narration
         if (story && isFeatureHealthy("speech")) {
           try {
-            beliefStory.startStory(story);
+            itemStory.startStory(story);
             setStoryActive(true);
           } catch (err: any) {
             reportFeatureFailure("speech", err?.message);
@@ -235,7 +235,7 @@ export function LiveScanner({
       if (storyActive) {
         try {
           const progress = sensorState.elapsed / scanDuration;
-          beliefStory.updateProgress(progress);
+          itemStory.updateProgress(progress);
         } catch {}
       }
     }
@@ -246,7 +246,7 @@ export function LiveScanner({
     sensorsReady,
     scanAudio,
     scanDuration,
-    beliefStory,
+    itemStory,
     storyActive,
   ]);
 
@@ -278,7 +278,7 @@ export function LiveScanner({
       }
       if (storyActive) {
         try {
-          beliefStory.stopStory();
+          itemStory.stopStory();
         } catch {}
         setStoryActive(false);
       }
@@ -306,14 +306,14 @@ export function LiveScanner({
 
       const result: ScanResult = {
         id: Date.now().toString(),
-        beliefId: belief.id,
-        beliefName: belief.name,
-        beliefEmoji: belief.emoji,
+        itemId: item.id,
+        itemName: item.name,
+        itemEmoji: item.emoji,
         intensity,
         score: sensorState.overallScore,
         date: new Date().toISOString(),
         sensorBreakdown: breakdown,
-        summary: generateSummary(sensorState.overallScore, belief.name),
+        summary: generateSummary(sensorState.overallScore, item.name),
       };
 
       safeHapticNotification();
@@ -327,10 +327,10 @@ export function LiveScanner({
       if (soundEnabled) scanAudio.stop();
     } catch {}
     try {
-      if (storyActive) beliefStory.stopStory();
+      if (storyActive) itemStory.stopStory();
     } catch {}
     onCancel();
-  }, [scanAudio, onCancel, beliefStory, storyActive, soundEnabled]);
+  }, [scanAudio, onCancel, itemStory, storyActive, soundEnabled]);
 
   // Elapsed time display (counts up)
   const elapsed = Math.floor(sensorState.elapsed);
@@ -349,7 +349,7 @@ export function LiveScanner({
       try { scanAudio.stop(); scanAudio.playComplete(); } catch {}
     }
     if (storyActive) {
-      try { beliefStory.stopStory(); } catch {}
+      try { itemStory.stopStory(); } catch {}
       setStoryActive(false);
     }
     const breakdown = sensorState.sensors
@@ -366,17 +366,17 @@ export function LiveScanner({
       }));
     const result: ScanResult = {
       id: Date.now().toString(),
-      beliefId: belief.id,
-      beliefName: belief.name,
-      beliefEmoji: belief.emoji,
+      itemId: item.id,
+      itemName: item.name,
+      itemEmoji: item.emoji,
       intensity,
       score: sensorState.overallScore,
       date: new Date().toISOString(),
       sensorBreakdown: breakdown,
-      summary: generateSummary(sensorState.overallScore, belief.name),
+      summary: generateSummary(sensorState.overallScore, item.name),
     };
     setTimeout(() => onComplete(result), 300);
-  }, [canStop, sensorState, belief, intensity, soundEnabled, storyActive, scanAudio, beliefStory, onComplete]);
+  }, [canStop, sensorState, item, intensity, soundEnabled, storyActive, scanAudio, itemStory, onComplete]);
 
   const bgGradient = theme.gradientColors;
   const accentColor = theme.accent;
@@ -401,17 +401,17 @@ export function LiveScanner({
         />
         <View style={styles.countdownContent}>
           <Text style={[styles.countdownLabel, { color: accentColor + "AA" }]}>
-            Focus on your belief in
+            Focus on your item in
           </Text>
-          <Text style={styles.countdownEmoji}>{belief.emoji}</Text>
-          <Text style={[styles.countdownBelief, { color: "#fff" }]}>
-            {belief.name}
+          <Text style={styles.countdownEmoji}>{item.emoji}</Text>
+          <Text style={[styles.countdownitem, { color: "#fff" }]}>
+            {item.name}
           </Text>
           <Text style={[styles.themeName, { color: accentColor }]}>
             {theme.name} Environment
           </Text>
           <Text style={[styles.countdownHint, { color: accentColor + "CC" }]}>
-            Close your eyes... breathe deeply... believe...
+            Focus on your list...
           </Text>
           <Text style={[styles.countdownNumber, { color: accentColor }]}>
             {countdown}
@@ -469,14 +469,14 @@ export function LiveScanner({
         </Text>
       </View>
 
-      {/* Timer and belief */}
+      {/* Timer and item */}
       <View style={styles.topBar}>
         <View>
-          <Text style={[styles.beliefLabel, { color: accentColor + "AA" }]}>
-            Scanning belief in
+          <Text style={[styles.itemLabel, { color: accentColor + "AA" }]}>
+            Scanning item in
           </Text>
-          <Text style={[styles.beliefName, { color: "#fff" }]}>
-            {belief.emoji} {belief.name}
+          <Text style={[styles.itemName, { color: "#fff" }]}>
+            {item.emoji} {item.name}
           </Text>
         </View>
         <View style={styles.timerContainer}>
@@ -498,7 +498,7 @@ export function LiveScanner({
           ]}
         >
           <Text style={[styles.audioText, { color: accentColor }]}>
-            🔊 Audio field active — intensity responds to your belief score
+            🔊 Audio field active — intensity responds to your item score
           </Text>
         </View>
       )}
@@ -512,7 +512,7 @@ export function LiveScanner({
           ]}
         >
           <Text style={[styles.audioText, { color: accentColor }]}>
-            📖 "{story.title}" — narrated belief journey active
+            📖 "{story.title}" — narrated item journey active
           </Text>
         </View>
       )}
@@ -520,10 +520,10 @@ export function LiveScanner({
       {/* Orb — wrapped in SilentErrorBoundary so animation crashes don't kill the app */}
       <View style={styles.orbContainer}>
         <SilentErrorBoundary>
-          <BeliefFieldOrb
+          <ItemOrb
             intensity={sensorState.apparitionIntensity}
             score={sensorState.overallScore}
-            beliefEmoji={belief.emoji}
+            itemEmoji={item.emoji}
             phase={sensorState.phase}
             theme={theme}
             warmUp={orbWarmUp}
@@ -643,7 +643,7 @@ const styles = StyleSheet.create({
   },
   countdownLabel: { fontSize: 16, fontWeight: "500" },
   countdownEmoji: { fontSize: 64 },
-  countdownBelief: { fontSize: 28, fontWeight: "800" },
+  countdownitem: { fontSize: 28, fontWeight: "800" },
   themeName: {
     fontSize: 14,
     fontWeight: "600",
@@ -670,13 +670,13 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: 12,
   },
-  beliefLabel: {
+  itemLabel: {
     fontSize: 12,
     fontWeight: "500",
     textTransform: "uppercase",
     letterSpacing: 1,
   },
-  beliefName: { fontSize: 20, fontWeight: "800", marginTop: 2 },
+  itemName: { fontSize: 20, fontWeight: "800", marginTop: 2 },
   timerContainer: { alignItems: "flex-end" },
   timer: {
     fontSize: 32,

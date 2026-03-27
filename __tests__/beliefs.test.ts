@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
-  BELIEF_CATEGORIES,
-  ALL_BELIEFS,
-  getBeliefById,
-  createCustomBelief,
+  ITEM_CATEGORIES,
+  ALL_ITEMS,
+  getItemById,
+  createCustomitem,
   CUSTOM_EMOJI_OPTIONS,
 } from "../constants/beliefs";
 import {
@@ -11,10 +11,10 @@ import {
   generateSummary,
 } from "../hooks/use-scan-history";
 
-describe("Belief Categories", () => {
+describe("item Categories", () => {
   it("should have at least 7 categories including seasonal and supernatural", () => {
-    expect(BELIEF_CATEGORIES.length).toBeGreaterThanOrEqual(7);
-    const ids = BELIEF_CATEGORIES.map((c) => c.id);
+    expect(ITEM_CATEGORIES.length).toBeGreaterThanOrEqual(7);
+    const ids = ITEM_CATEGORIES.map((c) => c.id);
     expect(ids).toContain("childhood");
     expect(ids).toContain("seasonal");
     expect(ids).toContain("spiritual");
@@ -25,36 +25,36 @@ describe("Belief Categories", () => {
   });
 
   it("each category should have an id, name, emoji, and beliefs array", () => {
-    for (const cat of BELIEF_CATEGORIES) {
+    for (const cat of ITEM_CATEGORIES) {
       expect(cat.id).toBeTruthy();
       expect(cat.name).toBeTruthy();
       expect(cat.emoji).toBeTruthy();
-      expect(Array.isArray(cat.beliefs)).toBe(true);
-      expect(cat.beliefs.length).toBeGreaterThan(0);
+      expect(Array.isArray(cat.items)).toBe(true);
+      expect(cat.items.length).toBeGreaterThan(0);
     }
   });
 
-  it("each belief should have required fields", () => {
-    for (const belief of ALL_BELIEFS) {
-      expect(belief.id).toBeTruthy();
-      expect(belief.name).toBeTruthy();
-      expect(belief.emoji).toBeTruthy();
-      expect(belief.category).toBeTruthy();
-      expect(belief.description).toBeTruthy();
-      expect(belief.encouragement).toBeTruthy();
-      expect(belief.bedtimeMessage).toBeTruthy();
+  it("each item should have required fields", () => {
+    for (const item of ALL_ITEMS) {
+      expect(item.id).toBeTruthy();
+      expect(item.name).toBeTruthy();
+      expect(item.emoji).toBeTruthy();
+      expect(item.category).toBeTruthy();
+      expect(item.description).toBeTruthy();
+      expect(item.encouragement).toBeTruthy();
+      expect(item.bedtimeMessage).toBeTruthy();
     }
   });
 
   it("should include Santa, Tooth Fairy, and Easter Bunny", () => {
-    const names = ALL_BELIEFS.map((b) => b.name.toLowerCase());
+    const names = ALL_ITEMS.map((b) => b.name.toLowerCase());
     expect(names).toContain("santa claus");
     expect(names).toContain("tooth fairy");
     expect(names).toContain("easter bunny");
   });
 
   it("should include world religions", () => {
-    const ids = ALL_BELIEFS.map((b) => b.id);
+    const ids = ALL_ITEMS.map((b) => b.id);
     expect(ids).toContain("god");
     expect(ids).toContain("jesus");
     expect(ids).toContain("allah");
@@ -63,27 +63,27 @@ describe("Belief Categories", () => {
     expect(ids).toContain("jewish-faith");
   });
 
-  it("should have unique belief ids", () => {
-    const ids = ALL_BELIEFS.map((b) => b.id);
+  it("should have unique item ids", () => {
+    const ids = ALL_ITEMS.map((b) => b.id);
     const uniqueIds = new Set(ids);
     expect(uniqueIds.size).toBe(ids.length);
   });
 
   it("should have at least 40 total beliefs", () => {
-    expect(ALL_BELIEFS.length).toBeGreaterThanOrEqual(40);
+    expect(ALL_ITEMS.length).toBeGreaterThanOrEqual(40);
   });
 });
 
 describe("Seasonal & Holiday beliefs", () => {
   it("should have seasonal category with holiday beliefs", () => {
-    const seasonal = BELIEF_CATEGORIES.find((c) => c.id === "seasonal");
+    const seasonal = ITEM_CATEGORIES.find((c) => c.id === "seasonal");
     expect(seasonal).toBeDefined();
-    expect(seasonal!.beliefs.length).toBeGreaterThanOrEqual(8);
+    expect(seasonal!.items.length).toBeGreaterThanOrEqual(8);
   });
 
   it("should include leprechauns, cupid, and major holidays", () => {
-    const seasonal = BELIEF_CATEGORIES.find((c) => c.id === "seasonal");
-    const ids = seasonal!.beliefs.map((b) => b.id);
+    const seasonal = ITEM_CATEGORIES.find((c) => c.id === "seasonal");
+    const ids = seasonal!.items.map((b) => b.id);
     expect(ids).toContain("leprechaun");
     expect(ids).toContain("cupid");
     expect(ids).toContain("halloween-spirit");
@@ -95,14 +95,14 @@ describe("Seasonal & Holiday beliefs", () => {
 
 describe("Supernatural beliefs", () => {
   it("should have supernatural category", () => {
-    const supernatural = BELIEF_CATEGORIES.find((c) => c.id === "supernatural");
+    const supernatural = ITEM_CATEGORIES.find((c) => c.id === "supernatural");
     expect(supernatural).toBeDefined();
-    expect(supernatural!.beliefs.length).toBeGreaterThanOrEqual(4);
+    expect(supernatural!.items.length).toBeGreaterThanOrEqual(4);
   });
 
   it("should include aliens, bigfoot, mermaids, dragons, fairies", () => {
-    const supernatural = BELIEF_CATEGORIES.find((c) => c.id === "supernatural");
-    const ids = supernatural!.beliefs.map((b) => b.id);
+    const supernatural = ITEM_CATEGORIES.find((c) => c.id === "supernatural");
+    const ids = supernatural!.items.map((b) => b.id);
     expect(ids).toContain("aliens");
     expect(ids).toContain("bigfoot");
     expect(ids).toContain("mermaids");
@@ -111,51 +111,51 @@ describe("Supernatural beliefs", () => {
   });
 });
 
-describe("getBeliefById", () => {
+describe("getItemById", () => {
   it("should find santa by id", () => {
-    const santa = getBeliefById("santa");
+    const santa = getItemById("santa");
     expect(santa).toBeDefined();
     expect(santa!.name).toBe("Santa Claus");
   });
 
   it("should return undefined for unknown id", () => {
-    expect(getBeliefById("nonexistent")).toBeUndefined();
+    expect(getItemById("nonexistent")).toBeUndefined();
   });
 
   it("should find seasonal beliefs", () => {
-    const leprechaun = getBeliefById("leprechaun");
+    const leprechaun = getItemById("leprechaun");
     expect(leprechaun).toBeDefined();
     expect(leprechaun!.name).toBe("Leprechauns");
   });
 
   it("should find supernatural beliefs", () => {
-    const aliens = getBeliefById("aliens");
+    const aliens = getItemById("aliens");
     expect(aliens).toBeDefined();
     expect(aliens!.name).toBe("Aliens & UFOs");
   });
 });
 
-describe("createCustomBelief", () => {
-  it("should create a custom belief with provided values", () => {
-    const belief = createCustomBelief("Unicorns", "🦄", "Magical horned horses");
-    expect(belief.name).toBe("Unicorns");
-    expect(belief.emoji).toBe("🦄");
-    expect(belief.description).toBe("Magical horned horses");
-    expect(belief.category).toBe("My Custom Beliefs");
-    expect(belief.isCustom).toBe(true);
-    expect(belief.id).toMatch(/^custom-/);
+describe("createCustomitem", () => {
+  it("should create a custom item with provided values", () => {
+    const item = createCustomitem("Unicorns", "🦄", "Magical horned horses");
+    expect(item.name).toBe("Unicorns");
+    expect(item.emoji).toBe("🦄");
+    expect(item.description).toBe("Magical horned horses");
+    expect(item.category).toBe("My Custom Items");
+    expect(item.isCustom).toBe(true);
+    expect(item.id).toMatch(/^custom-/);
   });
 
   it("should generate unique IDs", () => {
-    const b1 = createCustomBelief("A", "🅰️", "test");
-    const b2 = createCustomBelief("B", "🅱️", "test");
+    const b1 = createCustomitem("A", "🅰️", "test");
+    const b2 = createCustomitem("B", "🅱️", "test");
     expect(b1.id).not.toBe(b2.id);
   });
 
-  it("should include encouragement and bedtime messages with the belief name", () => {
-    const belief = createCustomBelief("Time Travel", "⏰", "Going back in time");
-    expect(belief.encouragement).toContain("Time Travel");
-    expect(belief.bedtimeMessage).toContain("Time Travel");
+  it("should include encouragement and bedtime messages with the item name", () => {
+    const item = createCustomitem("Time Travel", "⏰", "Going back in time");
+    expect(item.encouragement).toContain("Time Travel");
+    expect(item.bedtimeMessage).toContain("Time Travel");
   });
 });
 
@@ -221,21 +221,21 @@ describe("generateSummary", () => {
   });
 });
 
-describe("Belief Themes", () => {
+describe("item Themes", () => {
   it("should have themes for all main categories", async () => {
-    const { BELIEF_THEMES } = await import("../constants/belief-themes");
-    expect(BELIEF_THEMES.childhood).toBeDefined();
-    expect(BELIEF_THEMES.religion).toBeDefined();
-    expect(BELIEF_THEMES.spiritual).toBeDefined();
-    expect(BELIEF_THEMES.personal).toBeDefined();
-    expect(BELIEF_THEMES.supernatural).toBeDefined();
-    expect(BELIEF_THEMES.seasonal).toBeDefined();
-    expect(BELIEF_THEMES.custom).toBeDefined();
+    const { ITEM_THEMES } = await import("../constants/belief-themes");
+    expect(ITEM_THEMES.childhood).toBeDefined();
+    expect(ITEM_THEMES.religion).toBeDefined();
+    expect(ITEM_THEMES.spiritual).toBeDefined();
+    expect(ITEM_THEMES.personal).toBeDefined();
+    expect(ITEM_THEMES.supernatural).toBeDefined();
+    expect(ITEM_THEMES.seasonal).toBeDefined();
+    expect(ITEM_THEMES.custom).toBeDefined();
   });
 
   it("each theme should have required visual properties", async () => {
-    const { BELIEF_THEMES } = await import("../constants/belief-themes");
-    for (const [key, theme] of Object.entries(BELIEF_THEMES)) {
+    const { ITEM_THEMES } = await import("../constants/belief-themes");
+    for (const [key, theme] of Object.entries(ITEM_THEMES)) {
       expect(theme.name).toBeTruthy();
       expect(theme.gradientColors).toHaveLength(3);
       expect(theme.orbGlow).toBeTruthy();
@@ -247,23 +247,23 @@ describe("Belief Themes", () => {
     }
   });
 
-  it("getThemeForBelief should return correct theme for known categories", async () => {
-    const { getThemeForBelief } = await import("../constants/belief-themes");
-    const childhood = getThemeForBelief("Childhood Magic");
+  it("getThemeForItem should return correct theme for known categories", async () => {
+    const { getThemeForItem } = await import("../constants/belief-themes");
+    const childhood = getThemeForItem("Childhood Magic");
     expect(childhood.name).toBe("Wonder & Magic");
-    const religion = getThemeForBelief("World Religions");
+    const religion = getThemeForItem("World Religions");
     expect(religion.name).toBe("Sacred Light");
   });
 
-  it("getThemeForBelief should return fallback for unknown category", async () => {
-    const { getThemeForBelief } = await import("../constants/belief-themes");
-    const fallback = getThemeForBelief("Unknown Category");
+  it("getThemeForItem should return fallback for unknown category", async () => {
+    const { getThemeForItem } = await import("../constants/belief-themes");
+    const fallback = getThemeForItem("Unknown Category");
     expect(fallback).toBeDefined();
     expect(fallback.name).toBe("Wonder & Magic");
   });
 });
 
-describe("Belief Streak", () => {
+describe("item Streak", () => {
   it("getStreakMessage should return appropriate messages", async () => {
     const { getStreakMessage } = await import("../hooks/use-belief-streak");
     expect(getStreakMessage(0)).toContain("Start");
@@ -358,17 +358,17 @@ describe("Scan Report", () => {
   });
 });
 
-describe("Belief Stories", () => {
+describe("item Stories", () => {
   it("should have stories for key beliefs", async () => {
-    const { BELIEF_STORIES } = await import("../constants/belief-stories");
-    expect(BELIEF_STORIES.length).toBeGreaterThanOrEqual(3);
+    const { ITEM_STORIES } = await import("../constants/belief-stories");
+    expect(ITEM_STORIES.length).toBeGreaterThanOrEqual(3);
   });
 
   it("each story should have segments with valid timing", async () => {
-    const { BELIEF_STORIES } = await import("../constants/belief-stories");
-    for (const story of BELIEF_STORIES) {
+    const { ITEM_STORIES } = await import("../constants/belief-stories");
+    for (const story of ITEM_STORIES) {
       expect(story.id).toBeTruthy();
-      expect(story.beliefId).toBeTruthy();
+      expect(story.itemId).toBeTruthy();
       expect(story.title).toBeTruthy();
       expect(story.segments.length).toBeGreaterThanOrEqual(1);
       for (const seg of story.segments) {
@@ -379,22 +379,22 @@ describe("Belief Stories", () => {
     }
   });
 
-  it("getStoryForBelief should return story for santa", async () => {
-    const { getStoryForBelief } = await import("../constants/belief-stories");
-    const story = getStoryForBelief("santa");
+  it("getStoryForItem should return story for santa", async () => {
+    const { getStoryForItem } = await import("../constants/belief-stories");
+    const story = getStoryForItem("santa");
     expect(story).not.toBeNull();
     expect(story!.title).toBeTruthy();
   });
 
-  it("getStoryForBelief should return null for unknown belief", async () => {
-    const { getStoryForBelief } = await import("../constants/belief-stories");
-    const story = getStoryForBelief("nonexistent-belief-xyz");
+  it("getStoryForItem should return null for unknown item", async () => {
+    const { getStoryForItem } = await import("../constants/belief-stories");
+    const story = getStoryForItem("nonexistent-item-xyz");
     expect(story).toBeNull();
   });
 
-  it("getAvailableStoryBeliefIds should return array of IDs", async () => {
-    const { getAvailableStoryBeliefIds } = await import("../constants/belief-stories");
-    const ids = getAvailableStoryBeliefIds();
+  it("getAvailableStoryItemIds should return array of IDs", async () => {
+    const { getAvailableStoryItemIds } = await import("../constants/belief-stories");
+    const ids = getAvailableStoryItemIds();
     expect(ids.length).toBeGreaterThanOrEqual(3);
     expect(ids).toContain("santa");
   });
@@ -402,23 +402,23 @@ describe("Belief Stories", () => {
 
 describe("Premium System", () => {
   it("should have reasonable free tier limits", async () => {
-    const { FREE_SCAN_LIMIT, FREE_SCAN_DURATION, FREE_BELIEF_IDS } = await import("../hooks/use-premium");
+    const { FREE_SCAN_LIMIT, FREE_SCAN_DURATION, FREE_CATEGORY_IDS } = await import("../hooks/use-premium");
     expect(FREE_SCAN_LIMIT).toBeGreaterThanOrEqual(1);
     expect(FREE_SCAN_LIMIT).toBeLessThanOrEqual(10);
     expect(FREE_SCAN_DURATION).toBeGreaterThanOrEqual(15);
   });
 
   it("free beliefs should include core childhood beliefs", async () => {
-    const { FREE_BELIEF_IDS } = await import("../hooks/use-premium");
-    expect(FREE_BELIEF_IDS).toContain("santa");
-    expect(FREE_BELIEF_IDS).toContain("tooth-fairy");
-    expect(FREE_BELIEF_IDS).toContain("easter-bunny");
+    const { FREE_CATEGORY_IDS } = await import("../hooks/use-premium");
+    expect(FREE_CATEGORY_IDS).toContain("santa");
+    expect(FREE_CATEGORY_IDS).toContain("tooth-fairy");
+    expect(FREE_CATEGORY_IDS).toContain("easter-bunny");
   });
 
-  it("free belief IDs should all exist in ALL_BELIEFS", async () => {
-    const { FREE_BELIEF_IDS } = await import("../hooks/use-premium");
-    const allIds = ALL_BELIEFS.map((b) => b.id);
-    FREE_BELIEF_IDS.forEach((id: string) => {
+  it("free item IDs should all exist in ALL_ITEMS", async () => {
+    const { FREE_CATEGORY_IDS } = await import("../hooks/use-premium");
+    const allIds = ALL_ITEMS.map((b) => b.id);
+    FREE_CATEGORY_IDS.forEach((id: string) => {
       expect(allIds).toContain(id);
     });
   });
@@ -584,13 +584,11 @@ describe("EAS Build Configuration", () => {
 
   it("Google Play billing product IDs should be defined", () => {
     const productIds = [
-      "belief_premium_monthly",
-      "belief_premium_annual",
-      "belief_premium_family",
+      "premium_weekly_199",
     ];
-    expect(productIds.length).toBe(3);
+    expect(productIds.length).toBe(1);
     productIds.forEach((id) => {
-      expect(id).toMatch(/^belief_premium_/);
+      expect(id).toMatch(/^premium_/);
     });
   });
 });
@@ -609,9 +607,9 @@ describe("Notifications", () => {
 
   it("reminder messages should be encouraging", () => {
     const messages = [
-      "Your belief field is waiting to be measured today",
+      "Your item field is waiting to be measured today",
       "Time to explore what you believe in",
-      "Ready for today's belief scan?",
+      "Ready for today's item scan?",
     ];
     messages.forEach((m) => {
       expect(m.length).toBeGreaterThan(10);

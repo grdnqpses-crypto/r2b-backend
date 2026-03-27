@@ -10,13 +10,13 @@ import {
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { LiveScanner } from "./live-scanner";
-import { BeliefFieldOrb } from "./belief-field-orb";
-import type { BeliefOption } from "@/constants/beliefs";
+import { ItemOrb } from "./item-field-orb";
+import type { ItemOption } from "@/constants/beliefs";
 import type { ScanResult } from "@/hooks/use-scan-history";
 import { Haptics } from "@/lib/safe-imports";
 
 interface ChallengeFriendProps {
-  belief: BeliefOption;
+  item: ItemOption;
   intensity: number;
   onComplete: (result: ScanResult) => void;
   onCancel: () => void;
@@ -24,7 +24,7 @@ interface ChallengeFriendProps {
 
 type Phase = "setup" | "player1-scan" | "player1-done" | "player2-scan" | "results";
 
-export function ChallengeFriend({ belief, intensity, onComplete, onCancel }: ChallengeFriendProps) {
+export function ChallengeFriend({ item, intensity, onComplete, onCancel }: ChallengeFriendProps) {
   const colors = useColors();
   const [phase, setPhase] = useState<Phase>("setup");
   const [player1Name, setPlayer1Name] = useState("");
@@ -70,21 +70,21 @@ export function ChallengeFriend({ belief, intensity, onComplete, onCancel }: Cha
             Challenge a Friend
           </Text>
           <Text style={[styles.headerSub, { color: colors.muted }]}>
-            Both players will scan their belief in {belief.emoji} {belief.name} — whoever has the
-            stronger belief field wins!
+            Both players will scan their item in {item.emoji} {item.name} — whoever has the
+            stronger item field wins!
           </Text>
 
           {/* Rules */}
           <View style={[styles.rulesCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.rulesTitle, { color: colors.foreground }]}>How It Works</Text>
             <Text style={[styles.ruleItem, { color: colors.muted }]}>
-              1. Player 1 holds the phone and focuses on their belief for 60 seconds
+              1. Player 1 holds the phone and focuses on their item for 60 seconds
             </Text>
             <Text style={[styles.ruleItem, { color: colors.muted }]}>
               2. Hand the phone to Player 2 for their 60-second scan
             </Text>
             <Text style={[styles.ruleItem, { color: colors.muted }]}>
-              3. Compare your belief field scores — the strongest believer wins!
+              3. Compare your scores — the highest score wins!
             </Text>
           </View>
 
@@ -141,7 +141,7 @@ export function ChallengeFriend({ belief, intensity, onComplete, onCancel }: Cha
   if (phase === "player1-scan") {
     return (
       <LiveScanner
-        belief={{ ...belief, name: `${belief.name} (${p1}'s turn)` }}
+        item={{ ...item, name: `${item.name} (${p1}'s turn)` }}
         intensity={intensity}
         onComplete={handlePlayer1Complete}
         onCancel={onCancel}
@@ -160,7 +160,7 @@ export function ChallengeFriend({ belief, intensity, onComplete, onCancel }: Cha
           </Text>
 
           <View style={[styles.scoreCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={styles.scoreCardEmoji}>{belief.emoji}</Text>
+            <Text style={styles.scoreCardEmoji}>{item.emoji}</Text>
             <Text style={[styles.scoreCardName, { color: colors.foreground }]}>{p1}</Text>
             <Text style={[styles.scoreCardScore, { color: colors.primary }]}>
               {player1Result.score}/100
@@ -199,7 +199,7 @@ export function ChallengeFriend({ belief, intensity, onComplete, onCancel }: Cha
   if (phase === "player2-scan") {
     return (
       <LiveScanner
-        belief={{ ...belief, name: `${belief.name} (${p2}'s turn)` }}
+        item={{ ...item, name: `${item.name} (${p2}'s turn)` }}
         intensity={intensity}
         onComplete={handlePlayer2Complete}
         onCancel={onCancel}
@@ -228,8 +228,8 @@ export function ChallengeFriend({ belief, intensity, onComplete, onCancel }: Cha
           </Text>
           <Text style={[styles.headerSub, { color: colors.muted }]}>
             {isDraw
-              ? `Both players showed equally powerful belief in ${belief.name}!`
-              : `${winner}'s belief in ${belief.name} was ${diff} points stronger!`}
+              ? `Both players showed equally powerful item in ${item.name}!`
+              : `${winner}'s item in ${item.name} was ${diff} points stronger!`}
           </Text>
 
           {/* Side by side comparison */}
@@ -251,10 +251,10 @@ export function ChallengeFriend({ belief, intensity, onComplete, onCancel }: Cha
                 <Text style={styles.crownEmoji}>👑</Text>
               )}
               <View style={styles.miniOrbWrap}>
-                <BeliefFieldOrb
+                <ItemOrb
                   intensity={player1Result.score / 100}
                   score={player1Result.score}
-                  beliefEmoji={belief.emoji}
+                  itemEmoji={item.emoji}
                   phase="complete"
                   size={80}
                 />
@@ -288,10 +288,10 @@ export function ChallengeFriend({ belief, intensity, onComplete, onCancel }: Cha
                 <Text style={styles.crownEmoji}>👑</Text>
               )}
               <View style={styles.miniOrbWrap}>
-                <BeliefFieldOrb
+                <ItemOrb
                   intensity={player2Result.score / 100}
                   score={player2Result.score}
-                  beliefEmoji={belief.emoji}
+                  itemEmoji={item.emoji}
                   phase="complete"
                   size={80}
                 />
@@ -344,8 +344,8 @@ export function ChallengeFriend({ belief, intensity, onComplete, onCancel }: Cha
           <View style={[styles.encourageCard, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" }]}>
             <Text style={[styles.encourageText, { color: colors.primary }]}>
               {isDraw
-                ? "Amazing! You both believe with equal power. That's a rare and special connection!"
-                : `Great challenge! Remember, belief grows stronger with practice. Try again tomorrow and see if the scores change!`}
+                ? "Amazing! You both scored the same. That's a perfect match!"
+                : `Great challenge! Remember, item grows stronger with practice. Try again tomorrow and see if the scores change!`}
             </Text>
           </View>
 

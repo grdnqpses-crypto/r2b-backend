@@ -63,7 +63,7 @@ const SENSOR_DEFS = [
     icon: "waveform.path",
     unit: "g",
     whatItMeasures: "Micro-movements & vibrations (in g-force)",
-    whyItMatters: "Your body subtly shifts when you focus belief — even tiny tremors show conviction",
+    whyItMatters: "Your body subtly shifts when you focus — even tiny tremors register",
     diagnosticId: "accelerometer" as FeatureId,
   },
   {
@@ -72,7 +72,7 @@ const SENSOR_DEFS = [
     icon: "gyroscope",
     unit: "rad/s",
     whatItMeasures: "Rotation rate & body sway",
-    whyItMatters: "Belief focus changes your postural stability — stillness shows deep concentration",
+    whyItMatters: "Focus changes your postural stability — stillness shows deep concentration",
     diagnosticId: "gyroscope" as FeatureId,
   },
   {
@@ -117,7 +117,7 @@ const SENSOR_DEFS = [
     icon: "figure.walk",
     unit: "steps",
     whatItMeasures: "Movement & step detection",
-    whyItMatters: "Stillness during belief indicates deep focus — fewer steps means stronger concentration",
+    whyItMatters: "Stillness indicates deep focus — fewer steps means stronger concentration",
     diagnosticId: "pedometer" as FeatureId,
   },
 ];
@@ -126,7 +126,7 @@ const TICKER_MESSAGES = [
   (s: SensorReading) =>
     `${s.name} shifted ${s.deviation > 0 ? "+" : ""}${s.deviation.toFixed(2)}${s.unit} from baseline — your focused energy is creating a measurable change`,
   (s: SensorReading) =>
-    `${s.name} reading: ${s.current.toFixed(2)}${s.unit} — ${s.deviationPercent > 5 ? "significant" : "subtle"} variation detected in your belief field`,
+    `${s.name} reading: ${s.current.toFixed(2)}${s.unit} — ${s.deviationPercent > 5 ? "significant" : "subtle"} variation detected`,
   (s: SensorReading) =>
     `${s.name} is ${s.status === "shifting" ? "actively responding" : "monitoring"} — ${s.whyItMatters.toLowerCase()}`,
 ];
@@ -220,7 +220,7 @@ async function safeSensorSubscribe(
 
 export function useSensorEngine(
   isScanning: boolean,
-  beliefIntensity: number,
+  activityIntensity: number,
   scanDuration: number = 60
 ) {
   const [state, setState] = useState<SensorEngineState>({
@@ -286,8 +286,8 @@ export function useSensorEngine(
         const baselineAbs = Math.abs(sensor.baseline) || 1;
         sensor.deviationPercent = Math.abs(sensor.deviation / baselineAbs) * 100;
 
-        // Apply belief intensity multiplier (stronger belief = more responsive)
-        const intensityMultiplier = 0.5 + (beliefIntensity / 10) * 1.5;
+        // Apply activity intensity multiplier
+        const intensityMultiplier = 0.5 + (activityIntensity / 10) * 1.5;
         sensor.deviationPercent *= intensityMultiplier;
 
         // Clamp to prevent crazy numbers
@@ -298,7 +298,7 @@ export function useSensorEngine(
 
       sensorsRef.current[idx] = sensor;
     },
-    [beliefIntensity]
+    [activityIntensity]
   );
 
   /** Mark a sensor as failed in the local state */
@@ -561,7 +561,7 @@ export function useSensorEngine(
             availableSensors.reduce((sum, s) => sum + Math.min(s.deviationPercent, 50), 0) /
             availableSensors.length;
         }
-        // Score: 0-100, weighted by belief intensity
+        // Score: 0-100, weighted by activity intensity
         const rawScore = Math.min(totalDeviation * 2, 100);
         const score = Math.round(safeNum(rawScore));
 
@@ -572,14 +572,14 @@ export function useSensorEngine(
         const shiftingSensors = sensors.filter(
           (s) => s.status === "shifting" || s.status === "active"
         );
-        let ticker = "Monitoring all sensors — focus your belief...";
+        let ticker = "Monitoring all sensors...";
         if (shiftingSensors.length > 0) {
           const s = shiftingSensors[tickerIdxRef.current % shiftingSensors.length];
           const msgFn = TICKER_MESSAGES[tickerIdxRef.current % TICKER_MESSAGES.length];
           try {
             ticker = msgFn(s);
           } catch {
-            ticker = `${s.name} is responding to your belief field`;
+            ticker = `${s.name} is responding to your activity`;
           }
           tickerIdxRef.current++;
         } else if (elapsed < 5) {

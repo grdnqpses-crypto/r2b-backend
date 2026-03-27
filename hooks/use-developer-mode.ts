@@ -3,7 +3,7 @@ import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Haptics } from "@/lib/safe-imports";
 
-const DEV_MODE_KEY = "@belief_dev_mode";
+const DEV_MODE_KEY = "@r2b_dev_mode";
 const TAPS_REQUIRED = 11;
 const TAP_TIMEOUT = 3000; // Reset tap counter after 3 seconds of inactivity
 

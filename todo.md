@@ -133,14 +133,14 @@
 - [x] Set version to 2.3.0 and versionCode to 23 in app.config.ts
 
 ## Branding Cleanup (Critical)
-- [ ] Remove all "belief-field-detector" / "Belief" references from app.config.ts, package.json, and any other project files — replace with Remember2Buy everywhere
+- [x] Remove all "belief-field-detector" / "Belief" references from app.config.ts, package.json, and any other project files — replace with Remember2Buy everywhere
 
 ## Internationalization & Worldwide Release
 - [x] Audit all user-facing strings in the app
 - [x] Create i18n translation files for 21 world languages using i18next (en, es, fr, de, pt, it, nl, ru, ja, ko, zh, ar, hi, tr, pl, sv, id, th, vi, el, he)
 - [x] Implement i18next in the app and wire up all translated strings (index, list, stores, coupons, settings, onboarding)
 - [x] Set up Play Store listing with translated titles and descriptions for 28 languages
-- [ ] Save checkpoint with i18n changes and rebuild AAB
+- [x] Save checkpoint with i18n changes and rebuild AAB
 
 ## RTL + Notification i18n (Round 7)
 - [x] Add RTL layout support for Arabic and Hebrew locales using I18nManager
@@ -150,3 +150,7 @@
 ## Notification Polish (Round 8)
 - [x] Add localized "and X more" overflow string to all 21 locale files and wire into tasks.ts
 - [x] Localize Android notification channel name via Expo notifications plugin string resources (handled at runtime via i18n.t() in notifications.ts)
+
+## Branding Cleanup
+- [x] Remove all "belief" / "believe" references from every file (SKU, storage keys, comments, strings, AsyncStorage keys, notification strings)
+- [x] Fix SKU mismatch: update SUBSCRIPTION_SKU to match Play Console product ID premium_weekly_199

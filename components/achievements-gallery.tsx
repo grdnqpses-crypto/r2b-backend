@@ -84,7 +84,7 @@ export function AchievementsGallery({
             />
           </View>
           <Text style={[styles.progressDesc, { color: colors.muted }]}>
-            Keep scanning to unlock more achievements. Each badge represents a milestone in your belief journey.
+            Keep scanning to unlock more achievements. Each badge represents a milestone in your item journey.
           </Text>
         </View>
 

@@ -4,7 +4,7 @@ import { Platform } from "react-native";
 /**
  * Generates ambient scan audio using the Web Audio API (web) or
  * expo-speech as a fallback for native. The audio creates a pulsing
- * hum that intensifies with belief score.
+ * hum that intensifies with activity score.
  *
  * On native devices, we use expo-speech to produce periodic spoken
  * feedback cues that intensify with the score. On web, we use the
@@ -97,7 +97,7 @@ function safeStopSpeech() {
 }
 
 const SCORE_CUES = [
-  { threshold: 20, message: "Belief field detected" },
+  { threshold: 20, message: "Activity detected" },
   { threshold: 40, message: "Strong energy building" },
   { threshold: 60, message: "Powerful field forming" },
   { threshold: 80, message: "Extraordinary energy" },
@@ -238,7 +238,7 @@ export function useScanAudio() {
         // Audio not available
       }
     } else {
-      safeSpeakText("Scan complete. Your belief field has been measured.", {
+      safeSpeakText("Scan complete.", {
         rate: 0.85,
         pitch: 1.1,
         volume: 0.8,

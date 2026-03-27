@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const STREAK_KEY = "@belief_streak";
+const STREAK_KEY = "@r2b_streak";
 
 export interface StreakData {
   /** Current consecutive days of scanning */
@@ -14,8 +14,8 @@ export interface StreakData {
   lastScanDate: string;
   /** Personal best score ever */
   personalBest: number;
-  /** Personal best belief name */
-  personalBestBelief: string;
+  /** Personal best item name */
+  personalBestitem: string;
   /** Milestone messages earned */
   milestones: string[];
 }
@@ -26,7 +26,7 @@ const DEFAULT_STREAK: StreakData = {
   totalScans: 0,
   lastScanDate: "",
   personalBest: 0,
-  personalBestBelief: "",
+  personalBestitem: "",
   milestones: [],
 };
 
@@ -43,15 +43,15 @@ function getYesterday(): string {
 
 /** Get an encouraging message based on streak length */
 export function getStreakMessage(streak: number): string {
-  if (streak >= 30) return "Legendary believer! 30+ days of unwavering faith.";
-  if (streak >= 21) return "Three weeks strong! Your belief field is extraordinary.";
-  if (streak >= 14) return "Two weeks of daily belief! You're building something powerful.";
-  if (streak >= 7) return "One full week! Your belief grows stronger every day.";
+  if (streak >= 30) return "Legendary shopper! 30+ days of consistent lists.";
+  if (streak >= 21) return "Three weeks strong! Your item field is extraordinary.";
+  if (streak >= 14) return "Two weeks of daily item! You're building something powerful.";
+  if (streak >= 7) return "One full week! Your item grows stronger every day.";
   if (streak >= 5) return "Five days in a row! Your dedication is inspiring.";
   if (streak >= 3) return "Three-day streak! Keep the momentum going.";
   if (streak >= 2) return "Two days running! You're building a habit.";
   if (streak >= 1) return "Great start! Come back tomorrow to build your streak.";
-  return "Start your belief journey today!";
+  return "Start your item journey today!";
 }
 
 /** Get milestone messages for reaching certain thresholds */
@@ -102,7 +102,7 @@ export function getMilestoneLabel(milestone: string): { emoji: string; label: st
   return map[milestone] || { emoji: "⭐", label: milestone };
 }
 
-export function useBeliefStreak() {
+export function useItemStreak() {
   const [streak, setStreak] = useState<StreakData>(DEFAULT_STREAK);
   const [loaded, setLoaded] = useState(false);
   const [newMilestones, setNewMilestones] = useState<string[]>([]);
@@ -131,7 +131,7 @@ export function useBeliefStreak() {
 
   /** Record a completed scan */
   const recordScan = useCallback(
-    async (score: number, beliefName: string) => {
+    async (score: number, itemName: string) => {
       const today = getToday();
       const yesterday = getYesterday();
 
@@ -160,7 +160,7 @@ export function useBeliefStreak() {
         // Update personal best
         if (score > newStreak.personalBest) {
           newStreak.personalBest = score;
-          newStreak.personalBestBelief = beliefName;
+          newStreak.personalBestItem = itemName;
         }
 
         // Check milestones

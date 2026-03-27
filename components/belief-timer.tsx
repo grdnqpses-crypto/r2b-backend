@@ -17,9 +17,9 @@ import Animated, {
 import { useColors } from "@/hooks/use-colors";
 import { Haptics, LinearGradient, useKeepAwake } from "@/lib/safe-imports";
 
-interface BeliefTimerProps {
-  beliefName: string;
-  beliefEmoji: string;
+interface ItemTimerProps {
+  itemName: string;
+  itemEmoji: string;
   score: number;
   onDismiss: () => void;
 }
@@ -31,7 +31,7 @@ const TIMER_PRESETS = [
   { label: "2 hours", minutes: 120, desc: "Full dream cycle" },
 ];
 
-export function BeliefTimer({ beliefName, beliefEmoji, score, onDismiss }: BeliefTimerProps) {
+export function ItemTimer({ itemName, itemEmoji, score, onDismiss }: ItemTimerProps) {
   useKeepAwake();
   const colors = useColors();
   const [phase, setPhase] = useState<"select" | "counting" | "complete">("select");
@@ -145,7 +145,7 @@ export function BeliefTimer({ beliefName, beliefEmoji, score, onDismiss }: Belie
   // Phase messages based on progress
   const getPhaseMessage = () => {
     if (progress < 0.1) return "The magic is gathering energy...";
-    if (progress < 0.25) return "Your belief field is settling into the room...";
+    if (progress < 0.25) return "Your item field is settling into the room...";
     if (progress < 0.5) return "The sensors detected strong energy. Now it needs quiet...";
     if (progress < 0.75) return "The magic is almost ready. Stay cozy...";
     if (progress < 0.9) return "Just a little longer. The magic is nearly complete...";
@@ -174,12 +174,12 @@ export function BeliefTimer({ beliefName, beliefEmoji, score, onDismiss }: Belie
 
       {phase === "select" && (
         <View style={styles.content}>
-          <Text style={styles.emoji}>{beliefEmoji}</Text>
+          <Text style={styles.emoji}>{itemEmoji}</Text>
           <Text style={[styles.title, { color: colors.foreground }]}>
-            Belief Timer
+            item Timer
           </Text>
           <Text style={[styles.subtitle, { color: colors.muted }]}>
-            Your {beliefName} belief field scored {score}!{"\n"}
+            Your {itemName} score: {score}!{"\n"}
             Set a timer for the magic to activate while you rest.
           </Text>
 
@@ -187,7 +187,7 @@ export function BeliefTimer({ beliefName, beliefEmoji, score, onDismiss }: Belie
           <View style={[styles.howItWorks, { backgroundColor: "rgba(155,122,255,0.08)", borderColor: "rgba(155,122,255,0.25)" }]}>
             <Text style={[styles.howTitle, { color: colors.primary }]}>🔬 How It Works</Text>
             <Text style={[styles.howText, { color: colors.muted }]}>
-              Your phone detected a strong belief field. Science shows that during sleep, your brain processes and strengthens the neural pathways of belief. The timer tracks this activation period — the longer you rest, the deeper the magic goes.
+              Your phone detected a strong item field. Science shows that during sleep, your brain processes and strengthens the neural pathways of item. The timer tracks this activation period — the longer you rest, the deeper the magic goes.
             </Text>
           </View>
 
@@ -229,7 +229,7 @@ export function BeliefTimer({ beliefName, beliefEmoji, score, onDismiss }: Belie
       {phase === "counting" && (
         <View style={styles.countingContent}>
           <Animated.View style={pulseStyle}>
-            <Text style={styles.countingEmoji}>{beliefEmoji}</Text>
+            <Text style={styles.countingEmoji}>{itemEmoji}</Text>
           </Animated.View>
 
           <Text style={[styles.countingTitle, { color: colors.foreground }]}>
@@ -291,15 +291,15 @@ export function BeliefTimer({ beliefName, beliefEmoji, score, onDismiss }: Belie
           <Text style={[styles.completeTitle, { color: colors.foreground }]}>
             Magic Activated!
           </Text>
-          <Text style={[styles.completeEmoji2]}>{beliefEmoji}</Text>
+          <Text style={[styles.completeEmoji2]}>{itemEmoji}</Text>
           <Text style={[styles.completeMessage, { color: colors.muted }]}>
-            Your {beliefName} belief field has been fully activated!{"\n"}
+            Your {itemName} list is ready!{"\n"}
             The sensors confirmed strong energy throughout the entire rest period.
           </Text>
 
           <View style={[styles.completeCard, { backgroundColor: "rgba(74,222,128,0.08)", borderColor: "rgba(74,222,128,0.3)" }]}>
             <Text style={[styles.completeCardText, { color: colors.success }]}>
-              🔬 Science Note: During rest, your brain consolidated the neural pathways activated during your belief scan. Research shows that sleep strengthens memory and emotional connections — your belief is now deeper than before.
+              🔬 Science Note: During rest, your brain consolidated the neural pathways activated during your item scan. Research shows that sleep strengthens memory and emotional connections — your item is now deeper than before.
             </Text>
           </View>
 

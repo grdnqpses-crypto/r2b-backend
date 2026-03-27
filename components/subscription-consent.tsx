@@ -2,11 +2,11 @@
  * SubscriptionConsent
  *
  * Shown once, immediately after the onboarding slides complete, before the user
- * ever sees the home screen. The user MUST tap "Agree & Start Free Trial" to
+ * ever sees the home screen. The user MUST tap "Subscribe & Unlock Premium" to
  * proceed. There is no skip or dismiss option.
  *
  * Google Play Store requirements:
- *  - Price, billing period, and trial duration must be clearly stated
+ *  - Price and billing period must be clearly stated
  *  - User must affirmatively consent before the subscription is initiated
  *  - Cancellation instructions must be visible
  */
@@ -72,27 +72,25 @@ export function SubscriptionConsent({ onAgree, error }: SubscriptionConsentProps
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Icon */}
-        <Text style={styles.icon}>🔬</Text>
-
+         {/* Icon */}
+        <Text style={styles.icon}>🛒</Text>
         {/* Headline */}
         <Text style={[styles.headline, { color: colors.foreground }]}>
-          Your Belief Field{"\n"}Awaits
+          Remember 2 Buy{"\n"}Premium
         </Text>
         <Text style={[styles.subheadline, { color: colors.primary }]}>
-          Start your free 3-day trial
+          Unlimited stores · Unlimited items · Coupons
         </Text>
-
-        {/* Trial box */}
+        {/* Pricing box */}
         <View style={[styles.trialBox, { backgroundColor: colors.surface, borderColor: colors.primary + "50" }]}>
           <View style={styles.trialRow}>
-            <Text style={[styles.trialLabel, { color: colors.muted }]}>Today</Text>
-            <Text style={[styles.trialValue, { color: colors.success }]}>FREE — 3-day trial begins</Text>
+            <Text style={[styles.trialLabel, { color: colors.muted }]}>Free Plan</Text>
+            <Text style={[styles.trialValue, { color: colors.foreground }]}>1 store · 3 items</Text>
           </View>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <View style={styles.trialRow}>
-            <Text style={[styles.trialLabel, { color: colors.muted }]}>Day 4 onward</Text>
-            <Text style={[styles.trialValue, { color: colors.foreground }]}>$0.99 / week, auto-renews</Text>
+            <Text style={[styles.trialLabel, { color: colors.muted }]}>Premium</Text>
+            <Text style={[styles.trialValue, { color: colors.primary }]}>$1.99 / week, auto-renews</Text>
           </View>
         </View>
 
@@ -109,13 +107,11 @@ export function SubscriptionConsent({ onAgree, error }: SubscriptionConsentProps
 
         {/* Legal copy */}
         <Text style={[styles.legal, { color: colors.muted }]}>
-          By tapping "Agree & Start Free Trial" you agree to a{" "}
-          <Text style={{ fontWeight: "700" }}>3-day free trial</Text>, after which your Google Play
+          By tapping "Subscribe & Unlock Premium" you agree that your Google Play
           account will be charged{" "}
-          <Text style={{ fontWeight: "700" }}>$0.99 per week</Text> automatically until you cancel.
+          <Text style={{ fontWeight: "700" }}>$1.99 per week</Text> automatically, starting today, until you cancel.
           Cancel anytime in the{" "}
-          <Text style={{ fontWeight: "700" }}>Google Play Store → Subscriptions</Text>. No charge
-          during the trial period.
+          <Text style={{ fontWeight: "700" }}>Google Play Store → Subscriptions</Text>.
         </Text>
 
         {/* Error */}
@@ -153,8 +149,8 @@ export function SubscriptionConsent({ onAgree, error }: SubscriptionConsentProps
             <ActivityIndicator color="#fff" size="small" />
           ) : (
             <>
-              <Text style={styles.agreeBtnText}>Agree &amp; Start Free Trial</Text>
-              <Text style={styles.agreeBtnSub}>3 days free · then $0.99/week · cancel anytime</Text>
+              <Text style={styles.agreeBtnText}>Subscribe &amp; Unlock Premium</Text>
+              <Text style={styles.agreeBtnSub}>$1.99/week · cancel anytime in Google Play</Text>
             </>
           )}
         </Pressable>
@@ -168,12 +164,12 @@ export function SubscriptionConsent({ onAgree, error }: SubscriptionConsentProps
 }
 
 const FEATURES = [
-  { emoji: "🔬", text: "Unlimited belief field scans" },
-  { emoji: "📊", text: "7 live scientific sensors" },
-  { emoji: "🔥", text: "Daily challenges & streak tracking" },
-  { emoji: "📈", text: "Belief strength progress over time" },
-  { emoji: "🎵", text: "Immersive sound & haptic reveals" },
-  { emoji: "📓", text: "Belief journal & scan history" },
+  { emoji: "🏪", text: "Unlimited stores" },
+  { emoji: "📋", text: "Unlimited items per store" },
+  { emoji: "✂️", text: "Coupon section" },
+  { emoji: "📍", text: "Location reminders" },
+  { emoji: "📷", text: "Barcode scanner" },
+  { emoji: "👨‍👩‍👧", text: "Family profiles" },
 ];
 
 const styles = StyleSheet.create({

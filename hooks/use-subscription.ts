@@ -13,12 +13,13 @@
  * This is the actual object Nitro installs into the JS global — if it's null/undefined,
  * the native module is not linked and we must not import the library at all.
  *
- * Fallback: pure AsyncStorage-based trial tracking (no billing calls).
- * The app works normally; real billing only activates in production EAS builds.
+ * Fallback: pure AsyncStorage-based status tracking (no billing calls).
+ * The app works normally in dev/Expo Go; real billing only activates in production EAS builds.
  *
- * Subscription product: belief_field_weekly_099
- *   - $0.99 / week, auto-renewing
- *   - 3-day free trial (configured in Play Console → Monetization → Subscriptions)
+ * Subscription product: premium_weekly_199
+ *   - $1.99 / week, auto-renewing
+ *   - No free trial
+ *   - Freemium model: free tier = 1 store + 3 items (no coupons)
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -48,32 +49,29 @@ function isIAPAvailable(): boolean {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-export const SUBSCRIPTION_SKU = "belief_field_weekly_099";
-export const TRIAL_DAYS = 3;
+export const SUBSCRIPTION_SKU = "premium_weekly_199";
+/** Weekly price shown to users */
+export const SUBSCRIPTION_PRICE = "$1.99";
 
-const STORAGE_STATUS_KEY = "@belief_subscription_status";
-const STORAGE_TRIAL_START_KEY = "@belief_trial_start";
-const STORAGE_CONSENT_KEY = "@belief_subscription_consented";
+const STORAGE_STATUS_KEY = "@r2b_subscription_status";
+const STORAGE_CONSENT_KEY = "@r2b_subscription_consented";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type SubscriptionStatus =
   | "loading"
-  | "none"       // never subscribed, no trial started
-  | "trial"      // within 3-day free trial window
+  | "none"       // free tier — no active subscription
   | "active"     // paid subscription active
-  | "expired"    // trial or subscription lapsed
+  | "expired"    // subscription lapsed
   | "cancelled"; // user cancelled but still within paid period
 
 export interface SubscriptionState {
+  /** True when status is "active" */
   hasAccess: boolean;
   status: SubscriptionStatus;
-  trialDaysRemaining: number;
   loading: boolean;
   /** Whether the user has seen and agreed to the subscription consent screen */
   hasConsented: boolean;
-  /** Start the 3-day free trial (records consent + trial start) */
-  startTrial: () => Promise<void>;
   /** Initiate a purchase via Google Play Billing */
   purchase: () => Promise<void>;
   /** Restore previous purchases */
@@ -83,21 +81,11 @@ export interface SubscriptionState {
   error: string | null;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function computeTrialDaysRemaining(trialStartMs: number): number {
-  const THREE_DAYS_MS = TRIAL_DAYS * 24 * 60 * 60 * 1000;
-  const elapsed = Date.now() - trialStartMs;
-  const remaining = THREE_DAYS_MS - elapsed;
-  return Math.max(0, Math.ceil(remaining / (24 * 60 * 60 * 1000)));
-}
-
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useSubscription(): SubscriptionState {
   const [status, setStatus] = useState<SubscriptionStatus>("loading");
   const [loading, setLoading] = useState(true);
-  const [trialDaysRemaining, setTrialDaysRemaining] = useState(0);
   const [hasConsented, setHasConsented] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offerToken, setOfferToken] = useState<string | null>(null);
@@ -119,7 +107,6 @@ export function useSubscription(): SubscriptionState {
           if (activeSub) {
             await AsyncStorage.setItem(STORAGE_STATUS_KEY, "active");
             setStatus("active");
-            setTrialDaysRemaining(0);
             setLoading(false);
             return;
           }
@@ -129,9 +116,8 @@ export function useSubscription(): SubscriptionState {
       }
 
       // 2. Check locally stored subscription status
-      const [storedStatus, trialStartStr, consentedStr] = await Promise.all([
+      const [storedStatus, consentedStr] = await Promise.all([
         AsyncStorage.getItem(STORAGE_STATUS_KEY),
-        AsyncStorage.getItem(STORAGE_TRIAL_START_KEY),
         AsyncStorage.getItem(STORAGE_CONSENT_KEY),
       ]);
 
@@ -139,26 +125,16 @@ export function useSubscription(): SubscriptionState {
 
       if (storedStatus === "active") {
         setStatus("active");
-        setTrialDaysRemaining(0);
-      } else if (trialStartStr) {
-        const trialStart = parseInt(trialStartStr, 10);
-        const daysLeft = computeTrialDaysRemaining(trialStart);
-        if (daysLeft > 0) {
-          setStatus("trial");
-          setTrialDaysRemaining(daysLeft);
-        } else {
-          setStatus("expired");
-          setTrialDaysRemaining(0);
-        }
+      } else if (storedStatus === "cancelled") {
+        setStatus("cancelled");
+      } else if (storedStatus === "expired") {
+        setStatus("expired");
       } else {
         setStatus("none");
-        setTrialDaysRemaining(0);
       }
     } catch {
-      // On web or simulator, default to trial mode for development
-      setStatus("trial");
-      setTrialDaysRemaining(TRIAL_DAYS);
-      setHasConsented(true);
+      // On web or simulator, default to free tier
+      setStatus("none");
     } finally {
       setLoading(false);
     }
@@ -171,7 +147,7 @@ export function useSubscription(): SubscriptionState {
     const init = async () => {
       try {
         if (!isIAPAvailable()) {
-          // Nitro not available — use local trial tracking only
+          // Nitro not available — use local status tracking only
           await refreshStatus();
           return;
         }
@@ -199,12 +175,13 @@ export function useSubscription(): SubscriptionState {
             };
             const offerDetails = sub.subscriptionOfferDetailsAndroid;
             if (offerDetails && offerDetails.length > 0) {
-              const trialOffer = offerDetails.find((o) =>
-                o.pricingPhases?.some(
-                  (p) => p.formattedPrice === "Free" || p.priceAmountMicros === "0"
+              // Use the base plan offer (the paid weekly offer, not a free trial)
+              const baseOffer = offerDetails.find((o) =>
+                o.pricingPhases?.every(
+                  (p) => p.priceAmountMicros !== "0"
                 )
-              );
-              setOfferToken(trialOffer?.offerToken ?? offerDetails[0].offerToken ?? null);
+              ) ?? offerDetails[0];
+              setOfferToken(baseOffer.offerToken ?? null);
             }
           }
         } catch {
@@ -217,9 +194,10 @@ export function useSubscription(): SubscriptionState {
             try {
               await finishTransaction({ purchase, isConsumable: false });
               await AsyncStorage.setItem(STORAGE_STATUS_KEY, "active");
+              await AsyncStorage.setItem(STORAGE_CONSENT_KEY, "true");
               if (mounted) {
                 setStatus("active");
-                setTrialDaysRemaining(0);
+                setHasConsented(true);
                 setError(null);
               }
             } catch {
@@ -237,7 +215,7 @@ export function useSubscription(): SubscriptionState {
 
         await refreshStatus();
       } catch {
-        // IAP init failed — fall back to local trial tracking
+        // IAP init failed — fall back to local status tracking
         if (mounted) {
           await refreshStatus();
         }
@@ -262,59 +240,9 @@ export function useSubscription(): SubscriptionState {
   // ── Actions ────────────────────────────────────────────────────────────────
 
   /**
-   * Record user consent and start the 3-day free trial.
-   * On Android production builds with Nitro available, this also triggers
-   * the Google Play subscription purchase flow (which includes the trial).
+   * Trigger the Google Play subscription purchase flow for premium_weekly_199.
+   * On success, purchaseUpdatedListener sets status to "active".
    */
-  const startTrial = useCallback(async () => {
-    try {
-      // Record consent
-      await AsyncStorage.setItem(STORAGE_CONSENT_KEY, "true");
-      setHasConsented(true);
-
-      // On production Android with Nitro available, trigger the Play Billing flow
-      if (isIAPAvailable() && connectionRef.current) {
-        try {
-          const { requestPurchase } = await import("react-native-iap");
-          await requestPurchase({
-            type: "subs",
-            request: {
-              google: {
-                skus: [SUBSCRIPTION_SKU],
-                ...(offerToken
-                  ? { subscriptionOffers: [{ sku: SUBSCRIPTION_SKU, offerToken }] }
-                  : {}),
-              },
-            },
-          });
-          // Purchase result handled by purchaseUpdatedListener
-          return;
-        } catch (e: unknown) {
-          const msg = e instanceof Error ? e.message : "";
-          if (msg.toLowerCase().includes("cancel")) {
-            // User cancelled — don't start local trial, let them retry
-            await AsyncStorage.removeItem(STORAGE_CONSENT_KEY);
-            setHasConsented(false);
-            return;
-          }
-          // Other error — fall through to local trial as fallback
-        }
-      }
-
-      // Fallback: local trial tracking (Expo Go, dev builds, non-Android)
-      const existing = await AsyncStorage.getItem(STORAGE_TRIAL_START_KEY);
-      if (!existing) {
-        await AsyncStorage.setItem(STORAGE_TRIAL_START_KEY, Date.now().toString());
-      }
-      setStatus("trial");
-      setTrialDaysRemaining(TRIAL_DAYS);
-    } catch {
-      // Never block the user for storage errors
-      setStatus("trial");
-      setTrialDaysRemaining(TRIAL_DAYS);
-    }
-  }, [offerToken]);
-
   const purchase = useCallback(async () => {
     if (Platform.OS === "web") {
       setError("Subscriptions are only available on Android devices.");
@@ -326,6 +254,8 @@ export function useSubscription(): SubscriptionState {
     }
     try {
       setError(null);
+      await AsyncStorage.setItem(STORAGE_CONSENT_KEY, "true");
+      setHasConsented(true);
       const { requestPurchase } = await import("react-native-iap");
       await requestPurchase({
         type: "subs",
@@ -347,7 +277,10 @@ export function useSubscription(): SubscriptionState {
   }, [offerToken]);
 
   const restore = useCallback(async () => {
-    if (!isIAPAvailable()) return;
+    if (!isIAPAvailable()) {
+      setError("Restore is only available on Android devices.");
+      return;
+    }
     try {
       setError(null);
       const { getAvailablePurchases } = await import("react-native-iap");
@@ -356,7 +289,6 @@ export function useSubscription(): SubscriptionState {
       if (activeSub) {
         await AsyncStorage.setItem(STORAGE_STATUS_KEY, "active");
         setStatus("active");
-        setTrialDaysRemaining(0);
       } else {
         setError("No active subscription found for this account.");
       }
@@ -365,15 +297,13 @@ export function useSubscription(): SubscriptionState {
     }
   }, []);
 
-  const hasAccess = status === "trial" || status === "active";
+  const hasAccess = status === "active";
 
   return {
     hasAccess,
     status,
-    trialDaysRemaining,
     loading,
     hasConsented,
-    startTrial,
     purchase,
     restore,
     refresh: refreshStatus,

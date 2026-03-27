@@ -10,15 +10,15 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import { useColors } from "@/hooks/use-colors";
-import type { BeliefTheme } from "@/constants/belief-themes";
+import type { ItemTheme } from "@/constants/item-themes";
 
-export interface BeliefFieldOrbProps {
+export interface ItemOrbProps {
   intensity: number; // 0-1
   score: number; // 0-100
-  beliefEmoji: string;
+  itemEmoji: string;
   phase: "idle" | "calibrating" | "scanning" | "complete";
   size?: number;
-  theme?: BeliefTheme;
+  theme?: ItemTheme;
   /** When true, render a static orb with no animations (warm-up phase) */
   warmUp?: boolean;
   /** Maximum number of particles to show (for gradual particle loading) */
@@ -154,16 +154,16 @@ function Particle({
   );
 }
 
-export function BeliefFieldOrb({
+export function ItemOrb({
   intensity,
   score,
-  beliefEmoji,
+  itemEmoji,
   phase,
   size,
   theme,
   warmUp = false,
   maxParticles,
-}: BeliefFieldOrbProps) {
+}: ItemOrbProps) {
   const colors = useColors();
   const orbSize = size || 140;
   const scaleF = orbSize / 140;
@@ -228,7 +228,7 @@ export function BeliefFieldOrb({
       }
     } catch (err) {
       // Animation setup failed — orb just won't animate
-      console.warn("[BeliefFieldOrb] Animation error:", err);
+      console.warn("[ItemOrb] Animation error:", err);
     }
   }, [phase, intensity, warmUp]);
 
@@ -373,7 +373,7 @@ export function BeliefFieldOrb({
             },
           ]}
         >
-          <Text style={[styles.emoji, { fontSize: emojiSize }]}>{beliefEmoji}</Text>
+          <Text style={[styles.emoji, { fontSize: emojiSize }]}>{itemEmoji}</Text>
           {phase !== "idle" && (
             <Text style={[styles.score, { fontSize: scoreSize }]}>{score}</Text>
           )}
@@ -394,7 +394,7 @@ export function BeliefFieldOrb({
             },
           ]}
         >
-          <Text style={[styles.emoji, { fontSize: emojiSize }]}>{beliefEmoji}</Text>
+          <Text style={[styles.emoji, { fontSize: emojiSize }]}>{itemEmoji}</Text>
           {phase !== "idle" && (
             <Text style={[styles.score, { fontSize: scoreSize }]}>{score}</Text>
           )}
@@ -415,7 +415,7 @@ export function BeliefFieldOrb({
             ? "Calibrating sensors..."
             : phase === "complete"
             ? "Scan Complete"
-            : theme?.atmosphereLabel || "Belief Field Strength"}
+            : theme?.atmosphereLabel || "item Field Strength"}
         </Text>
       )}
     </View>

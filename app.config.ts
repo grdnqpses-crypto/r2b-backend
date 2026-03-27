@@ -7,7 +7,7 @@ const schemeFromBundleId = "remember2buy";
 
 const env = {
   appName: "Remember2Buy",
-  appSlug: "belief-field-detector",
+  appSlug: "remember2buy",
   logoUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663348315388/3MWRPobTFfqJ6iFRe4j7At/r2b-icon-CAWNbqfNGqp34zMiwqtnFA.png",
   scheme: schemeFromBundleId,
   iosBundleId: bundleId,

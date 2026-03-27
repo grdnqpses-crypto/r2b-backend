@@ -9,10 +9,10 @@ import type { ScanResult } from "./use-scan-history";
 export function useShareResults() {
   const shareAsText = useCallback(async (result: ScanResult) => {
     const text = [
-      `✨ Belief Field Detector Results ✨`,
+      `🛒 Remember 2 Buy — Scan Results`,
       ``,
-      `${result.beliefEmoji} ${result.beliefName}`,
-      `Belief Field Score: ${result.score}/100`,
+      `${result.itemEmoji} ${result.itemName}`,
+      `Score: ${result.score}/100`,
       `Intensity: ${result.intensity}/10`,
       ``,
       `Sensor Readings:`,
@@ -22,14 +22,14 @@ export function useShareResults() {
       ``,
       result.summary,
       ``,
-      `Measured with Belief Field Detector 📱`,
+      `Measured with Remember 2 Buy 📱`,
     ].join("\n");
 
     if (Platform.OS === "web") {
       // Use Web Share API or clipboard
       try {
         if (typeof navigator !== "undefined" && navigator.share) {
-          await navigator.share({ title: "Belief Field Results", text });
+          await navigator.share({ title: "Remember 2 Buy Scan Results", text });
         } else if (typeof navigator !== "undefined" && navigator.clipboard) {
           await navigator.clipboard.writeText(text);
           Alert.alert("Copied!", "Results copied to clipboard");
@@ -45,14 +45,14 @@ export function useShareResults() {
       const FileSystem = require("expo-file-system/legacy") as typeof import("expo-file-system/legacy");
       const Sharing = require("expo-sharing") as typeof import("expo-sharing");
 
-      const fileUri = FileSystem.documentDirectory + "belief-field-results.txt";
+      const fileUri = FileSystem.documentDirectory + "r2b-scan-results.txt";
       await FileSystem.writeAsStringAsync(fileUri, text);
 
       const available = await Sharing.isAvailableAsync();
       if (available) {
         await Sharing.shareAsync(fileUri, {
           mimeType: "text/plain",
-          dialogTitle: "Share Your Belief Field Results",
+          dialogTitle: "Share Your Scan Results",
         });
       } else {
         Alert.alert("Sharing not available", "Sharing is not supported on this device.");

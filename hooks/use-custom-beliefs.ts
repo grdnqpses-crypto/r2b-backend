@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { BeliefOption } from "@/constants/beliefs";
+import type { ItemOption } from "@/constants/beliefs";
 
-const STORAGE_KEY = "belief-field-custom-beliefs";
+const STORAGE_KEY = "@r2b_custom_items";
 
-export function useCustomBeliefs() {
-  const [customBeliefs, setCustomBeliefs] = useState<BeliefOption[]>([]);
+export function useCustomItems() {
+  const [customItems, setCustomItems] = useState<ItemOption[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   // Load on mount
@@ -14,7 +14,7 @@ export function useCustomBeliefs() {
       .then((data) => {
         if (data) {
           try {
-            setCustomBeliefs(JSON.parse(data));
+            setCustomItems(JSON.parse(data));
           } catch {
             // Corrupted data, reset
           }
@@ -23,21 +23,21 @@ export function useCustomBeliefs() {
       .finally(() => setLoaded(true));
   }, []);
 
-  const addBelief = useCallback(async (belief: BeliefOption) => {
-    setCustomBeliefs((prev) => {
-      const next = [belief, ...prev];
+  const additem = useCallback(async (item: ItemOption) => {
+    setCustomItems((prev) => {
+      const next = [item, ...prev];
       AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     });
   }, []);
 
-  const removeBelief = useCallback(async (id: string) => {
-    setCustomBeliefs((prev) => {
+  const removeitem = useCallback(async (id: string) => {
+    setCustomItems((prev) => {
       const next = prev.filter((b) => b.id !== id);
       AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     });
   }, []);
 
-  return { customBeliefs, loaded, addBelief, removeBelief };
+  return { customItems, loaded, additem, removeitem };
 }

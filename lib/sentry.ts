@@ -2,7 +2,7 @@
  * Sentry Crash Reporting Integration
  *
  * Provides crash reporting, error tracking, performance monitoring,
- * and breadcrumb logging for the Belief Field Detector app.
+ * and breadcrumb logging for the Remember 2 Buy app.
  *
  * Setup:
  * 1. Create a project at https://sentry.io (free tier available)
@@ -64,7 +64,7 @@ export async function initSentry(): Promise<void> {
     sentry.init({
       dsn,
       environment,
-      release: `belief-field-detector@${appVersion}`,
+      release: `remember2buy@${appVersion}`,
       dist: Platform.OS,
 
       // Performance monitoring — capture 20% of transactions in production

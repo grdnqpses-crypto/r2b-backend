@@ -12,14 +12,14 @@ import { useColors } from "@/hooks/use-colors";
 import { LinearGradient } from "@/lib/safe-imports";
 
 interface BedtimeMessageProps {
-  beliefName: string;
-  beliefEmoji: string;
+  itemName: string;
+  itemEmoji: string;
   message: string;
   score: number;
   onDismiss: () => void;
 }
 
-export function BedtimeMessage({ beliefName, beliefEmoji, message, score, onDismiss }: BedtimeMessageProps) {
+export function BedtimeMessage({ itemName, itemEmoji, message, score, onDismiss }: BedtimeMessageProps) {
   const colors = useColors();
   const twinkle1 = useSharedValue(0.3);
   const twinkle2 = useSharedValue(0.6);
@@ -88,12 +88,12 @@ export function BedtimeMessage({ beliefName, beliefEmoji, message, score, onDism
       <Animated.Text style={[styles.moon, moonStyle]}>🌙</Animated.Text>
 
       <View style={styles.content}>
-        <Text style={styles.emoji}>{beliefEmoji}</Text>
+        <Text style={styles.emoji}>{itemEmoji}</Text>
         <Text style={[styles.title, { color: colors.foreground }]}>
-          Time for Bed, Little Believer!
+          Time for Bed!
         </Text>
         <Text style={[styles.score, { color: colors.primary }]}>
-          Your {beliefName} belief field scored {score}!
+          Your {itemName} score: {score}!
         </Text>
         <View style={[styles.messageCard, { backgroundColor: "rgba(155,122,255,0.1)", borderColor: "rgba(155,122,255,0.3)" }]}>
           <Text style={[styles.message, { color: colors.foreground }]}>

@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const PREMIUM_KEY = "belief-field-premium";
-const DAILY_SCANS_KEY = "belief-field-daily-scans";
-const PROFILE_KEY = "belief-field-profiles";
+const PREMIUM_KEY = "@r2b_premium";
+const DAILY_SCANS_KEY = "@r2b_daily_scans";
+const PROFILE_KEY = "@r2b_profiles";
 
 // Free tier limits
 export const FREE_SCAN_LIMIT = 3;
-export const FREE_BELIEF_IDS = ["santa", "tooth-fairy", "easter-bunny", "god", "guardian-angel"];
+export const FREE_ITEM_IDS = ["santa", "tooth-fairy", "easter-bunny", "god", "guardian-angel"];
+/** @deprecated Use FREE_ITEM_IDS */
+export const FREE_CATEGORY_IDS = FREE_ITEM_IDS;
 export const FREE_SCAN_DURATION = 30;
 
 export interface PremiumState {
@@ -76,13 +78,13 @@ export function usePremium() {
   const canScanToday = premium.isPremium || dailyScans.count < FREE_SCAN_LIMIT;
   const scansRemaining = premium.isPremium ? Infinity : Math.max(0, FREE_SCAN_LIMIT - dailyScans.count);
 
-  const isBeliefFree = useCallback((beliefId: string) => {
-    return FREE_BELIEF_IDS.includes(beliefId);
+  const isItemFree = useCallback((itemId: string) => {
+    return FREE_ITEM_IDS.includes(itemId);
   }, []);
 
-  const isBeliefAccessible = useCallback(
-    (beliefId: string) => {
-      return premium.isPremium || FREE_BELIEF_IDS.includes(beliefId);
+  const isItemAccessible = useCallback(
+    (itemId: string) => {
+      return premium.isPremium || FREE_ITEM_IDS.includes(itemId);
     },
     [premium.isPremium]
   );
@@ -110,8 +112,8 @@ export function usePremium() {
     canScanToday,
     scansRemaining,
     dailyScans,
-    isBeliefFree,
-    isBeliefAccessible,
+    isItemFree,
+    isItemAccessible,
     recordDailyScan,
     activatePremium,
     deactivatePremium,

@@ -1,8 +1,11 @@
 /**
- * Paywall screen for Belief Field Detector
+ * Paywall screen for Remember 2 Buy
  *
- * Shows the $0.99/week subscription offer with a 3-day free trial.
+ * Shows the $1.99/week premium subscription offer.
  * Displayed when a user tries to access a premium feature without a subscription.
+ *
+ * Free tier: 1 store, 3 items per store, no coupon section.
+ * Premium: unlimited stores, unlimited items, full coupon section.
  */
 
 import { useState, useRef, useEffect } from "react";
@@ -30,14 +33,14 @@ interface PaywallProps {
 }
 
 const FEATURES = [
-  { emoji: "⚗️", title: "Unlimited Belief Scans", desc: "Scan any belief, any time, as many times as you want" },
-  { emoji: "📊", title: "Full Science Breakdown", desc: "See all 7 sensor readings and what they mean for your belief" },
-  { emoji: "🏆", title: "Streak Tracking & Achievements", desc: "Build daily habits and unlock milestones as you grow" },
-  { emoji: "📔", title: "Belief Journal", desc: "Record your thoughts after every scan and track your journey" },
-  { emoji: "🎵", title: "Guided Meditation Mode", desc: "Prepare your mind before each scan for stronger results" },
-  { emoji: "💫", title: "Daily Challenges", desc: "New belief challenges every day to keep you growing" },
-  { emoji: "🌙", title: "Bedtime Belief Messages", desc: "End each day with a personalized belief affirmation" },
-  { emoji: "📈", title: "Scan History & Reports", desc: "Full history of every scan with detailed analysis" },
+  { emoji: "🏪", title: "Unlimited Stores", desc: "Add as many stores as you shop at — grocery, pharmacy, hardware, and more" },
+  { emoji: "📋", title: "Unlimited Items Per Store", desc: "No cap on your shopping lists — add everything you need" },
+  { emoji: "✂️", title: "Coupon Section", desc: "Track and organize your coupons alongside your shopping list" },
+  { emoji: "📍", title: "Location Reminders", desc: "Get notified automatically when you arrive near a store" },
+  { emoji: "📷", title: "Barcode Scanner", desc: "Scan barcodes to add items instantly — no typing required" },
+  { emoji: "👨‍👩‍👧", title: "Family Profiles", desc: "Create separate shopping profiles for every member of the household" },
+  { emoji: "📊", title: "Purchase History", desc: "See everything you've bought and when — great for budgeting" },
+  { emoji: "🔔", title: "Smart Notifications", desc: "Reminders, low-stock alerts, and store arrival pings" },
 ];
 
 export function Paywall({ subscription, onDismiss, required = false }: PaywallProps) {
@@ -70,7 +73,7 @@ export function Paywall({ subscription, onDismiss, required = false }: PaywallPr
     return () => loop.stop();
   }, []);
 
-  const handleStartTrial = async () => {
+  const handlePurchase = async () => {
     if (purchasing) return;
     setPurchasing(true);
     setMessage(null);
@@ -80,13 +83,12 @@ export function Paywall({ subscription, onDismiss, required = false }: PaywallPr
     try {
       await subscription.purchase();
       // purchaseUpdatedListener in use-subscription handles success
-      // Check if status changed after purchase
       setTimeout(() => {
         if (subscription.status === "active") {
           if (Platform.OS !== "web") {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           }
-          setMessage("🎉 Welcome! Subscription activated.");
+          setMessage("🎉 Welcome to Premium! Your subscription is active.");
           setTimeout(() => onDismiss?.(), 1500);
         } else if (subscription.error) {
           setMessage(subscription.error);
@@ -127,15 +129,15 @@ export function Paywall({ subscription, onDismiss, required = false }: PaywallPr
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerEmoji}>🎵</Text>
+          <Text style={styles.headerEmoji}>🛒</Text>
           <Text style={[styles.headline, { color: colors.foreground }]}>
-            Don't Stop Believing
+            Upgrade to Premium
           </Text>
           <Text style={[styles.subheadline, { color: colors.primary }]}>
-            Start your free 3-day trial
+            Unlimited stores · Unlimited items · Coupons
           </Text>
           <Text style={[styles.body, { color: colors.muted }]}>
-            Your phone has 7 scientific sensors that respond to belief. Unlock unlimited access to measure, track, and grow your belief every single day.
+            The free plan includes 1 store and 3 items. Go Premium for unlimited everything — and never forget what you need again.
           </Text>
         </View>
 
@@ -143,17 +145,13 @@ export function Paywall({ subscription, onDismiss, required = false }: PaywallPr
         <View style={[styles.pricingCard, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "40" }]}>
           <View style={styles.pricingRow}>
             <View>
-              <Text style={[styles.pricingFree, { color: colors.primary }]}>FREE for 3 days</Text>
-              <Text style={[styles.pricingThen, { color: colors.muted }]}>then $0.99 / week</Text>
+              <Text style={[styles.pricingFree, { color: colors.primary }]}>$1.99 / week</Text>
+              <Text style={[styles.pricingThen, { color: colors.muted }]}>Auto-renews weekly · Cancel anytime</Text>
             </View>
             <View style={[styles.pricingBadge, { backgroundColor: colors.primary }]}>
-              <Text style={styles.pricingBadgeText}>TRIAL</Text>
+              <Text style={styles.pricingBadgeText}>PREMIUM</Text>
             </View>
           </View>
-          <View style={[styles.pricingDivider, { backgroundColor: colors.primary + "30" }]} />
-          <Text style={[styles.pricingNote, { color: colors.muted }]}>
-            Auto-renews weekly · Cancel anytime · No charge during trial
-          </Text>
         </View>
 
         {/* Feature list */}
@@ -168,14 +166,6 @@ export function Paywall({ subscription, onDismiss, required = false }: PaywallPr
             <Text style={[styles.featureCheck, { color: colors.primary }]}>✓</Text>
           </View>
         ))}
-
-        {/* Social proof */}
-        <View style={[styles.proofCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.proofText, { color: colors.foreground }]}>
-            "I've been using this every morning for 3 weeks. My belief scores have gone from 42 to 78. I can actually feel the difference."
-          </Text>
-          <Text style={[styles.proofAuthor, { color: colors.muted }]}>— Early tester, verified user</Text>
-        </View>
 
         {/* Error/success message */}
         {message && (
@@ -202,7 +192,7 @@ export function Paywall({ subscription, onDismiss, required = false }: PaywallPr
       }]}>
         <Animated.View style={{ transform: [{ scale: pulse }] }}>
           <Pressable
-            onPress={handleStartTrial}
+            onPress={handlePurchase}
             disabled={purchasing}
             style={({ pressed }) => [
               styles.ctaBtn,
@@ -213,8 +203,8 @@ export function Paywall({ subscription, onDismiss, required = false }: PaywallPr
               <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <Text style={styles.ctaBtnText}>Start Free 3-Day Trial</Text>
-                <Text style={styles.ctaBtnSub}>Then $0.99/week · Cancel anytime</Text>
+                <Text style={styles.ctaBtnText}>Get Premium — $1.99/week</Text>
+                <Text style={styles.ctaBtnSub}>Cancel anytime in Google Play</Text>
               </>
             )}
           </Pressable>
@@ -234,7 +224,7 @@ export function Paywall({ subscription, onDismiss, required = false }: PaywallPr
         </View>
 
         <Text style={[styles.legalText, { color: colors.muted }]}>
-          Payment will be charged to your Google Play account. Subscription auto-renews at $0.99/week unless cancelled at least 24 hours before the end of the current period.
+          Payment will be charged to your Google Play account. Subscription auto-renews at $1.99/week unless cancelled at least 24 hours before the end of the current period.
         </Text>
       </View>
     </Animated.View>

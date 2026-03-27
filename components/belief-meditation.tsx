@@ -8,11 +8,11 @@ try {
   Speech = { speak: () => {}, stop: () => {}, isSpeakingAsync: async () => false };
 }
 import { useColors } from "@/hooks/use-colors";
-import type { BeliefOption } from "@/constants/beliefs";
+import type { ItemOption } from "@/constants/beliefs";
 import { Haptics, LinearGradient, useKeepAwake } from "@/lib/safe-imports";
 
-interface BeliefMeditationProps {
-  belief: BeliefOption;
+interface ItemMeditationProps {
+  item: ItemOption;
   onComplete: () => void;
   onSkip: () => void;
 }
@@ -61,10 +61,10 @@ const MEDITATION_STEPS = [
   {
     phase: "focus",
     duration: 6000,
-    title: "Focus Your Belief",
-    subtitle: "", // will be filled with belief name
+    title: "Focus Your item",
+    subtitle: "", // will be filled with item name
     voice: "", // will be filled dynamically
-    emoji: "", // will be filled with belief emoji
+    emoji: "", // will be filled with item emoji
     breathe: false,
   },
   {
@@ -91,8 +91,8 @@ const MEDITATION_STEPS = [
     phase: "breathe-out-2",
     duration: 6000,
     title: "Breathe Out",
-    subtitle: "Release slowly... let your belief fill the space around you",
-    voice: "Release slowly. Let your belief fill the space around you.",
+    subtitle: "Release slowly... let your item fill the space around you",
+    voice: "Release slowly. Let your item fill the space around you.",
     emoji: "🌟",
     breathe: true,
     breatheDirection: "out" as const,
@@ -101,14 +101,14 @@ const MEDITATION_STEPS = [
     phase: "ready",
     duration: 4000,
     title: "You Are Ready",
-    subtitle: "Your mind is focused. Your belief is strong. Let's begin the scan.",
-    voice: "Your mind is focused. Your belief is strong. Let's begin the scan.",
+    subtitle: "Your mind is focused. Your item is strong. Let's begin the scan.",
+    voice: "Your mind is focused. Your item is strong. Let's begin the scan.",
     emoji: "⚡",
     breathe: false,
   },
 ];
 
-export function BeliefMeditation({ belief, onComplete, onSkip }: BeliefMeditationProps) {
+export function ItemMeditation({ item, onComplete, onSkip }: ItemMeditationProps) {
   // Must call unconditionally (Rules of Hooks) — it no-ops on web internally
   useKeepAwake();
   const colors = useColors();
@@ -120,18 +120,18 @@ export function BeliefMeditation({ belief, onComplete, onSkip }: BeliefMeditatio
 
   const step = MEDITATION_STEPS[currentStep];
 
-  // Customize the focus step with belief info
+  // Customize the focus step with item info
   const getStepData = useCallback(() => {
     if (step.phase === "focus") {
       return {
         ...step,
-        subtitle: `Picture ${belief.name} in your mind. See it clearly. Feel it deeply. Believe with all your heart.`,
-        voice: `Now picture ${belief.name} in your mind. See it clearly. Feel it deeply. Believe with all your heart.`,
-        emoji: belief.emoji,
+        subtitle: `Picture ${item.name} in your mind. See it clearly. Feel it deeply. Focus with all your heart.`,
+        voice: `Now picture ${item.name} in your mind. See it clearly. Feel it deeply. Focus with all your heart.`,
+        emoji: item.emoji,
       };
     }
     return step;
-  }, [step, belief]);
+  }, [step, item]);
 
   const currentData = getStepData();
 
@@ -342,7 +342,7 @@ export function BeliefMeditation({ belief, onComplete, onSkip }: BeliefMeditatio
             : currentData.phase === "focus"
             ? "Visualization creates real neural activity. When you picture something vividly, your brain activates the same regions as if it were really happening. This is scientifically proven."
             : currentData.phase === "ready"
-            ? "Your mind is now in an optimal state for belief detection. Your focused, calm state will produce clearer sensor readings during the scan."
+            ? "Your mind is now in an optimal state for item detection. Your focused, calm state will produce clearer sensor readings during the scan."
             : "Preparing your mind before a scan produces more accurate results. Studies show that focused intention creates measurable changes in the body's electromagnetic field."}
         </Text>
       </View>

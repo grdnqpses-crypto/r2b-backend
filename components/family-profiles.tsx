@@ -71,7 +71,7 @@ export function FamilyProfilesScreen({
         <Text style={styles.headerEmoji}>👨‍👩‍👧‍👦</Text>
         <Text style={[styles.title, { color: colors.foreground }]}>Family Profiles</Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>
-          Each family member gets their own belief history, journal entries, and streak tracker.
+          Each family member gets their own item history, journal entries, and streak tracker.
           Switch profiles to keep everyone's journey separate and personal.
         </Text>
 
@@ -100,7 +100,7 @@ export function FamilyProfilesScreen({
           <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={styles.emptyEmoji}>👤</Text>
             <Text style={[styles.emptyText, { color: colors.muted }]}>
-              No profiles yet. Create your first profile to start tracking belief journeys separately for each family member.
+              No profiles yet. Create your first profile to start tracking item journeys separately for each family member.
             </Text>
           </View>
         )}
@@ -195,10 +195,10 @@ export function FamilyProfilesScreen({
             How Family Profiles Work
           </Text>
           <Text style={[styles.infoText, { color: colors.muted }]}>
-            Each profile has its own scan history, belief journal, and streak tracker. When you switch profiles, the app loads that person's data. This way, Mom's belief journey stays separate from the kids', and everyone can track their own growth over time.
+            Each profile has its own scan history, item journal, and streak tracker. When you switch profiles, the app loads that person's data. This way, Mom's item journey stays separate from the kids', and everyone can track their own growth over time.
           </Text>
           <Text style={[styles.infoText, { color: colors.muted, marginTop: 8 }]}>
-            Profiles are stored locally on this device. Each family member can have their own private belief experience while sharing the same app.
+            Profiles are stored locally on this device. Each family member can have their own private item experience while sharing the same app.
           </Text>
         </View>
 

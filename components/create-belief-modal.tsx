@@ -10,15 +10,15 @@ import {
   KeyboardAvoidingView,
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
-import { CUSTOM_EMOJI_OPTIONS, createCustomBelief, type BeliefOption } from "@/constants/beliefs";
+import { CUSTOM_EMOJI_OPTIONS, createCustomItem, type ItemOption } from "@/constants/beliefs";
 import { Haptics } from "@/lib/safe-imports";
 
-interface CreateBeliefModalProps {
-  onSave: (belief: BeliefOption) => void;
+interface CreateItemModalProps {
+  onSave: (item: ItemOption) => void;
   onCancel: () => void;
 }
 
-export function CreateBeliefModal({ onSave, onCancel }: CreateBeliefModalProps) {
+export function CreateItemModal({ onSave, onCancel }: CreateItemModalProps) {
   const colors = useColors();
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("✨");
@@ -31,12 +31,12 @@ export function CreateBeliefModal({ onSave, onCancel }: CreateBeliefModalProps) 
     if (Platform.OS !== "web") {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-    const belief = createCustomBelief(
+    const item = createCustomitem(
       name.trim(),
       emoji,
-      description.trim() || `My personal belief in ${name.trim()}`
+      description.trim() || `My personal item in ${name.trim()}`
     );
-    onSave(belief);
+    onSave(item);
   };
 
   return (
@@ -46,9 +46,9 @@ export function CreateBeliefModal({ onSave, onCancel }: CreateBeliefModalProps) 
     >
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <Text style={[styles.header, { color: colors.foreground }]}>Create Your Belief</Text>
+        <Text style={[styles.header, { color: colors.foreground }]}>Create Your item</Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>
-          Believe in anything — if it matters to you, it can be measured
+          Add anything — if you need it, add it to your list
         </Text>
 
         {/* Emoji picker */}
@@ -79,12 +79,12 @@ export function CreateBeliefModal({ onSave, onCancel }: CreateBeliefModalProps) 
         <View style={[styles.preview, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={styles.previewEmoji}>{emoji}</Text>
           <Text style={[styles.previewName, { color: colors.foreground }]}>
-            {name || "Your Belief"}
+            {name || "Your item"}
           </Text>
         </View>
 
         {/* Name input */}
-        <Text style={[styles.label, { color: colors.foreground }]}>Belief Name</Text>
+        <Text style={[styles.label, { color: colors.foreground }]}>item Name</Text>
         <TextInput
           value={name}
           onChangeText={setName}
@@ -103,7 +103,7 @@ export function CreateBeliefModal({ onSave, onCancel }: CreateBeliefModalProps) 
         <TextInput
           value={description}
           onChangeText={setDescription}
-          placeholder="What does this belief mean to you?"
+          placeholder="What does this item mean to you?"
           placeholderTextColor={colors.muted}
           style={[
             styles.input,
@@ -130,7 +130,7 @@ export function CreateBeliefModal({ onSave, onCancel }: CreateBeliefModalProps) 
           disabled={!canSave}
         >
           <Text style={styles.saveBtnText}>
-            {canSave ? `Create "${name.trim()}" Belief` : "Enter a Name to Continue"}
+            {canSave ? `Create "${name.trim()}" item` : "Enter a Name to Continue"}
           </Text>
         </Pressable>
 

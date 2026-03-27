@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const KEY = "@belief_onboarding_done";
+const KEY = "@r2b_onboarding_done";
 
 export function useOnboarding() {
   const [done, setDone] = useState<boolean | null>(null);

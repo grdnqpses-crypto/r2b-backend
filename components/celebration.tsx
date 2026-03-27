@@ -1,11 +1,11 @@
 /**
  * Celebration Component
  *
- * Displays confetti and fireworks when a scan completes with a high belief score.
+ * Displays confetti and fireworks when a scan completes with a high item score.
  * - Score >= 80: Full confetti burst + success haptic
  * - Score >= 60: Moderate confetti + impact haptic
  * - Score >= 40: Light confetti
- * - Score < 40: No celebration (belief is still growing)
+ * - Score < 40: No celebration (item is still growing)
  *
  * Uses react-native-confetti-cannon for the particle effect.
  * Falls back gracefully on web (no confetti, just a glow animation).
@@ -21,12 +21,12 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export interface CelebrationProps {
   score: number;
-  beliefEmoji?: string;
+  itemEmoji?: string;
   visible: boolean;
   onComplete?: () => void;
 }
 
-export function Celebration({ score, beliefEmoji, visible, onComplete }: CelebrationProps) {
+export function Celebration({ score, itemEmoji, visible, onComplete }: CelebrationProps) {
   const colors = useColors();
   const cannon1Ref = useRef<ConfettiCannon>(null);
   const cannon2Ref = useRef<ConfettiCannon>(null);
@@ -153,13 +153,13 @@ export function Celebration({ score, beliefEmoji, visible, onComplete }: Celebra
       {emojiVisible && (
         <View style={styles.emojiContainer} pointerEvents="none">
           <Animated.View style={[styles.emojiWrap, { transform: [{ scale: scaleAnim }] }]}>
-            <Text style={styles.emojiText}>{beliefEmoji ?? "✨"}</Text>
+            <Text style={styles.emojiText}>{itemEmoji ?? "✨"}</Text>
             <Text style={styles.celebrationText}>
               {celebrationLevel === "extraordinary"
                 ? "Extraordinary!"
                 : celebrationLevel === "powerful"
-                ? "Powerful Belief!"
-                : "Strong Belief!"}
+                ? "Powerful item!"
+                : "Strong item!"}
             </Text>
           </Animated.View>
         </View>
@@ -168,7 +168,7 @@ export function Celebration({ score, beliefEmoji, visible, onComplete }: Celebra
       {/* Web fallback: emoji-only celebration */}
       {Platform.OS === "web" && emojiVisible && (
         <View style={styles.webCelebration} pointerEvents="none">
-          <Text style={styles.webEmoji}>🎉 {beliefEmoji} 🎉</Text>
+          <Text style={styles.webEmoji}>🎉 {itemEmoji} 🎉</Text>
         </View>
       )}
     </View>

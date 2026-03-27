@@ -3,7 +3,7 @@ import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const NOTIF_KEY = "@belief_notifications";
+const NOTIF_KEY = "@r2b_notifications";
 
 // Configure notification handler
 Notifications.setNotificationHandler({
@@ -31,32 +31,32 @@ const DEFAULT_SETTINGS: NotificationSettings = {
 // Encouraging reminder messages that rotate
 const REMINDER_MESSAGES = [
   {
-    title: "Your Belief Field Awaits ✨",
-    body: "Take a moment to measure what you believe in today. Your sensors are ready.",
+    title: "Your Shopping List Awaits ✨",
+    body: "Check your shopping list before heading out today.",
   },
   {
-    title: "Time to Believe 🔬",
-    body: "Your phone's 7 sensors are calibrated and waiting. What will you believe in today?",
+    title: "Time to Shop 🛒",
+    body: "Your shopping list is ready. What do you need to pick up today?",
   },
   {
     title: "Keep Your Streak Alive 🔥",
-    body: "Don't break your belief streak! A quick scan keeps your journey going.",
+    body: "Don't forget your list! Check what you need before your next trip.",
   },
   {
-    title: "Science Meets Belief 🌟",
-    body: "Your belief creates measurable changes. Come see what your sensors detect today.",
+    title: "Smart Shopping 🌟",
+    body: "Remember 2 Buy keeps you organized and saves you money.",
   },
   {
     title: "The Field Is Strong Today 💫",
-    body: "Environmental conditions are great for belief detection. Try a scan now!",
+    body: "Your shopping list is ready — tap to review before you go.",
   },
   {
-    title: "Believe Deeper 🧠",
-    body: "Neuroscience shows that consistent practice strengthens belief. Scan today to grow.",
+    title: "Shop Smarter 🧠",
+    body: "Staying organized saves time and money. Check your list today.",
   },
   {
     title: "Your Sensors Miss You 📡",
-    body: "It's been a while since your last scan. Your belief field is waiting to be measured.",
+    body: "It's been a while since you updated your list. Tap to review.",
   },
 ];
 
@@ -68,9 +68,9 @@ async function requestPermissions(): Promise<boolean> {
   if (Platform.OS === "web") return false;
 
   if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync("belief-reminders", {
-      name: "Belief Reminders",
-      description: "Daily reminders to measure your belief field",
+    await Notifications.setNotificationChannelAsync("r2b-reminders", {
+      name: "Shopping Reminders",
+      description: "Daily shopping reminders",
       importance: Notifications.AndroidImportance.DEFAULT,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: "#9B7AFF",

@@ -1,11 +1,11 @@
 /**
- * Belief Themes — visual environments for each belief category.
+ * item Themes — visual environments for each item category.
  * Each theme defines gradient colors, particle colors, orb glow,
  * and ambient symbols that appear during a scan.
  * Scientific, sensitive, and fun.
  */
 
-export interface BeliefTheme {
+export interface ItemTheme {
   /** Category ID this theme applies to */
   categoryId: string;
   /** Display name */
@@ -26,7 +26,7 @@ export interface BeliefTheme {
   atmosphereLabel: string;
 }
 
-export const BELIEF_THEMES: Record<string, BeliefTheme> = {
+export const ITEM_THEMES: Record<string, ItemTheme> = {
   childhood: {
     categoryId: "childhood",
     name: "Wonder & Magic",
@@ -113,28 +113,28 @@ export const BELIEF_THEMES: Record<string, BeliefTheme> = {
     particleColors: ["#9B7AFF", "#C4A8FF", "#FFD700", "#00BFFF", "#FF69B4"],
     ambientSymbols: ["✨", "🌟", "💫", "🔮", "⚡"],
     accent: "#9B7AFF",
-    atmosphereLabel: "Unique belief signature detected",
+    atmosphereLabel: "Unique item signature detected",
   },
 };
 
-/** Get the theme for a belief category, with fallback to childhood/wonder */
-export function getThemeForCategory(categoryId: string): BeliefTheme {
-  return BELIEF_THEMES[categoryId] || BELIEF_THEMES.childhood;
+/** Get the theme for a item category, with fallback to childhood/wonder */
+export function getThemeForCategory(categoryId: string): ItemTheme {
+  return ITEM_THEMES[categoryId] || ITEM_THEMES.childhood;
 }
 
-/** Get the theme for a specific belief by looking up its category */
-export function getThemeForBelief(beliefCategory: string): BeliefTheme {
-  // Map belief category names to theme IDs
+/** Get the theme for a specific item by looking up its category */
+export function getThemeForItem(itemCategory: string): ItemTheme {
+  // Map item category names to theme IDs
   const categoryMap: Record<string, string> = {
     "Childhood Magic": "childhood",
     "World Religions": "religion",
     "Spiritual & Mystical": "spiritual",
-    "Belief in Yourself": "personal",
+    "item in Yourself": "personal",
     "Nature & Universe": "nature",
     "Supernatural": "supernatural",
     "Seasonal & Holiday": "seasonal",
-    "My Custom Beliefs": "custom",
+    "My Custom Items": "custom",
   };
-  const themeId = categoryMap[beliefCategory] || "childhood";
-  return BELIEF_THEMES[themeId] || BELIEF_THEMES.childhood;
+  const themeId = categoryMap[itemCategory] || "childhood";
+  return ITEM_THEMES[themeId] || ITEM_THEMES.childhood;
 }

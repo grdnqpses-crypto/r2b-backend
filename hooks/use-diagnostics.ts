@@ -45,7 +45,7 @@ export interface FeatureHealth {
 
 export type HealthMap = Record<FeatureId, FeatureHealth>;
 
-const STORAGE_KEY = "@belief_diagnostics_health";
+const STORAGE_KEY = "@r2b_diagnostics_health";
 const CHECK_INTERVAL = 30_000; // Re-check unhealthy features every 30s
 const MAX_RETRIES = 3;
 

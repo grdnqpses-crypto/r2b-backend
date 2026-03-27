@@ -11,7 +11,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { ScanResult } from "@/hooks/use-scan-history";
 
-const STORAGE_KEY = "@belief_scan_history";
+const STORAGE_KEY = "@r2b_scan_history";
 
 interface ScanHistoryContextValue {
   history: ScanResult[];
@@ -20,7 +20,7 @@ interface ScanHistoryContextValue {
   getStats: () => {
     total: number;
     avgScore: number;
-    strongestBelief: ScanResult | null;
+    strongestItem: ScanResult | null;
   };
   updateJournal: (scanId: string, entry: string) => Promise<void>;
   clearHistory: () => Promise<void>;
@@ -57,13 +57,13 @@ export function ScanHistoryProvider({ children }: { children: React.ReactNode })
   );
 
   const getStats = useCallback(() => {
-    if (history.length === 0) return { total: 0, avgScore: 0, strongestBelief: null };
+    if (history.length === 0) return { total: 0, avgScore: 0, strongestItem: null };
     const avgScore = Math.round(history.reduce((s, h) => s + h.score, 0) / history.length);
     const sorted = [...history].sort((a, b) => b.score - a.score);
     return {
       total: history.length,
       avgScore,
-      strongestBelief: sorted[0] || null,
+      strongestItem: sorted[0] || null,
     };
   }, [history]);
 

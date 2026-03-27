@@ -1,6 +1,6 @@
 import { useRef, useCallback, useEffect } from "react";
 import { Platform } from "react-native";
-import { type BeliefStory, type StorySegment } from "@/constants/belief-stories";
+import { type ItemStory, type StorySegment } from "@/constants/item-stories";
 
 // Lazy-load expo-speech to prevent crashes if module isn't available
 let Speech: typeof import("expo-speech") | null = null;
@@ -37,16 +37,16 @@ function safeStopSpeech() {
 }
 
 /**
- * Hook that narrates a BeliefStory during a scan by syncing TTS segments
+ * Hook that narrates a story during a session by syncing TTS segments
  * to the scan progress (0-1). Call `updateProgress` on each tick.
  */
-export function useBeliefStory() {
-  const storyRef = useRef<BeliefStory | null>(null);
+export function useItemStory() {
+  const storyRef = useRef<ItemStory | null>(null);
   const playedSegmentsRef = useRef<Set<number>>(new Set());
   const activeRef = useRef(false);
   const speakingRef = useRef(false);
 
-  const startStory = useCallback((story: BeliefStory) => {
+  const startStory = useCallback((story: ItemStory) => {
     storyRef.current = story;
     playedSegmentsRef.current = new Set();
     activeRef.current = true;

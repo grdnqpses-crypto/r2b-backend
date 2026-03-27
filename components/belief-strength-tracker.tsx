@@ -1,7 +1,7 @@
 /**
- * BeliefStrengthTracker — Visual progress chart showing belief strength over time.
+ * ItemStrengthTracker — Visual progress chart showing item strength over time.
  *
- * Displays a per-belief line chart of scan scores, showing how belief gets
+ * Displays a per-item line chart of scan scores, showing how item gets
  * stronger with repeated scanning. Includes trend analysis and encouragement.
  */
 import { useMemo, useState } from "react";
@@ -14,15 +14,15 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CHART_WIDTH = SCREEN_WIDTH - 64;
 const CHART_HEIGHT = 120;
 
-interface BeliefStrengthTrackerProps {
+interface ItemStrengthTrackerProps {
   history: ScanResult[];
   onDismiss: () => void;
 }
 
-interface BeliefProgress {
-  beliefId: string;
-  beliefName: string;
-  beliefEmoji: string;
+interface ItemProgress {
+  itemId: string;
+  itemName: string;
+  itemEmoji: string;
   scans: ScanResult[];
   latestScore: number;
   firstScore: number;
@@ -32,14 +32,14 @@ interface BeliefProgress {
   trendPercent: number;
 }
 
-function computeBeliefProgress(history: ScanResult[]): BeliefProgress[] {
-  const byBelief: Record<string, ScanResult[]> = {};
+function computeItemProgress(history: ScanResult[]): ItemProgress[] {
+  const byItem: Record<string, ScanResult[]> = {};
   for (const scan of history) {
-    if (!byBelief[scan.beliefId]) byBelief[scan.beliefId] = [];
-    byBelief[scan.beliefId].push(scan);
+    if (!byItem[scan.itemId]) byItem[scan.itemId] = [];
+    byItem[scan.itemId].push(scan);
   }
 
-  return Object.values(byBelief)
+  return Object.values(byItem)
     .map((scans) => {
       const sorted = [...scans].sort(
         (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
@@ -60,9 +60,9 @@ function computeBeliefProgress(history: ScanResult[]): BeliefProgress[] {
         trendPercent > 5 ? "rising" : trendPercent < -5 ? "falling" : "stable";
 
       return {
-        beliefId: sorted[0].beliefId,
-        beliefName: sorted[0].beliefName,
-        beliefEmoji: sorted[0].beliefEmoji,
+        itemId: sorted[0].itemId,
+        itemName: sorted[0].itemName,
+        itemEmoji: sorted[0].itemEmoji,
         scans: sorted,
         latestScore,
         firstScore,
@@ -207,14 +207,14 @@ function getTrendIcon(trend: "rising" | "stable" | "falling") {
   return "➡️";
 }
 
-function getTrendMessage(trend: "rising" | "stable" | "falling", beliefName: string, trendPercent: number) {
+function getTrendMessage(trend: "rising" | "stable" | "falling", itemName: string, trendPercent: number) {
   if (trend === "rising") {
-    return `Your belief in ${beliefName} is growing stronger! Up ${trendPercent}% recently.`;
+    return `Your score for ${itemName} is growing stronger! Up ${trendPercent}% recently.`;
   }
   if (trend === "falling") {
-    return `Your ${beliefName} belief needs more focus. Try scanning more often.`;
+    return `Your ${itemName} score needs more focus. Try scanning more often.`;
   }
-  return `Your belief in ${beliefName} is holding steady. Keep practicing!`;
+  return `Your score for ${itemName} is holding steady. Keep practicing!`;
 }
 
 function getStrengthLabel(score: number) {
@@ -225,13 +225,13 @@ function getStrengthLabel(score: number) {
   return { label: "Nascent", color: "#9E9E9E" };
 }
 
-export function BeliefStrengthTracker({ history, onDismiss }: BeliefStrengthTrackerProps) {
+export function ItemStrengthTracker({ history, onDismiss }: ItemStrengthTrackerProps) {
   const colors = useColors();
-  const [selectedBelief, setSelectedBelief] = useState<string | null>(null);
+  const [selecteditem, setSelecteditem] = useState<string | null>(null);
 
-  const beliefProgress = useMemo(() => computeBeliefProgress(history), [history]);
+  const itemProgress = useMemo(() => computeItemProgress(history), [history]);
 
-  const selected = beliefProgress.find((b) => b.beliefId === selectedBelief) ?? beliefProgress[0];
+  const selected = itemProgress.find((b) => b.itemId === selecteditem) ?? itemProgress[0];
 
   if (history.length === 0) {
     return (
@@ -243,7 +243,7 @@ export function BeliefStrengthTracker({ history, onDismiss }: BeliefStrengthTrac
           end={{ x: 0.5, y: 0.5 }}
         />
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Belief Strength</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>item Strength</Text>
           <Pressable onPress={onDismiss} style={({ pressed }) => [styles.closeBtn, { opacity: pressed ? 0.7 : 1 }]}>
             <Text style={[styles.closeBtnText, { color: colors.muted }]}>✕</Text>
           </Pressable>
@@ -252,7 +252,7 @@ export function BeliefStrengthTracker({ history, onDismiss }: BeliefStrengthTrac
           <Text style={styles.emptyEmoji}>📈</Text>
           <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No Data Yet</Text>
           <Text style={[styles.emptyDesc, { color: colors.muted }]}>
-            Complete your first scan to start tracking how your belief strength grows over time.
+            Complete your first scan to start tracking how your item strength grows over time.
           </Text>
         </View>
       </View>
@@ -271,9 +271,9 @@ export function BeliefStrengthTracker({ history, onDismiss }: BeliefStrengthTrac
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={[styles.title, { color: colors.foreground }]}>Belief Strength</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>item Strength</Text>
           <Text style={[styles.subtitle, { color: colors.muted }]}>
-            {beliefProgress.length} belief{beliefProgress.length !== 1 ? "s" : ""} tracked
+            {itemProgress.length} item{itemProgress.length !== 1 ? "s" : ""} tracked
           </Text>
         </View>
         <Pressable onPress={onDismiss} style={({ pressed }) => [styles.closeBtn, { opacity: pressed ? 0.7 : 1 }]}>
@@ -283,18 +283,18 @@ export function BeliefStrengthTracker({ history, onDismiss }: BeliefStrengthTrac
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
-        {/* Belief selector pills */}
+        {/* item selector pills */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.pillRow}
         >
-          {beliefProgress.map((bp) => {
-            const isActive = (selectedBelief ?? beliefProgress[0]?.beliefId) === bp.beliefId;
+          {itemProgress.map((bp) => {
+            const isActive = (selecteditem ?? itemProgress[0]?.itemId) === bp.itemId;
             return (
               <Pressable
-                key={bp.beliefId}
-                onPress={() => setSelectedBelief(bp.beliefId)}
+                key={bp.itemId}
+                onPress={() => setSelecteditem(bp.itemId)}
                 style={({ pressed }) => [
                   styles.pill,
                   {
@@ -304,14 +304,14 @@ export function BeliefStrengthTracker({ history, onDismiss }: BeliefStrengthTrac
                   },
                 ]}
               >
-                <Text style={styles.pillEmoji}>{bp.beliefEmoji}</Text>
+                <Text style={styles.pillEmoji}>{bp.itemEmoji}</Text>
                 <Text
                   style={[
                     styles.pillText,
                     { color: isActive ? "#fff" : colors.foreground },
                   ]}
                 >
-                  {bp.beliefName}
+                  {bp.itemName}
                 </Text>
                 <Text
                   style={[
@@ -326,15 +326,15 @@ export function BeliefStrengthTracker({ history, onDismiss }: BeliefStrengthTrac
           })}
         </ScrollView>
 
-        {/* Selected belief detail */}
+        {/* Selected item detail */}
         {selected && (
           <View style={[styles.detailCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            {/* Belief header */}
+            {/* item header */}
             <View style={styles.detailHeader}>
-              <Text style={styles.detailEmoji}>{selected.beliefEmoji}</Text>
+              <Text style={styles.detailEmoji}>{selected.itemEmoji}</Text>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.detailName, { color: colors.foreground }]}>
-                  {selected.beliefName}
+                  {selected.itemName}
                 </Text>
                 <Text style={[styles.detailScanCount, { color: colors.muted }]}>
                   {selected.scans.length} scan{selected.scans.length !== 1 ? "s" : ""}
@@ -439,7 +439,7 @@ export function BeliefStrengthTracker({ history, onDismiss }: BeliefStrengthTrac
                   },
                 ]}
               >
-                {getTrendMessage(selected.trend, selected.beliefName, selected.trendPercent)}
+                {getTrendMessage(selected.trend, selected.itemName, selected.trendPercent)}
               </Text>
             </View>
 
@@ -468,38 +468,38 @@ export function BeliefStrengthTracker({ history, onDismiss }: BeliefStrengthTrac
           </View>
         )}
 
-        {/* All beliefs summary */}
-        <Text style={[styles.sectionTitle, { color: colors.muted }]}>ALL BELIEFS</Text>
-        {beliefProgress.map((bp) => {
+        {/* All items summary */}
+        <Text style={[styles.sectionTitle, { color: colors.muted }]}>ALL ITEMS</Text>
+        {itemProgress.map((bp) => {
           const { label, color } = getStrengthLabel(bp.latestScore);
           return (
             <Pressable
-              key={bp.beliefId}
-              onPress={() => setSelectedBelief(bp.beliefId)}
+              key={bp.itemId}
+              onPress={() => setSelecteditem(bp.itemId)}
               style={({ pressed }) => [
-                styles.beliefRow,
+                styles.itemRow,
                 { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.8 : 1 },
               ]}
             >
-              <Text style={styles.beliefRowEmoji}>{bp.beliefEmoji}</Text>
+              <Text style={styles.itemRowEmoji}>{bp.itemEmoji}</Text>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.beliefRowName, { color: colors.foreground }]}>
-                  {bp.beliefName}
+                <Text style={[styles.itemRowName, { color: colors.foreground }]}>
+                  {bp.itemName}
                 </Text>
-                <View style={styles.beliefRowBar}>
+                <View style={styles.itemRowBar}>
                   <View
                     style={[
-                      styles.beliefRowBarFill,
+                      styles.itemRowBarFill,
                       { width: `${bp.latestScore}%`, backgroundColor: color },
                     ]}
                   />
                 </View>
               </View>
-              <View style={styles.beliefRowRight}>
-                <Text style={[styles.beliefRowScore, { color }]}>{bp.latestScore}</Text>
-                <Text style={[styles.beliefRowLabel, { color }]}>{label}</Text>
+              <View style={styles.itemRowRight}>
+                <Text style={[styles.itemRowScore, { color }]}>{bp.latestScore}</Text>
+                <Text style={[styles.itemRowLabel, { color }]}>{label}</Text>
               </View>
-              <Text style={[styles.beliefRowTrend, { color: colors.muted }]}>
+              <Text style={[styles.itemRowTrend, { color: colors.muted }]}>
                 {getTrendIcon(bp.trend)}
               </Text>
             </Pressable>
@@ -599,7 +599,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: 10,
   },
-  beliefRow: {
+  itemRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
@@ -608,19 +608,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 8,
   },
-  beliefRowEmoji: { fontSize: 28 },
-  beliefRowName: { fontSize: 14, fontWeight: "700", marginBottom: 6 },
-  beliefRowBar: {
+  itemRowEmoji: { fontSize: 28 },
+  itemRowName: { fontSize: 14, fontWeight: "700", marginBottom: 6 },
+  itemRowBar: {
     height: 6,
     backgroundColor: "rgba(255,255,255,0.1)",
     borderRadius: 3,
     overflow: "hidden",
   },
-  beliefRowBarFill: { height: 6, borderRadius: 3 },
-  beliefRowRight: { alignItems: "flex-end" },
-  beliefRowScore: { fontSize: 20, fontWeight: "900" },
-  beliefRowLabel: { fontSize: 10, fontWeight: "600" },
-  beliefRowTrend: { fontSize: 18 },
+  itemRowBarFill: { height: 6, borderRadius: 3 },
+  itemRowRight: { alignItems: "flex-end" },
+  itemRowScore: { fontSize: 20, fontWeight: "900" },
+  itemRowLabel: { fontSize: 10, fontWeight: "600" },
+  itemRowTrend: { fontSize: 18 },
   emptyState: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40 },
   emptyEmoji: { fontSize: 64, marginBottom: 16 },
   emptyTitle: { fontSize: 22, fontWeight: "800", marginBottom: 8 },

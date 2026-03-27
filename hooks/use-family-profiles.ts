@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const PROFILES_KEY = "belief-field-profiles";
-const ACTIVE_PROFILE_KEY = "belief-field-active-profile";
+const PROFILES_KEY = "@r2b_profiles";
+const ACTIVE_PROFILE_KEY = "@r2b_active_profile";
 
 export interface FamilyProfile {
   id: string;

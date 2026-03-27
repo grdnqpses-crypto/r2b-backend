@@ -1,5 +1,5 @@
 /**
- * useReferral — Referral system for the Belief Field Detector.
+ * useReferral — Referral system for Remember 2 Buy.
  *
  * Each user gets a unique referral code. When someone installs the app
  * using a referral link, both the referrer and the referee get 1 free week
@@ -15,8 +15,8 @@ import { useState, useEffect, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Share, Platform } from "react-native";
 
-const REFERRAL_KEY = "@belief_referral";
-const APP_STORE_URL = "https://beliefdetec-3mwrpobt.manus.space";
+const REFERRAL_KEY = "@r2b_referral";
+const APP_STORE_URL = "https://play.google.com/store/apps/details?id=com.remember2buy.shopping";
 
 export interface ReferralState {
   myCode: string;
@@ -78,12 +78,12 @@ export function useReferral() {
    */
   const shareReferral = useCallback(async () => {
     const referralLink = `${APP_STORE_URL}?ref=${state.myCode}`;
-    const message = `✨ Try Belief Field Detector — it uses your phone's sensors to scientifically measure how strong your belief is!\n\nUse my referral link and we both get 1 FREE week of premium:\n${referralLink}\n\nCode: ${state.myCode}`;
+    const message = `🛒 Try Remember 2 Buy — the smart shopping list app that reminds you what to buy when you're near the store!\n\nUse my referral link and we both get 1 FREE week of premium:\n${referralLink}\n\nCode: ${state.myCode}`;
     try {
       await Share.share({
         message,
         url: Platform.OS === "ios" ? referralLink : undefined,
-        title: "Belief Field Detector — Free Week",
+        title: "Remember 2 Buy — Free Week",
       });
     } catch {}
   }, [state.myCode]);

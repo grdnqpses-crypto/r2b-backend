@@ -5,7 +5,7 @@
  * - Flashes the screen with a color burst
  * - Animates the score number counting up from 0
  * - Pulses expanding rings outward from center
- * - Shows floating belief emoji particles
+ * - Shows floating item emoji particles
  * - Plays an intensity-based sound (emerging → extraordinary)
  * - Triggers haptics scaled to score
  *
@@ -202,12 +202,12 @@ function FloatingParticle({ emoji, index, total }: { emoji: string; index: numbe
 // ─── Main component ───────────────────────────────────────────────────────────
 export interface ImpactRevealProps {
   score: number;
-  beliefEmoji: string;
+  itemEmoji: string;
   visible: boolean;
   onComplete?: () => void;
 }
 
-export function ImpactReveal({ score, beliefEmoji, visible, onComplete }: ImpactRevealProps) {
+export function ImpactReveal({ score, itemEmoji, visible, onComplete }: ImpactRevealProps) {
   const tier = getTier(score);
   const firedRef = useRef(false);
   const [showParticles, setShowParticles] = useState(false);
@@ -383,7 +383,7 @@ export function ImpactReveal({ score, beliefEmoji, visible, onComplete }: Impact
         {/* Particles */}
         {showParticles &&
           Array.from({ length: tier.particleCount }).map((_, i) => (
-            <FloatingParticle key={i} emoji={beliefEmoji} index={i} total={tier.particleCount} />
+            <FloatingParticle key={i} emoji={itemEmoji} index={i} total={tier.particleCount} />
           ))}
 
         {/* Score number */}
@@ -404,7 +404,7 @@ export function ImpactReveal({ score, beliefEmoji, visible, onComplete }: Impact
         <Animated.Text
           style={[styles.tierLabel, { color: tier.labelColor, opacity: labelOpacity }]}
         >
-          {tier.label} BELIEF FIELD
+          {tier.label} item FIELD
         </Animated.Text>
       </View>
     </Animated.View>
