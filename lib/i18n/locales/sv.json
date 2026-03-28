@@ -247,7 +247,7 @@
     }
   },
   "notifications": {
-    "arrivalTitle": "Du är nära {{storeName}}!",
+    "arrivalTitle": "🛒 Remember2Buy",
     "arrivalBody": "Glöm inte: {{items}}",
     "arrivalBodyEmpty": "Du har varor på din inköpslista!",
     "channelName": "Butiksvarningar",

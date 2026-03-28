@@ -247,7 +247,7 @@
     }
   },
   "notifications": {
-    "arrivalTitle": "आप {{storeName}} के पास हैं!",
+    "arrivalTitle": "🛒 Remember2Buy",
     "arrivalBody": "यह न भूलें: {{items}}",
     "arrivalBodyEmpty": "आपकी खरीदारी की सूची में आइटम हैं!",
     "channelName": "स्टोर अलर्ट",

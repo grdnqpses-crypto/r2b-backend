@@ -247,7 +247,7 @@
     }
   },
   "notifications": {
-    "arrivalTitle": "{{storeName}} 근처에 있습니다!",
+    "arrivalTitle": "🛒 Remember2Buy",
     "arrivalBody": "잊지 마세요: {{items}}",
     "arrivalBodyEmpty": "쇼핑 리스트에 아이템이 있습니다!",
     "channelName": "매장 알림",

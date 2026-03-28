@@ -247,7 +247,7 @@
     }
   },
   "notifications": {
-    "arrivalTitle": "U bent in de buurt van {{storeName}}!",
+    "arrivalTitle": "🛒 Remember2Buy",
     "arrivalBody": "Vergeet niet: {{items}}",
     "arrivalBodyEmpty": "U heeft items op uw boodschappenlijst!",
     "channelName": "Winkelwaarschuwingen",

@@ -247,7 +247,7 @@
     }
   },
   "notifications": {
-    "arrivalTitle": "Você está perto de {{storeName}}!",
+    "arrivalTitle": "🛒 Remember2Buy",
     "arrivalBody": "Não se esqueça: {{items}}",
     "arrivalBodyEmpty": "Você tem itens na sua lista de compras!",
     "channelName": "Alertas de lojas",

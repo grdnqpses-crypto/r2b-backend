@@ -247,7 +247,7 @@
     }
   },
   "notifications": {
-    "arrivalTitle": "أنت بالقرب من {{storeName}}!",
+    "arrivalTitle": "🛒 تذكر 2 شراء",
     "arrivalBody": "لا تنسَ: {{items}}",
     "arrivalBodyEmpty": "لديك عناصر في قائمة التسوق الخاصة بك!",
     "channelName": "تنبيهات المتاجر",

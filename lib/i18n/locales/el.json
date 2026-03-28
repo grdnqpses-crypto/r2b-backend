@@ -247,7 +247,7 @@
     }
   },
   "notifications": {
-    "arrivalTitle": "Είστε κοντά στο {{storeName}}!",
+    "arrivalTitle": "🛒 Remember2Buy",
     "arrivalBody": "Μην ξεχνάτε: {{items}}",
     "arrivalBodyEmpty": "Έχετε προϊόντα στη λίστα αγορών σας!",
     "channelName": "Ειδοποιήσεις καταστημάτων",

@@ -247,7 +247,7 @@
     }
   },
   "notifications": {
-    "arrivalTitle": "您在 {{storeName}} 附近！",
+    "arrivalTitle": "🛒 Remember2Buy",
     "arrivalBody": "别忘了：{{items}}",
     "arrivalBodyEmpty": "您的购物清单上有商品！",
     "channelName": "商店提醒",

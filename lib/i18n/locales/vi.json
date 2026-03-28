@@ -247,7 +247,7 @@
     }
   },
   "notifications": {
-    "arrivalTitle": "Bạn đang ở gần {{storeName}}!",
+    "arrivalTitle": "🛒 Remember2Buy",
     "arrivalBody": "Đừng quên: {{items}}",
     "arrivalBodyEmpty": "Bạn có các mặt hàng trong danh sách mua sắm của mình!",
     "channelName": "Cảnh báo cửa hàng",

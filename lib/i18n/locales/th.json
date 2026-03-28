@@ -247,7 +247,7 @@
     }
   },
   "notifications": {
-    "arrivalTitle": "คุณอยู่ใกล้ {{storeName}} แล้ว!",
+    "arrivalTitle": "🛒 Remember2Buy",
     "arrivalBody": "อย่าลืม: {{items}}",
     "arrivalBodyEmpty": "คุณมีรายการในรายการช้อปปิ้งของคุณ!",
     "channelName": "การแจ้งเตือนร้านค้า",

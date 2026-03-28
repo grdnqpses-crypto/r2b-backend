@@ -247,7 +247,7 @@
     }
   },
   "notifications": {
-    "arrivalTitle": "{{storeName}} yakınındasınız!",
+    "arrivalTitle": "🛒 Remember2Buy",
     "arrivalBody": "Unutmayın: {{items}}",
     "arrivalBodyEmpty": "Alışveriş listenizde ürünler var!",
     "channelName": "Mağaza Uyarıları",

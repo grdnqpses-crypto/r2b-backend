@@ -247,7 +247,7 @@
     }
   },
   "notifications": {
-    "arrivalTitle": "אתה קרוב ל-{{storeName}}!",
+    "arrivalTitle": "🛒 זכור 2 קנות",
     "arrivalBody": "אל תשכח: {{items}}",
     "arrivalBodyEmpty": "יש לך פריטים ברשימת הקניות!",
     "channelName": "התראות חנויות",

@@ -247,7 +247,7 @@
     }
   },
   "notifications": {
-    "arrivalTitle": "Вы рядом с {{storeName}}!",
+    "arrivalTitle": "🛒 Remember2Buy",
     "arrivalBody": "Не забудьте: {{items}}",
     "arrivalBodyEmpty": "У вас есть товары в списке покупок!",
     "channelName": "Оповещения о магазинах",
