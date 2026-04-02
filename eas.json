@@ -33,8 +33,7 @@
     "production": {
       "android": {
         "buildType": "app-bundle",
-        "credentialsSource": "remote",
-        "image": "latest"
+        "credentialsSource": "remote"
       },
       "ios": {
         "credentialsSource": "remote"
