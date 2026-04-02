@@ -31,15 +31,13 @@
       }
     },
     "production": {
-      "autoIncrement": true,
       "android": {
         "buildType": "app-bundle",
         "credentialsSource": "remote",
         "image": "latest"
       },
       "ios": {
-        "credentialsSource": "remote",
-        "autoIncrement": true
+        "credentialsSource": "remote"
       },
       "env": {
         "APP_ENV": "production"
