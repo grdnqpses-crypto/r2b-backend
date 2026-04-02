@@ -181,3 +181,7 @@
 ## Release 1.0.45 — Build Fix
 - [x] Fix react-native-gesture-handler Gradle build failure (Cannot query the value of this provider)
 - [x] Bump version to 1.0.45 / versionCode 45
+
+## Release 1.0.46 — Build Fix (Kotlin version)
+- [x] Fix Kotlin version from 1.9.25 to 2.1.20 (KSP compatibility)
+- [x] Bump version to 1.0.46 / versionCode 46
