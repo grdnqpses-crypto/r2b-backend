@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
-import { applyReferralCode, getSavedStores } from "@/lib/storage";
+import { applyReferralCode, getSavedStores, saveOnboardingStep, getSavedOnboardingStep } from "@/lib/storage";
 import { startGeofencing } from "@/lib/geofence";
 import { setupNotifications } from "@/lib/notifications";
 import { useOnboarding } from "@/lib/onboarding-context";
@@ -49,6 +49,18 @@ export default function OnboardingScreen() {
   const { t } = useTranslation();
   const { completeOnboarding } = useOnboarding();
   const [step, setStep] = useState(0);
+  const [stepLoaded, setStepLoaded] = useState(false);
+
+  // On mount: restore persisted step (handles Android process kill during bg location grant)
+  useEffect(() => {
+    getSavedOnboardingStep().then((saved) => {
+      // Only restore permission steps (index 4+) — skip ad/tutorial steps
+      if (saved >= 4 && saved < STEPS.length) {
+        setStep(saved);
+      }
+      setStepLoaded(true);
+    }).catch(() => setStepLoaded(true));
+  }, []);
   const [loading, setLoading] = useState(false);
   const [notifStatus, setNotifStatus] = useState<PermStatus>("unknown");
   const [fgStatus, setFgStatus] = useState<PermStatus>("unknown");
@@ -97,10 +109,20 @@ export default function OnboardingScreen() {
       });
     } else if (currentStep.action === "location_bg") {
       Location.getBackgroundPermissionsAsync().then(({ status }) => {
-        if (status === "granted") setBgStatus("granted");
+        if (status === "granted") {
+          setBgStatus("granted");
+          // Auto-advance if we restored to this step and permission is already granted
+          // (happens when Android restarts the app after granting background location)
+          if (stepLoaded) {
+            // Small delay to let the UI render before advancing
+            setTimeout(() => {
+              animateToNextStep(step + 1 < STEPS.length ? step + 1 : step);
+            }, 500);
+          }
+        }
       });
     }
-  }, [step]);
+  }, [step, stepLoaded]);
 
   // When returning from device Settings (AppState foreground), re-check permissions
   useEffect(() => {
@@ -129,6 +151,8 @@ export default function OnboardingScreen() {
   const animateToNextStep = (nextStepIndex: number) => {
     fadeAnim.setValue(0);
     setStep(nextStepIndex);
+    // Persist step so we can resume if Android kills the process
+    saveOnboardingStep(nextStepIndex).catch(() => {});
     Animated.timing(fadeAnim, { toValue: 1, duration: 280, useNativeDriver: true }).start();
   };
 
@@ -338,6 +362,9 @@ export default function OnboardingScreen() {
     }
     return colors.primary;
   };
+
+  // Don't render until we've loaded the persisted step (prevents flash of step 0)
+  if (!stepLoaded) return null;
 
   return (
     <ScreenContainer edges={["top", "bottom", "left", "right"]}>

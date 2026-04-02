@@ -41,6 +41,7 @@ const KEYS = {
   TIER_EXPIRY: "r2b_tier_expiry",
   REFERRAL_CODE: "r2b_referral_code",
   ONBOARDING_DONE: "r2b_onboarding_done",
+  ONBOARDING_STEP: "r2b_onboarding_step",
   REFERRAL_USED: "r2b_referral_used",
   DISTANCE_UNIT: "r2b_distance_unit",
   DEV_MODE: "r2b_dev_mode",
@@ -257,6 +258,27 @@ export async function isOnboardingDone(): Promise<boolean> {
 
 export async function markOnboardingDone(): Promise<void> {
   await AsyncStorage.setItem(KEYS.ONBOARDING_DONE, "1");
+  // Clear the saved step when onboarding is complete
+  await AsyncStorage.removeItem(KEYS.ONBOARDING_STEP);
+}
+
+/**
+ * Persist the current onboarding step index so the app can resume
+ * after Android kills the process during background location permission grant.
+ */
+export async function saveOnboardingStep(step: number): Promise<void> {
+  await AsyncStorage.setItem(KEYS.ONBOARDING_STEP, String(step));
+}
+
+export async function getSavedOnboardingStep(): Promise<number> {
+  try {
+    const val = await AsyncStorage.getItem(KEYS.ONBOARDING_STEP);
+    if (val === null) return 0;
+    const n = parseInt(val, 10);
+    return isNaN(n) ? 0 : n;
+  } catch {
+    return 0;
+  }
 }
 
 // ─── Developer Mode ───────────────────────────────────────────────────────────
