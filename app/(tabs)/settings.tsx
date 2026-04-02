@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
-  Alert, Platform, Linking, Switch, AppState, type AppStateStatus,
+  Alert, Platform, Linking, Switch, AppState, Modal, type AppStateStatus,
 } from "react-native";
 import { useFocusEffect } from "expo-router";
 import * as Notifications from "expo-notifications";
@@ -26,6 +26,8 @@ import {
   getSavedStores,
 } from "@/lib/geofence";
 import { setupNotifications, sendTestNotification } from "@/lib/notifications";
+import { useSubscription } from "@/hooks/use-subscription";
+import { PremiumPaywall } from "@/components/premium-paywall";
 
 export default function SettingsScreen() {
   const colors = useColors();
@@ -38,6 +40,8 @@ export default function SettingsScreen() {
   const [distanceUnit, setDistanceUnitState] = useState<DistanceUnit>("miles");
   const [devMode, setDevMode] = useState(false);
   const [notifDenied, setNotifDenied] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const subscription = useSubscription();
 
   const loadState = useCallback(async () => {
     const [tierData, perms, geofence, unit, devEnabled, notifStatus] = await Promise.all([
@@ -147,21 +151,7 @@ export default function SettingsScreen() {
   };
 
   const handleUpgrade = () => {
-    Alert.alert(
-      t("settings.upgradeToPremium"),
-      "Premium features:\n\n• Unlimited stores\n• Unlimited shopping items\n• Photo import (OCR)\n• Priority support\n\nPrice: $1.99/week or $4.99/month\n\n(In-app purchase integration coming soon)",
-      [
-        { text: t("common.cancel"), style: "cancel" },
-        {
-          text: t("settings.upgradeToPremium"),
-          onPress: async () => {
-            await setTier("premium");
-            setTierState("premium");
-            Alert.alert(t("settings.premium"), t("settings.upgradeToPremium"));
-          },
-        },
-      ]
-    );
+    setShowPaywall(true);
   };
 
   const handleRestorePurchases = () => {
@@ -423,6 +413,24 @@ export default function SettingsScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Premium Paywall Modal — triggers real Google Play Billing purchase */}
+      <Modal
+        visible={showPaywall}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowPaywall(false)}
+      >
+        <PremiumPaywall
+          reason="general"
+          onActivate={async (_family: boolean) => {
+            await subscription.purchase();
+            setShowPaywall(false);
+            await loadState();
+          }}
+          onDismiss={() => setShowPaywall(false)}
+        />
+      </Modal>
     </ScreenContainer>
   );
 }

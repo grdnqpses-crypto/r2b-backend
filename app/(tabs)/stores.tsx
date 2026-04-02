@@ -7,7 +7,9 @@ import { useFocusEffect } from "expo-router";
 import * as Location from "expo-location";
 import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
+import { Modal } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
+import { PremiumPaywall } from "@/components/premium-paywall";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import {
@@ -33,6 +35,7 @@ export default function StoresScreen() {
   const [searchText, setSearchText] = useState("");
   const [addingId, setAddingId] = useState<string | null>(null);
   const [sortByDistance, setSortByDistance] = useState(true);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   const loadSavedStores = useCallback(async () => {
     const [storesData, tierData] = await Promise.all([getSavedStores(), getTier()]);
@@ -96,11 +99,7 @@ export default function StoresScreen() {
 
   const handleAddStore = async (nearby: NearbyStore) => {
     if (atLimit) {
-      Alert.alert(
-        t("stores.freeLimitReached"),
-        t("stores.freeLimitMessage", { limit: FREE_STORE_LIMIT }),
-        [{ text: t("common.ok") }]
-      );
+      setShowPaywall(true);
       return;
     }
     const alreadyAdded = savedStores.some(
@@ -358,6 +357,23 @@ export default function StoresScreen() {
           />
         )}
       </View>
+
+      {/* Premium Paywall Modal — shown when free store limit is reached */}
+      <Modal
+        visible={showPaywall}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowPaywall(false)}
+      >
+        <PremiumPaywall
+          reason="store-limit"
+          onActivate={async (_family: boolean) => {
+            setShowPaywall(false);
+            await loadSavedStores();
+          }}
+          onDismiss={() => setShowPaywall(false)}
+        />
+      </Modal>
     </ScreenContainer>
   );
 }

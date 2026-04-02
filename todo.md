@@ -154,3 +154,7 @@
 ## Branding Cleanup
 - [x] Remove all "belief" / "believe" references from every file (SKU, storage keys, comments, strings, AsyncStorage keys, notification strings)
 - [x] Fix SKU mismatch: update SUBSCRIPTION_SKU to match Play Console product ID premium_weekly_199
+
+## Premium Upgrade Flow Fixes (Release 1.0.39)
+- [x] Bug fix: Show PremiumPaywall modal when user hits store limit (instead of plain Alert with no upgrade path)
+- [x] Bug fix: Wire Settings "Upgrade to Premium" button to real Google Play Billing purchase flow via useSubscription hook (instead of faking premium locally)
