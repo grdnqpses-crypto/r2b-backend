@@ -34,7 +34,8 @@
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle",
-        "credentialsSource": "remote"
+        "credentialsSource": "remote",
+        "image": "latest"
       },
       "ios": {
         "credentialsSource": "remote",
