@@ -343,8 +343,8 @@ export default function SettingsScreen() {
           <Text style={[styles.sectionTitle, { color: colors.muted }]}>{t("settings.about").toUpperCase()}</Text>
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.settingRow, { borderColor: colors.border }]}>
-              <Text style={[styles.settingLabel, { color: colors.foreground }]}>{t("settings.version", { version: Constants.expoConfig?.version ?? "1.0.41" })}</Text>
-              <Text style={[styles.settingValue, { color: colors.muted }]}>{Constants.expoConfig?.version ?? "1.0.41"}</Text>
+              <Text style={[styles.settingLabel, { color: colors.foreground }]}>{t("settings.version", { version: Constants.expoConfig?.version ?? "1.0.42" })}</Text>
+              <Text style={[styles.settingValue, { color: colors.muted }]}>{Constants.expoConfig?.version ?? "1.0.42"}</Text>
             </View>
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
             <View style={[styles.settingRow, { borderColor: colors.border }]}>
