@@ -77,6 +77,7 @@ const config: ExpoConfig = {
     favicon: "./assets/images/favicon.png",
   },
   plugins: [
+    "./plugins/withGestureHandlerFix",
     "expo-router",
     [
       "expo-location",
