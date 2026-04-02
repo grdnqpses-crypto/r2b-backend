@@ -263,34 +263,7 @@ describe("item Themes", () => {
   });
 });
 
-describe("item Streak", () => {
-  it("getStreakMessage should return appropriate messages", async () => {
-    const { getStreakMessage } = await import("../hooks/use-belief-streak");
-    expect(getStreakMessage(0)).toContain("Start");
-    expect(getStreakMessage(1)).toContain("Great start");
-    expect(getStreakMessage(3)).toContain("Three-day");
-    expect(getStreakMessage(7)).toContain("One full week");
-    expect(getStreakMessage(14)).toContain("Two weeks");
-    expect(getStreakMessage(30)).toContain("Legendary");
-  });
 
-  it("getMilestoneLabel should return emoji and label", async () => {
-    const { getMilestoneLabel } = await import("../hooks/use-belief-streak");
-    const first = getMilestoneLabel("first-scan");
-    expect(first.emoji).toBe("🌟");
-    expect(first.label).toBe("First Scan");
-    const streak7 = getMilestoneLabel("7-day-streak");
-    expect(streak7.emoji).toBe("⚡");
-    expect(streak7.label).toBe("7-Day Streak");
-  });
-
-  it("getMilestoneLabel should handle unknown milestones", async () => {
-    const { getMilestoneLabel } = await import("../hooks/use-belief-streak");
-    const unknown = getMilestoneLabel("unknown-milestone");
-    expect(unknown.emoji).toBe("⭐");
-    expect(unknown.label).toBe("unknown-milestone");
-  });
-});
 
 describe("Settings defaults", () => {
   it("default scan duration should be 60 seconds", () => {

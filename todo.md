@@ -173,3 +173,7 @@
 ## Release 1.0.43 — Loading State
 - [x] Add animated loading indicator with friendly patience message while nearby stores are being fetched
 - [x] Bump version to 1.0.43 / versionCode 43
+
+## Release 1.0.44 — Cleanup
+- [x] Delete unused legacy hooks use-belief-story.ts and use-belief-streak.ts to clear 14 TypeScript warnings
+- [x] Bump version to 1.0.44 / versionCode 44
