@@ -22,7 +22,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import {
-  getShoppingItems, getSavedStores, getTier, getDistanceUnit,
+  getShoppingItems, getSavedStores, getTier, setTier, getDistanceUnit,
   isDevModeEnabled, setDevModeEnabled,
   type ShoppingItem, type SavedStore, type Tier, type DistanceUnit,
 } from "@/lib/storage";
@@ -111,8 +111,11 @@ export default function DashboardScreen() {
       const next = !devMode;
       await setDevModeEnabled(next);
       setDevMode(next);
+      // Also unlock premium when enabling dev mode, revoke when disabling
+      await setTier(next ? "premium" : "free");
+      setTierState(next ? "premium" : "free");
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showDevToast(next ? "🛠️ Developer mode ON" : "Developer mode OFF");
+      showDevToast(next ? "🛠️ Dev mode ON · Premium unlocked" : "Dev mode OFF · Free tier restored");
     } else if (newCount >= DEV_TAP_TARGET - 3) {
       showDevToast(`${DEV_TAP_TARGET - newCount} more tap${DEV_TAP_TARGET - newCount !== 1 ? "s" : ""}…`);
     }

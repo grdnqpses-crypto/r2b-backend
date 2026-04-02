@@ -154,8 +154,27 @@ export default function SettingsScreen() {
     setShowPaywall(true);
   };
 
-  const handleRestorePurchases = () => {
-    Alert.alert(t("settings.subscription"), "Checking for previous purchases... (RevenueCat integration required for production)");
+  const handleRestorePurchases = async () => {
+    try {
+      await subscription.restore();
+      if (!subscription.error) {
+        Alert.alert(
+          t("settings.subscription"),
+          "Purchase restored successfully! Premium is now active."
+        );
+        await loadState();
+      } else {
+        Alert.alert(
+          t("settings.subscription"),
+          subscription.error
+        );
+      }
+    } catch {
+      Alert.alert(
+        t("settings.subscription"),
+        "Could not restore purchases. Please try again."
+      );
+    }
   };
 
   const PermissionRow = ({
