@@ -11,8 +11,7 @@ import { useTranslation } from "react-i18next";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
-import { applyReferralCode, getSavedStores, saveOnboardingStep, getSavedOnboardingStep } from "@/lib/storage";
-import { startGeofencing } from "@/lib/geofence";
+import { applyReferralCode, saveOnboardingStep, getSavedOnboardingStep } from "@/lib/storage";
 import { setupNotifications } from "@/lib/notifications";
 import { useOnboarding } from "@/lib/onboarding-context";
 
@@ -166,16 +165,22 @@ export default function OnboardingScreen() {
   /**
    * CRITICAL FIX: Do NOT call router.replace() here.
    * See onboarding.tsx comments for full explanation.
+   *
+   * NOTE: We intentionally do NOT call startGeofencing() here.
+   * At the end of onboarding the user has no stores saved yet, so
+   * geofencing cannot be started. The root layout's autoStartGeofencing()
+   * will handle this on the next app launch once stores are added.
+   * Calling startGeofencing(0 stores) → stopGeofencing() → native crash on Android.
    */
   const finish = async () => {
     try {
-      const bg = await Location.getBackgroundPermissionsAsync();
-      if (bg.status === "granted") {
-        const stores = await getSavedStores();
-        if (stores.length > 0) await startGeofencing(stores);
-      }
-    } catch {}
-    await completeOnboarding();
+      await completeOnboarding();
+    } catch {
+      // If completeOnboarding throws (rare), force-navigate by retrying once
+      try {
+        await completeOnboarding();
+      } catch {}
+    }
   };
 
   const requestNotifications = async () => {
