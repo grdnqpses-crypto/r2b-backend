@@ -4,6 +4,7 @@ import {
   Alert, Platform, Linking, Switch, AppState, Modal, type AppStateStatus,
 } from "react-native";
 import { useFocusEffect } from "expo-router";
+import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
@@ -342,8 +343,8 @@ export default function SettingsScreen() {
           <Text style={[styles.sectionTitle, { color: colors.muted }]}>{t("settings.about").toUpperCase()}</Text>
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.settingRow, { borderColor: colors.border }]}>
-              <Text style={[styles.settingLabel, { color: colors.foreground }]}>{t("settings.version", { version: "1.0.0" })}</Text>
-              <Text style={[styles.settingValue, { color: colors.muted }]}>1.0.0</Text>
+              <Text style={[styles.settingLabel, { color: colors.foreground }]}>{t("settings.version", { version: Constants.expoConfig?.version ?? "1.0.41" })}</Text>
+              <Text style={[styles.settingValue, { color: colors.muted }]}>{Constants.expoConfig?.version ?? "1.0.41"}</Text>
             </View>
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
             <View style={[styles.settingRow, { borderColor: colors.border }]}>
