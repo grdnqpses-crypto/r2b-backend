@@ -169,3 +169,7 @@
 - [x] Expand geofence/store detection radius from 0.3 miles to 15 miles
 - [x] Optimize dashboard and map load speed (parallel data fetching, lazy map init, cached location)
 - [x] Bump version to 1.0.42 / versionCode 42
+
+## Release 1.0.43 — Loading State
+- [x] Add animated loading indicator with friendly patience message while nearby stores are being fetched
+- [x] Bump version to 1.0.43 / versionCode 43

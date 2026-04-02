@@ -116,6 +116,8 @@
     "sort": "Sort",
     "nearestFirst": "Nearest first",
     "findingStores": "Finding stores near you...",
+    "findingStoresSub": "Searching up to 15 miles away. This may take 10–20 seconds — we're scanning thousands of locations to find the best matches for you.",
+    "findingStoresTip": "Tip: Results are cached, so future searches will be instant!",
     "locationError": "Could not get your location. Please try again.",
     "networkError": "Could not reach the store database. Please check your internet connection and try again.",
     "noStoresFound": "No stores found nearby",

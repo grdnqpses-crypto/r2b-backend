@@ -295,8 +295,21 @@ export default function StoresScreen() {
 
             {loading ? (
               <View style={styles.centered}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={[styles.loadingText, { color: colors.muted }]}>{t("stores.findingStores")}</Text>
+                <View style={{ alignItems: "center", paddingHorizontal: 32, gap: 16 }}>
+                  <Text style={{ fontSize: 40 }}>🗺️</Text>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={{ fontSize: 17, fontWeight: "700", color: colors.foreground, textAlign: "center" }}>
+                    {t("stores.findingStores")}
+                  </Text>
+                  <Text style={{ fontSize: 14, color: colors.muted, textAlign: "center", lineHeight: 20 }}>
+                    {t("stores.findingStoresSub")}
+                  </Text>
+                  <View style={{ backgroundColor: colors.primary + "15", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.primary + "30" }}>
+                    <Text style={{ fontSize: 13, color: colors.primary, textAlign: "center", lineHeight: 18 }}>
+                      {t("stores.findingStoresTip")}
+                    </Text>
+                  </View>
+                </View>
               </View>
             ) : locationError ? (
               <View style={styles.centered}>
