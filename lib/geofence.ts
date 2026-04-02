@@ -4,8 +4,8 @@ import { type SavedStore } from "./storage";
 
 export { getSavedStores } from "./storage";
 
-// 0.3 miles in meters
-const GEOFENCE_RADIUS_METERS = 483;
+// 15 miles in meters
+const GEOFENCE_RADIUS_METERS = 24140;
 
 export interface GeofenceRegion {
   identifier: string;

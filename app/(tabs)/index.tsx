@@ -1,18 +1,18 @@
 /**
  * Dashboard Screen
  *
- * NOTE: react-native-maps MapView is intentionally NOT used here.
- * It crashes on Android with Expo SDK 54 + New Architecture (RN 0.81) when
- * the screen is navigated to after onboarding. This is a confirmed library bug:
+ * Map strategy: react-native-maps MapView is mounted lazily (after first render + location ready)
+ * to avoid the Android crash bug with Expo SDK 54 + New Architecture (RN 0.81).
+ * The map only renders when userLocation is available and mapReady is true.
+ *
+ * References:
  * https://github.com/react-native-maps/react-native-maps/issues/5759
  * https://github.com/react-native-maps/react-native-maps/issues/5699
- *
- * The map has been moved to the Stores tab only, where it is rendered on demand
- * rather than on every app launch.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  View, Text, ScrollView, Pressable, StyleSheet, RefreshControl, Platform, Animated,
+  View, Text, ScrollView, Pressable, StyleSheet, RefreshControl,
+  Platform, Animated, ActivityIndicator,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import * as Location from "expo-location";
@@ -30,7 +30,8 @@ import { isGeofencingActive, checkLocationPermissions } from "@/lib/geofence";
 
 const DEV_TAP_TARGET = 11;
 
-const GEOFENCE_RADIUS = 483; // meters (~0.3 mi)
+// 15 miles in meters — used for "nearby" highlight on dashboard
+const NEARBY_RADIUS_METERS = 24140;
 
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
@@ -52,6 +53,17 @@ function formatDistance(meters: number, unit: DistanceUnit): string {
   return miles < 10 ? `${miles.toFixed(1)} mi` : `${Math.round(miles)} mi`;
 }
 
+// Lazy import MapView only on native platforms to avoid web crash
+let MapView: any = null;
+let Marker: any = null;
+let Circle: any = null;
+if (Platform.OS !== "web") {
+  const maps = require("react-native-maps");
+  MapView = maps.default;
+  Marker = maps.Marker;
+  Circle = maps.Circle;
+}
+
 export default function DashboardScreen() {
   const colors = useColors();
   const router = useRouter();
@@ -70,6 +82,9 @@ export default function DashboardScreen() {
   const devTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const devToastAnim = useRef(new Animated.Value(0)).current;
   const [devToastMsg, setDevToastMsg] = useState("");
+  // Map is mounted lazily after first render to avoid Android crash
+  const [mapReady, setMapReady] = useState(false);
+  const mapRef = useRef<any>(null);
 
   const loadData = useCallback(async () => {
     const [itemsData, storesData, tierData, geofenceActive, locationPerms, unit, devEnabled] =
@@ -98,7 +113,6 @@ export default function DashboardScreen() {
 
   const handleTitleTap = useCallback(async () => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Reset timer on each tap
     if (devTapTimer.current) clearTimeout(devTapTimer.current);
     devTapTimer.current = setTimeout(() => setDevTapCount(0), 3000);
 
@@ -111,7 +125,6 @@ export default function DashboardScreen() {
       const next = !devMode;
       await setDevModeEnabled(next);
       setDevMode(next);
-      // Also unlock premium when enabling dev mode, revoke when disabling
       await setTier(next ? "premium" : "free");
       setTierState(next ? "premium" : "free");
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -121,19 +134,32 @@ export default function DashboardScreen() {
     }
   }, [devTapCount, devMode, devToastAnim, showDevToast]);
 
-  // Real-time location tracking for live distance display (no MapView needed)
+  // Real-time location tracking
   useEffect(() => {
     if (Platform.OS === "web") return;
     let active = true;
     Location.getForegroundPermissionsAsync().then(({ status }) => {
       if (status !== "granted" || !active) return;
+      // Get last known position instantly (no network wait)
+      Location.getLastKnownPositionAsync({}).then((pos) => {
+        if (pos && active) {
+          setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+          // Enable map after we have a position
+          setTimeout(() => { if (active) setMapReady(true); }, 300);
+        }
+      }).catch(() => {});
+      // Then get accurate position
       Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
         .then((pos) => {
-          if (active) setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+          if (active) {
+            setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+            if (active) setMapReady(true);
+          }
         })
         .catch(() => {});
+      // Watch for updates
       Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.Balanced, timeInterval: 15000, distanceInterval: 30 },
+        { accuracy: Location.Accuracy.Balanced, timeInterval: 10000, distanceInterval: 20 },
         (pos) => {
           if (active) setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
         }
@@ -149,6 +175,21 @@ export default function DashboardScreen() {
     };
   }, []);
 
+  // Animate map camera when user location updates
+  useEffect(() => {
+    if (mapRef.current && userLocation && stores.length > 0) {
+      // Fit map to show user + all stores
+      const coords = [
+        { latitude: userLocation.latitude, longitude: userLocation.longitude },
+        ...stores.map((s) => ({ latitude: s.lat, longitude: s.lng })),
+      ];
+      mapRef.current.fitToCoordinates(coords, {
+        edgePadding: { top: 40, right: 40, bottom: 40, left: 40 },
+        animated: true,
+      });
+    }
+  }, [userLocation, stores]);
+
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
   const onRefresh = useCallback(async () => {
@@ -160,7 +201,6 @@ export default function DashboardScreen() {
   const uncheckedItems = items.filter((i) => !i.checked);
   const checkedItems = items.filter((i) => i.checked);
 
-  // Sort stores by distance if we have user location
   const storesWithDistance = stores.map((store) => {
     const distMeters = userLocation
       ? haversineMeters(userLocation.latitude, userLocation.longitude, store.lat, store.lng)
@@ -172,6 +212,14 @@ export default function DashboardScreen() {
     if (b.distMeters === null) return -1;
     return a.distMeters - b.distMeters;
   });
+
+  // Compute map region to fit all stores + user
+  const mapRegion = userLocation ? {
+    latitude: userLocation.latitude,
+    longitude: userLocation.longitude,
+    latitudeDelta: stores.length > 0 ? 0.15 : 0.02,
+    longitudeDelta: stores.length > 0 ? 0.15 : 0.02,
+  } : undefined;
 
   return (
     <ScreenContainer>
@@ -211,6 +259,65 @@ export default function DashboardScreen() {
         >
           <Text style={[styles.devToastText, { color: colors.background }]}>{devToastMsg}</Text>
         </Animated.View>
+
+        {/* Live Map */}
+        {Platform.OS !== "web" && (
+          <View style={[styles.mapCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+            <View style={styles.mapHeader}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <View style={[styles.mapLiveDot, { backgroundColor: userLocation ? colors.success : colors.muted }]} />
+                <Text style={[styles.mapTitle, { color: colors.foreground }]}>
+                  {userLocation ? "Live Location" : "Waiting for location…"}
+                </Text>
+              </View>
+              {stores.length > 0 && (
+                <Text style={[styles.mapStoreCount, { color: colors.muted }]}>
+                  {stores.length} store{stores.length !== 1 ? "s" : ""}
+                </Text>
+              )}
+            </View>
+            {mapReady && userLocation && MapView ? (
+              <MapView
+                ref={mapRef}
+                style={styles.map}
+                initialRegion={mapRegion}
+                showsUserLocation={true}
+                showsMyLocationButton={false}
+                showsCompass={false}
+                toolbarEnabled={false}
+                moveOnMarkerPress={false}
+                pitchEnabled={false}
+                rotateEnabled={false}
+              >
+                {storesWithDistance.map((store) => {
+                  const isNearby = store.distMeters !== null && store.distMeters <= NEARBY_RADIUS_METERS;
+                  const distLabel = store.distMeters !== null
+                    ? formatDistance(store.distMeters, distanceUnit)
+                    : "";
+                  return (
+                    <Marker
+                      key={store.id}
+                      coordinate={{ latitude: store.lat, longitude: store.lng }}
+                      title={store.name}
+                      description={distLabel ? `${distLabel} away` : store.address}
+                      pinColor={isNearby ? "#22c55e" : colors.primary}
+                    />
+                  );
+                })}
+              </MapView>
+            ) : (
+              <View style={[styles.mapPlaceholder, { backgroundColor: colors.surface }]}>
+                {locationGranted ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Text style={[styles.mapPlaceholderText, { color: colors.muted }]}>
+                    Enable location to see your map
+                  </Text>
+                )}
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Alert Status Card */}
         <View style={[styles.statusCard, { backgroundColor: geofencingActive ? colors.success + "18" : colors.surface, borderColor: geofencingActive ? colors.success + "50" : colors.border }]}>
@@ -279,7 +386,7 @@ export default function DashboardScreen() {
               const distLabel = store.distMeters !== null
                 ? formatDistance(store.distMeters, distanceUnit)
                 : null;
-              const isNearby = store.distMeters !== null && store.distMeters <= GEOFENCE_RADIUS;
+              const isNearby = store.distMeters !== null && store.distMeters <= NEARBY_RADIUS_METERS;
               return (
                 <View key={store.id} style={[styles.storeRow, { backgroundColor: isNearby ? colors.success + "12" : colors.surface, borderColor: isNearby ? colors.success + "50" : colors.border }]}>
                   <View style={[styles.storeIconBg, { backgroundColor: isNearby ? colors.success + "25" : colors.primary + "20" }]}>
@@ -373,6 +480,16 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 13, marginTop: 2 },
   premiumBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginTop: 4 },
   premiumText: { color: "#fff", fontSize: 11, fontWeight: "700", letterSpacing: 0.5 },
+  // Map card
+  mapCard: { borderRadius: 16, borderWidth: 1, marginBottom: 16, overflow: "hidden" },
+  mapHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 14, paddingVertical: 10 },
+  mapLiveDot: { width: 8, height: 8, borderRadius: 4 },
+  mapTitle: { fontSize: 13, fontWeight: "600" },
+  mapStoreCount: { fontSize: 12 },
+  map: { width: "100%", height: 200 },
+  mapPlaceholder: { height: 120, alignItems: "center", justifyContent: "center" },
+  mapPlaceholderText: { fontSize: 13 },
+  // Status card
   statusCard: { borderRadius: 16, padding: 16, borderWidth: 1, marginBottom: 16 },
   statusRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   statusIconBg: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },

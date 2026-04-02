@@ -23,8 +23,8 @@ export interface NearbyStore {
   brand?: string;     // e.g. "Walmart", "CVS"
 }
 
-// Radius in meters for nearby search (5 km = ~3 miles)
-const SEARCH_RADIUS_METERS = 5000;
+// Radius in meters for nearby search (15 miles)
+const SEARCH_RADIUS_METERS = 24140;
 
 // Overpass API public endpoints — tried in order until one succeeds
 const OVERPASS_MIRRORS = [
@@ -32,6 +32,15 @@ const OVERPASS_MIRRORS = [
   "https://overpass.kumi.systems/api/interpreter",
   "https://overpass.openstreetmap.ru/api/interpreter",
 ];
+
+// In-memory cache: keyed by "lat,lng,radius" rounded to 3 decimal places (~111m grid)
+// Cache expires after 5 minutes to keep results fresh without hammering the API
+const _cache = new Map<string, { data: NearbyStore[]; ts: number }>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function cacheKey(lat: number, lng: number, radius: number): string {
+  return `${lat.toFixed(3)},${lng.toFixed(3)},${radius}`;
+}
 
 // OSM tags that map to store categories
 const SHOP_CATEGORY_MAP: Record<string, string> = {
@@ -174,7 +183,7 @@ async function fetchOverpass(query: string): Promise<any> {
   for (const url of OVERPASS_MIRRORS) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000); // 15s per mirror
+      const timeout = setTimeout(() => controller.abort(), 8000); // 8s per mirror
       const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -198,8 +207,14 @@ export async function getNearbyStores(
   lng: number,
   radiusMeters: number = SEARCH_RADIUS_METERS
 ): Promise<NearbyStore[]> {
-  const query = buildOverpassQuery(lat, lng, radiusMeters);
+  // Check in-memory cache first — avoids repeat API calls on quick re-opens
+  const key = cacheKey(lat, lng, radiusMeters);
+  const cached = _cache.get(key);
+  if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+    return cached.data;
+  }
 
+  const query = buildOverpassQuery(lat, lng, radiusMeters);
   const data = await fetchOverpass(query);
   const elements: OSMElement[] = data.elements ?? [];
 
@@ -242,6 +257,9 @@ export async function getNearbyStores(
 
   // Sort by distance ascending
   stores.sort((a, b) => a.distanceMeters - b.distanceMeters);
+
+  // Write to cache
+  _cache.set(key, { data: stores, ts: Date.now() });
 
   return stores;
 }

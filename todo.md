@@ -163,3 +163,9 @@
 - [x] Verify premium_weekly_199 subscription product exists and is active in Play Console
 - [x] Wire Restore Purchases button in Settings to real subscription.restore() flow
 - [x] Add 11-tap secret developer unlock on Remember2Buy dashboard title (sets tier to premium)
+
+## Release 1.0.42 — Dashboard Map Upgrade
+- [x] Add real-time live map to dashboard showing user location pin and all store pins with distance labels
+- [x] Expand geofence/store detection radius from 0.3 miles to 15 miles
+- [x] Optimize dashboard and map load speed (parallel data fetching, lazy map init, cached location)
+- [x] Bump version to 1.0.42 / versionCode 42
