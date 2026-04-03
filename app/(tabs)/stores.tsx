@@ -355,7 +355,7 @@ export default function StoresScreen() {
       !searchText || s.name.toLowerCase().includes(searchText.toLowerCase()) ||
       s.category.toLowerCase().includes(searchText.toLowerCase())
     )
-    .sort((a, b) => sortByDistance ? (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0) : 0);
+    .sort((a, b) => sortByDistance ? (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0) : a.name.localeCompare(b.name));
 
   const isStoreAdded = (nearby: NearbyStore) =>
     savedStores.some((s) => Math.abs(s.lat - nearby.lat) < 0.0001 && Math.abs(s.lng - nearby.lng) < 0.0001);

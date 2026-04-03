@@ -4,8 +4,8 @@ import { type SavedStore } from "./storage";
 
 export { getSavedStores } from "./storage";
 
-// 15 miles in meters
-const GEOFENCE_RADIUS_METERS = 24140;
+// 0.3 miles in meters (~483m) — alert fires when user is within 0.3 miles of a saved store
+const GEOFENCE_RADIUS_METERS = 483;
 
 export interface GeofenceRegion {
   identifier: string;

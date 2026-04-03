@@ -60,7 +60,7 @@ export function PremiumPaywall({
 }: PremiumPaywallProps) {
   const colors = useColors();
   const { referral } = useReferral();
-  const [selectedPlan, setSelectedPlan] = useState<"weekly" | "family">("weekly");
+  // Only one plan: Premium $1.99/week
 
   const hasFreeWeeks = referral.freeWeeksRemaining > 0;
 
@@ -144,13 +144,13 @@ export function PremiumPaywall({
         <View style={styles.pricingSection}>
           {/* Weekly plan — PRIMARY */}
           <Pressable
-            onPress={() => setSelectedPlan("weekly")}
+            onPress={() => {}}
             style={({ pressed }) => [
               styles.priceCard,
               {
                 backgroundColor: colors.surface,
-                borderColor: selectedPlan === "weekly" ? colors.primary : colors.border,
-                borderWidth: selectedPlan === "weekly" ? 2 : 1,
+                borderColor: colors.primary,
+                borderWidth: 2,
                 opacity: pressed ? 0.9 : 1,
                 transform: [{ scale: pressed ? 0.98 : 1 }],
               },
@@ -190,48 +190,7 @@ export function PremiumPaywall({
             </Pressable>
           </Pressable>
 
-          {/* Family plan */}
-          <Pressable
-            onPress={() => setSelectedPlan("family")}
-            style={({ pressed }) => [
-              styles.priceCard,
-              {
-                backgroundColor: colors.surface,
-                borderColor: selectedPlan === "family" ? colors.primary : colors.border,
-                borderWidth: selectedPlan === "family" ? 2 : 1,
-                opacity: pressed ? 0.9 : 1,
-                transform: [{ scale: pressed ? 0.98 : 1 }],
-              },
-            ]}
-          >
-            <Text style={[styles.planName, { color: colors.foreground }]}>
-              Family Premium
-            </Text>
-            <View style={styles.priceRow}>
-              <Text style={[styles.planPrice, { color: colors.primary }]}>$1.99</Text>
-              <Text style={[styles.planPeriod, { color: colors.muted }]}>/week, auto-renewing</Text>
-            </View>
-            <View style={[styles.trialBadge, { backgroundColor: colors.primary + "20", borderColor: colors.primary + "40" }]}>
-              <Text style={[styles.trialText, { color: colors.primary }]}>
-                ✓ Up to 6 family profiles
-              </Text>
-            </View>
-            <Text style={[styles.planAnnual, { color: colors.muted }]}>
-              ~$8.63/month · Auto-renews weekly
-            </Text>
-            <Pressable
-              onPress={() => {
-                if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                onActivate(true);
-              }}
-              style={({ pressed }) => [
-                styles.ctaBtn,
-                { backgroundColor: colors.primary, opacity: pressed ? 0.9 : 1 },
-              ]}
-            >
-              <Text style={styles.ctaBtnText}>Start Premium — $1.99/week</Text>
-            </Pressable>
-          </Pressable>
+          {/* Only one plan: Premium $1.99/week. Family plan removed. */}
         </View>
 
         {/* Referral promo */}

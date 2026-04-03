@@ -55,7 +55,8 @@ export function LeafletMap({ latitude, longitude, stores = [], style }: LeafletM
     }).setView([${latitude}, ${longitude}], 15);
 
     // CARTO Voyager tiles — free, no Referer restriction, works in native WebView
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    // Note: no {r} suffix — the retina variant URL breaks on some Android WebViews
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
       maxZoom: 19,
       subdomains: 'abcd'
     }).addTo(map);
@@ -80,7 +81,7 @@ export function LeafletMap({ latitude, longitude, stores = [], style }: LeafletM
       });
       L.marker([s.lat, s.lng], { icon: storeIcon }).bindPopup(s.name).addTo(map);
       L.circle([s.lat, s.lng], {
-        radius: 400,
+        radius: 483, // matches the 0.3-mile geofence radius
         color: '#EF4444',
         fillColor: '#EF4444',
         fillOpacity: 0.08,

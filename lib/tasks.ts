@@ -58,40 +58,38 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
       const top3 = unchecked.slice(0, 3);
       const remaining = unchecked.length - top3.length;
 
-      // Build a numbered list body for the notification
-      const buildBody = (listItems: typeof top3, extra: number): string => {
-        if (listItems.length === 0) {
-          return i18n.t("notifications.arrivalBodyEmpty");
-        }
-        const lines = listItems.map((item, idx) => `${idx + 1}. ${item.text}`);
-        if (extra > 0) lines.push(i18n.t("notifications.andXMore", { count: extra }));
-        return lines.join("\n");
+      // Build the item list inline: "Milk, Eggs, Bread (and 2 more)"
+      const buildItemList = (listItems: typeof top3, extra: number): string => {
+        if (listItems.length === 0) return "";
+        const names = listItems.map((item) => item.text);
+        let result = names.join(", ");
+        if (extra > 0) result += ` (and ${extra} more)`;
+        return result;
       };
 
-      const itemsText = buildBody(top3, remaining);
+      const itemList = buildItemList(top3, remaining);
 
-      // Send immediate notification with top 3 items
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: i18n.t("notifications.arrivalTitle", { storeName }),
-          body:
-            unchecked.length > 0
-              ? i18n.t("notifications.arrivalBody", { items: itemsText })
-              : i18n.t("notifications.arrivalBodyEmpty"),
-          sound: true,
-          data: { storeId: region.identifier, type: "geofence_enter" },
-        },
-        trigger: null, // immediate
-      });
-
-      // Schedule a follow-up reminder after 6 minutes
+      // Only send the 6-minute delayed notification.
+      // Rationale: user needs to park, enter the store, and get settled before the reminder.
+      // Firing immediately when they cross the 0.3-mile boundary is too early.
       if (unchecked.length > 0) {
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: i18n.t("notifications.arrivalTitle", { storeName }),
-            body: i18n.t("notifications.arrivalBody", { items: itemsText }),
-            sound: false,
+            title: `🛒 Remember to buy at ${storeName}`,
+            body: `Remember to buy: ${itemList}`,
+            sound: true,
             data: { storeId: region.identifier, type: "geofence_arrived" },
+          },
+          trigger: { seconds: 360, repeats: false } as any,
+        });
+      } else {
+        // No unchecked items — send a gentle nudge after 6 minutes
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: `🛒 You're near ${storeName}`,
+            body: "Your shopping list is empty — nothing to buy here!",
+            sound: false,
+            data: { storeId: region.identifier, type: "geofence_empty" },
           },
           trigger: { seconds: 360, repeats: false } as any,
         });

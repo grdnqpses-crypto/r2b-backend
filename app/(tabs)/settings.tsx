@@ -472,9 +472,26 @@ export default function SettingsScreen() {
         <PremiumPaywall
           reason="general"
           onActivate={async (_family: boolean) => {
-            await subscription.purchase();
-            setShowPaywall(false);
-            await loadState();
+            try {
+              await subscription.purchase();
+              // If purchase() succeeded (no error thrown), close the modal and refresh
+              setShowPaywall(false);
+              await loadState();
+            } catch {
+              // IAP not available (e.g. Expo Go, sideloaded build) —
+              // fall back to opening the Play Store subscription page directly
+              const playStoreUrl =
+                "https://play.google.com/store/apps/details?id=space.manus.remember2buy";
+              const supported = await Linking.canOpenURL(playStoreUrl);
+              if (supported) {
+                await Linking.openURL(playStoreUrl);
+              } else {
+                Alert.alert(
+                  "Open Play Store",
+                  "Please search for Remember2Buy in the Google Play Store to subscribe."
+                );
+              }
+            }
           }}
           onDismiss={() => setShowPaywall(false)}
         />

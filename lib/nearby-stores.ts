@@ -23,7 +23,7 @@ export interface NearbyStore {
   brand?: string;     // e.g. "Walmart", "CVS"
 }
 
-// Radius in meters for nearby search (5 miles — faster Overpass queries, still covers most users)
+// Radius in meters for nearby search (5 miles)
 const SEARCH_RADIUS_METERS = 8047;
 
 // Overpass API public endpoints — tried in order until one succeeds
@@ -47,6 +47,14 @@ const SHOP_CATEGORY_MAP: Record<string, string> = {
   supermarket: "Grocery",
   grocery: "Grocery",
   convenience: "Convenience",
+  convenience_store: "Convenience",
+  general: "Grocery",
+  deli: "Grocery",
+  bakery: "Grocery",
+  butcher: "Grocery",
+  seafood: "Grocery",
+  health_food: "Health & Wellness",
+  nutrition_supplements: "Health & Wellness",
   department_store: "Department Store",
   mall: "Department Store",
   pharmacy: "Pharmacy",
@@ -76,19 +84,13 @@ const SHOP_CATEGORY_MAP: Record<string, string> = {
   fuel: "Gas Station",
   dollar_store: "Dollar Store",
   variety_store: "Dollar Store",
-  health_food: "Health & Wellness",
-  nutrition_supplements: "Health & Wellness",
-  bakery: "Grocery",
-  butcher: "Grocery",
-  seafood: "Grocery",
-  deli: "Grocery",
-  general: "Grocery",
 };
 
 const AMENITY_CATEGORY_MAP: Record<string, string> = {
   pharmacy: "Pharmacy",
   fuel: "Gas Station",
   supermarket: "Grocery",
+  convenience: "Convenience",
 };
 
 function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -146,15 +148,19 @@ function getCategory(tags: Record<string, string>): string {
 }
 
 function buildOverpassQuery(lat: number, lng: number, radius: number): string {
+  // Broad shop query covers: supermarket, convenience, pharmacy, hardware, electronics,
+  // clothing, gas_station, dollar_store, etc. — including Wawa (shop=convenience or amenity=fuel)
+  // Amenity query covers: pharmacy, fuel (gas stations like Wawa), supermarket, convenience
+  // Limit raised to 200 so dense areas don't cut off results
   return `
-[out:json][timeout:25];
+[out:json][timeout:30];
 (
   node["shop"](around:${radius},${lat},${lng});
-  node["amenity"~"pharmacy|fuel|supermarket"](around:${radius},${lat},${lng});
+  node["amenity"~"^(pharmacy|fuel|supermarket|convenience)$"](around:${radius},${lat},${lng});
   way["shop"](around:${radius},${lat},${lng});
-  way["amenity"~"pharmacy|fuel|supermarket"](around:${radius},${lat},${lng});
+  way["amenity"~"^(pharmacy|fuel|supermarket|convenience)$"](around:${radius},${lat},${lng});
 );
-out center 100;
+out center 200;
 `.trim();
 }
 
@@ -168,13 +174,6 @@ interface OSMElement {
 }
 
 /**
- * Fetch nearby stores from Overpass API.
- * Returns immediately with OSM address data where available.
- * Stores without OSM addr: tags will have address = "".
- * Call enrichStoreAddresses() afterwards to fill in missing addresses.
- */
-
-/**
  * Try each Overpass mirror in order, returning the first successful response.
  * Throws an error with "Overpass" in the message if all mirrors fail.
  */
@@ -183,7 +182,7 @@ async function fetchOverpass(query: string): Promise<any> {
   for (const url of OVERPASS_MIRRORS) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000); // 30s per mirror
+      const timeout = setTimeout(() => controller.abort(), 35000); // 35s per mirror
       const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -226,7 +225,7 @@ export async function getNearbyStores(
     const name = tags["name"] ?? tags["brand"] ?? tags["operator"];
     if (!name) continue;
 
-    // Skip fast food, cafes, restaurants
+    // Skip fast food, cafes, restaurants, bars
     const amenity = tags["amenity"];
     if (amenity && ["fast_food", "restaurant", "cafe", "bar", "pub"].includes(amenity)) continue;
 
@@ -255,7 +254,7 @@ export async function getNearbyStores(
     });
   }
 
-  // Sort by distance ascending
+  // Sort by distance ascending by default
   stores.sort((a, b) => a.distanceMeters - b.distanceMeters);
 
   // Write to cache
@@ -269,7 +268,6 @@ export async function getNearbyStores(
  * Mutates the store objects in-place. Call setNearbyStores([...stores]) after this.
  *
  * Only processes the first `limit` stores without addresses to avoid rate limiting.
- * Returns true when done so the caller can trigger a re-render.
  */
 export async function enrichStoreAddresses(
   stores: NearbyStore[],

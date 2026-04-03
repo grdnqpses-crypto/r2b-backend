@@ -195,3 +195,12 @@
 - [x] Add react-native-maps with OpenStreetMap tile provider to Dashboard home screen (no Google API key)
 - [x] Show user location pin and saved store pins on the map
 - [x] Bump version to 1.0.54 / versionCode 10054
+
+## Issues reported Apr 3 2026 (post v1.0.58)
+- [x] Overpass query missing store types: Wawa (convenience_store, fuel, gas_station) and other chains not returned — expand OSM tags
+- [x] Sort by distance and A-Z not working on Nearby tab
+- [x] Map on dashboard does not show saved store pins
+- [x] Geofence triggers immediately on add (wrong): must trigger at 0.3 miles (≈480m) radius AND only AFTER user has been inside for 6 minutes
+- [x] "Family Premium" tier shown in paywall but not in subscriptions — remove it
+- [x] Upgrade button in paywall dismisses modal but does nothing — must open Play Store subscription page
+- [x] Notification text wrong: says "You have items on your list" — change to "Remember to buy: [item1], [item2], [item3]" format for both immediate and 6-min follow-up
