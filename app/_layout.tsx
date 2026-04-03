@@ -6,7 +6,7 @@ import "@/lib/i18n"; // Initialize i18next with all 21 locales
 import "@/global.css";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack, useRouter, useSegments, useRootNavigationState } from "expo-router";
 import { SplashScreen } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
@@ -41,19 +41,27 @@ async function autoStartGeofencing() {
 
 /**
  * RootNavigator handles auth-gated navigation using useRouter + useSegments.
- * This is the stable pattern for expo-router 6.x — Stack.Protected does NOT
- * exist in this version and will crash the app when the guard condition changes.
+ *
+ * CRITICAL: We must wait for useRootNavigationState().key to be defined before
+ * calling router.replace(). On Android, calling router.replace() before the
+ * navigator is fully mounted causes a native crash. This is the root cause of
+ * the crash after the referral/skip screen in onboarding — completeOnboarding()
+ * sets isOnboardingComplete=true, which triggers this effect, but at that moment
+ * the navigator may not yet be ready to accept navigation commands.
  */
 function RootNavigator() {
   const { isLoaded, isOnboardingComplete } = useOnboarding();
   const router = useRouter();
   const segments = useSegments();
+  const navigationState = useRootNavigationState();
 
   useEffect(() => {
+    // Wait for BOTH: onboarding state loaded AND navigator fully mounted
     if (!isLoaded) return;
+    if (!navigationState?.key) return; // Navigator not yet ready — do NOT call router
 
-    // Hide splash once we know onboarding state
-    SplashScreen.hideAsync();
+    // Hide splash once we know onboarding state and navigator is ready
+    SplashScreen.hideAsync().catch(() => {});
 
     const inOnboarding = segments[0] === "onboarding";
     const inTabs = segments[0] === "(tabs)";
@@ -67,9 +75,9 @@ function RootNavigator() {
       // Delay geofencing start to avoid racing with navigation transition
       setTimeout(() => {
         autoStartGeofencing();
-      }, 1000);
+      }, 1500);
     }
-  }, [isLoaded, isOnboardingComplete]);
+  }, [isLoaded, isOnboardingComplete, navigationState?.key]);
 
   // Keep splash screen up until we know onboarding state
   if (!isLoaded) return null;
