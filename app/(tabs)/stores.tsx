@@ -168,10 +168,12 @@ export default function StoresScreen() {
   useFocusEffect(
     useCallback(() => {
       loadSavedStores();
-      if (activeTab === "nearby" && nearbyStores.length === 0) {
-        loadNearbyStores();
+      // Always pre-load nearby stores so they are ready when user taps Nearby tab
+      // showLoader=false means no spinner — it loads silently in the background
+      if (nearbyStores.length === 0) {
+        loadNearbyStores(true);
       }
-    }, [loadSavedStores, loadNearbyStores, activeTab, nearbyStores.length])
+    }, [loadSavedStores, loadNearbyStores, nearbyStores.length])
   );
 
   const handleTabChange = (tab: Tab) => {

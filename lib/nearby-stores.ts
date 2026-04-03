@@ -147,14 +147,14 @@ function getCategory(tags: Record<string, string>): string {
 
 function buildOverpassQuery(lat: number, lng: number, radius: number): string {
   return `
-[out:json][timeout:60];
+[out:json][timeout:25];
 (
   node["shop"](around:${radius},${lat},${lng});
   node["amenity"~"pharmacy|fuel|supermarket"](around:${radius},${lat},${lng});
   way["shop"](around:${radius},${lat},${lng});
   way["amenity"~"pharmacy|fuel|supermarket"](around:${radius},${lat},${lng});
 );
-out center;
+out center 100;
 `.trim();
 }
 
