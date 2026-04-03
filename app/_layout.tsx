@@ -6,7 +6,7 @@ import "@/lib/i18n"; // Initialize i18next with all 21 locales
 import "@/global.css";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { SplashScreen } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
@@ -25,7 +25,7 @@ SplashScreen.preventAutoHideAsync();
 
 /**
  * On every app launch, if background location is granted and stores exist,
- * restart geofencing automatically.
+ * restart geofencing automatically. Delayed to avoid racing with navigation.
  */
 async function autoStartGeofencing() {
   try {
@@ -40,23 +40,34 @@ async function autoStartGeofencing() {
 }
 
 /**
- * RootNavigator uses Stack.Protected to declaratively gate screens.
- * This is the officially recommended pattern for SDK 53+ (Expo Router v5+).
- *
- * IMPORTANT: We do NOT call router.replace() anywhere. The router handles
- * the redirect automatically when the guard condition changes.
- * router.replace() is known to crash on Android with newArchEnabled: true
- * (Expo SDK 54, Expo Router 6). See: https://github.com/expo/expo/issues/41030
+ * RootNavigator handles auth-gated navigation using useRouter + useSegments.
+ * This is the stable pattern for expo-router 6.x — Stack.Protected does NOT
+ * exist in this version and will crash the app when the guard condition changes.
  */
 function RootNavigator() {
   const { isLoaded, isOnboardingComplete } = useOnboarding();
+  const router = useRouter();
+  const segments = useSegments();
 
   useEffect(() => {
-    if (isLoaded) {
-      SplashScreen.hideAsync();
-      if (isOnboardingComplete) {
+    if (!isLoaded) return;
+
+    // Hide splash once we know onboarding state
+    SplashScreen.hideAsync();
+
+    const inOnboarding = segments[0] === "onboarding";
+    const inTabs = segments[0] === "(tabs)";
+
+    if (!isOnboardingComplete && !inOnboarding) {
+      // Not done onboarding — send to onboarding
+      router.replace("/onboarding");
+    } else if (isOnboardingComplete && !inTabs) {
+      // Done onboarding — send to main app, then start geofencing
+      router.replace("/(tabs)");
+      // Delay geofencing start to avoid racing with navigation transition
+      setTimeout(() => {
         autoStartGeofencing();
-      }
+      }, 1000);
     }
   }, [isLoaded, isOnboardingComplete]);
 
@@ -65,20 +76,8 @@ function RootNavigator() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      {/* Screens only accessible when onboarding is NOT complete */}
-      <Stack.Protected guard={!isOnboardingComplete}>
-        <Stack.Screen
-          name="onboarding"
-          options={{ animation: "fade", gestureEnabled: false }}
-        />
-      </Stack.Protected>
-
-      {/* Screens only accessible when onboarding IS complete */}
-      <Stack.Protected guard={isOnboardingComplete}>
-        <Stack.Screen name="(tabs)" />
-      </Stack.Protected>
-
-      {/* Always accessible */}
+      <Stack.Screen name="onboarding" options={{ animation: "fade", gestureEnabled: false }} />
+      <Stack.Screen name="(tabs)" />
       <Stack.Screen name="oauth/callback" />
     </Stack>
   );
