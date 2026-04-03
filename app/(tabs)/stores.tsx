@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   View, Text, FlatList, Pressable, StyleSheet,
   Alert, Platform, ActivityIndicator, TextInput, RefreshControl,
@@ -12,6 +12,44 @@ import { ScreenContainer } from "@/components/screen-container";
 import { PremiumPaywall } from "@/components/premium-paywall";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+
+interface NominatimResult {
+  place_id: number;
+  display_name: string;
+  name: string;
+  lat: string;
+  lon: string;
+  type: string;
+  category: string;
+  address?: {
+    shop?: string;
+    amenity?: string;
+    road?: string;
+    city?: string;
+    state?: string;
+    postcode?: string;
+    country?: string;
+  };
+}
+
+async function searchStoresByName(query: string): Promise<NominatimResult[]> {
+  const encoded = encodeURIComponent(query);
+  const url = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&addressdetails=1&limit=20&featuretype=shop,amenity`;
+  const resp = await fetch(url, {
+    headers: { "User-Agent": "Remember2Buy/1.0 (com.remember2buy.shopping)" },
+  });
+  if (!resp.ok) throw new Error("Search failed");
+  const data: NominatimResult[] = await resp.json();
+  // Filter to only shop/amenity/building results that look like stores
+  return data.filter((r) =>
+    r.category === "shop" ||
+    r.category === "amenity" ||
+    r.category === "building" ||
+    r.type === "supermarket" ||
+    r.type === "convenience" ||
+    r.type === "pharmacy"
+  );
+}
 import {
   getSavedStores, addSavedStore, deleteSavedStore, getTier,
   FREE_STORE_LIMIT, type SavedStore, type Tier,
@@ -20,7 +58,7 @@ import { getNearbyStores, enrichStoreAddresses, formatDistance, type NearbyStore
 import { startGeofencing, stopGeofencing } from "@/lib/geofence";
 import { setupNotifications } from "@/lib/notifications";
 
-type Tab = "nearby" | "saved";
+type Tab = "nearby" | "search" | "saved";
 
 export default function StoresScreen() {
   const colors = useColors();
@@ -36,6 +74,12 @@ export default function StoresScreen() {
   const [addingId, setAddingId] = useState<string | null>(null);
   const [sortByDistance, setSortByDistance] = useState(true);
   const [showPaywall, setShowPaywall] = useState(false);
+  // Search tab state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<NominatimResult[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const searchInputRef = useRef<any>(null);
 
   const loadSavedStores = useCallback(async () => {
     const [storesData, tierData] = await Promise.all([getSavedStores(), getTier()]);
@@ -127,6 +171,68 @@ export default function StoresScreen() {
       Alert.alert(
         t("stores.storeAdded"),
         t("stores.storeAddedMessage", { name: nearby.name }),
+        [{ text: t("stores.gotIt") }]
+      );
+    } catch {
+      Alert.alert(t("common.error"), t("common.retry"));
+    } finally {
+      setAddingId(null);
+    }
+  };
+
+  const handleSearchStores = useCallback(async () => {
+    const q = searchQuery.trim();
+    if (!q) return;
+    setSearchLoading(true);
+    setSearchError(null);
+    setSearchResults([]);
+    try {
+      const results = await searchStoresByName(q);
+      setSearchResults(results);
+      if (results.length === 0) setSearchError("No stores found. Try a different name or add a city.");
+    } catch {
+      setSearchError("Search failed. Please check your internet connection.");
+    } finally {
+      setSearchLoading(false);
+    }
+  }, [searchQuery]);
+
+  const handleAddSearchResult = async (result: NominatimResult) => {
+    if (atLimit) { setShowPaywall(true); return; }
+    const lat = parseFloat(result.lat);
+    const lng = parseFloat(result.lon);
+    const alreadyAdded = savedStores.some(
+      (s) => Math.abs(s.lat - lat) < 0.0001 && Math.abs(s.lng - lng) < 0.0001
+    );
+    if (alreadyAdded) {
+      Alert.alert(t("stores.alreadyAdded"), `${result.name} ${t("stores.alreadyAddedMessage")}`);
+      return;
+    }
+    const addr = result.address
+      ? [
+          result.address.road,
+          result.address.city,
+          result.address.state,
+          result.address.postcode,
+        ].filter(Boolean).join(", ")
+      : result.display_name;
+    setAddingId(String(result.place_id));
+    try {
+      await setupNotifications();
+      const newStore = await addSavedStore({
+        name: result.name || result.display_name.split(",")[0],
+        address: addr,
+        lat,
+        lng,
+        category: result.type || result.category || "Store",
+      });
+      const allStores = [...savedStores, newStore];
+      await startGeofencing(allStores);
+      await loadSavedStores();
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        t("stores.storeAdded"),
+        t("stores.storeAddedMessage", { name: result.name || result.display_name.split(",")[0] }),
         [{ text: t("stores.gotIt") }]
       );
     } catch {
@@ -252,6 +358,14 @@ export default function StoresScreen() {
             </Text>
           </Pressable>
           <Pressable
+            style={[styles.tab, activeTab === "search" && { backgroundColor: colors.primary }]}
+            onPress={() => handleTabChange("search")}
+          >
+            <Text style={[styles.tabText, { color: activeTab === "search" ? "#fff" : colors.muted }]}>
+              Search
+            </Text>
+          </Pressable>
+          <Pressable
             style={[styles.tab, activeTab === "saved" && { backgroundColor: colors.primary }]}
             onPress={() => handleTabChange("saved")}
           >
@@ -351,6 +465,110 @@ export default function StoresScreen() {
           </>
         )}
 
+        {/* Search Tab */}
+        {activeTab === "search" && (
+          <View style={{ flex: 1 }}>
+            <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <IconSymbol name="magnifyingglass" size={16} color={colors.muted} />
+              <TextInput
+                ref={searchInputRef}
+                style={[styles.searchInput, { color: colors.foreground }]}
+                placeholder="Search any store by name or address…"
+                placeholderTextColor={colors.muted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                returnKeyType="search"
+                onSubmitEditing={handleSearchStores}
+                autoFocus={false}
+              />
+              {searchQuery.length > 0 && (
+                <Pressable onPress={() => { setSearchQuery(""); setSearchResults([]); setSearchError(null); }}>
+                  <IconSymbol name="xmark.circle.fill" size={16} color={colors.muted} />
+                </Pressable>
+              )}
+            </View>
+            <Pressable
+              style={({ pressed }) => [styles.searchSubmitBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
+              onPress={handleSearchStores}
+            >
+              {searchLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.searchSubmitText}>Find Store</Text>
+              )}
+            </Pressable>
+            <Text style={[styles.searchHint, { color: colors.muted }]}>
+              Powered by OpenStreetMap · Works for any store worldwide
+            </Text>
+            {searchError ? (
+              <View style={styles.centered}>
+                <Text style={styles.errorEmoji}>🔍</Text>
+                <Text style={[styles.errorText, { color: colors.foreground }]}>{searchError}</Text>
+                <Text style={[styles.errorDesc, { color: colors.muted }]}>Try adding a city name, e.g. "Walmart Chicago"</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={searchResults}
+                keyExtractor={(item) => String(item.place_id)}
+                renderItem={({ item }) => {
+                  const lat = parseFloat(item.lat);
+                  const lng = parseFloat(item.lon);
+                  const added = savedStores.some(
+                    (s) => Math.abs(s.lat - lat) < 0.0001 && Math.abs(s.lng - lng) < 0.0001
+                  );
+                  const isAdding = addingId === String(item.place_id);
+                  const addr = item.address
+                    ? [item.address.road, item.address.city, item.address.state].filter(Boolean).join(", ")
+                    : item.display_name;
+                  return (
+                    <View style={[styles.storeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                      <View style={[styles.storeIcon, { backgroundColor: colors.primary + "18" }]}>
+                        <IconSymbol name="storefront.fill" size={20} color={colors.primary} />
+                      </View>
+                      <View style={styles.storeInfo}>
+                        <Text style={[styles.storeName, { color: colors.foreground }]} numberOfLines={1}>
+                          {item.name || item.display_name.split(",")[0]}
+                        </Text>
+                        <Text style={[styles.storeAddress, { color: colors.muted }]} numberOfLines={2}>{addr}</Text>
+                      </View>
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.addBtn,
+                          { backgroundColor: added ? colors.success + "20" : colors.primary, opacity: pressed ? 0.8 : 1 },
+                        ]}
+                        onPress={() => !added && handleAddSearchResult(item)}
+                        disabled={added || isAdding}
+                      >
+                        {isAdding ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : added ? (
+                          <IconSymbol name="checkmark.circle.fill" size={20} color={colors.success} />
+                        ) : (
+                          <IconSymbol name="plus.circle.fill" size={18} color="#fff" />
+                        )}
+                      </Pressable>
+                    </View>
+                  );
+                }}
+                contentContainerStyle={styles.listContent}
+                showsVerticalScrollIndicator={false}
+                ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+                ListEmptyComponent={
+                  searchResults.length === 0 && !searchLoading && !searchError ? (
+                    <View style={styles.centered}>
+                      <Text style={{ fontSize: 48 }}>🏪</Text>
+                      <Text style={[styles.errorText, { color: colors.foreground }]}>Search for any store</Text>
+                      <Text style={[styles.errorDesc, { color: colors.muted }]}>
+                        Type a store name above and tap Find Store.{"\n"}Works for any store worldwide.
+                      </Text>
+                    </View>
+                  ) : null
+                }
+              />
+            )}
+          </View>
+        )}
+
         {/* Saved Tab */}
         {activeTab === "saved" && (
           <FlatList
@@ -428,4 +646,7 @@ const styles = StyleSheet.create({
   retryBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
   apiBusyTip: { marginTop: 16, marginHorizontal: 16, padding: 14, borderRadius: 12, borderWidth: 1 },
   apiBusyTipText: { fontSize: 13, lineHeight: 19, textAlign: "center" },
+  searchSubmitBtn: { paddingVertical: 13, borderRadius: 12, alignItems: "center", marginBottom: 6, marginTop: 4 },
+  searchSubmitText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  searchHint: { fontSize: 11, textAlign: "center", marginBottom: 12 },
 });

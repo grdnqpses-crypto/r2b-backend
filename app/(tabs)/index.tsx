@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View, Text, ScrollView, Pressable, StyleSheet, RefreshControl,
-  Platform, Animated, ActivityIndicator,
+  Platform, Animated,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import * as Location from "expo-location";
@@ -53,16 +53,9 @@ function formatDistance(meters: number, unit: DistanceUnit): string {
   return miles < 10 ? `${miles.toFixed(1)} mi` : `${Math.round(miles)} mi`;
 }
 
-// Lazy import MapView only on native platforms to avoid web crash
-let MapView: any = null;
-let Marker: any = null;
-let Circle: any = null;
-if (Platform.OS !== "web") {
-  const maps = require("react-native-maps");
-  MapView = maps.default;
-  Marker = maps.Marker;
-  Circle = maps.Circle;
-}
+// react-native-maps removed — requires Google Maps API key which causes
+// IllegalStateException crash on Android when not configured.
+// Replaced with native location status card.
 
 export default function DashboardScreen() {
   const colors = useColors();
@@ -82,9 +75,6 @@ export default function DashboardScreen() {
   const devTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const devToastAnim = useRef(new Animated.Value(0)).current;
   const [devToastMsg, setDevToastMsg] = useState("");
-  // Map is mounted lazily after first render to avoid Android crash
-  const [mapReady, setMapReady] = useState(false);
-  const mapRef = useRef<any>(null);
 
   const loadData = useCallback(async () => {
     const [itemsData, storesData, tierData, geofenceActive, locationPerms, unit, devEnabled] =
@@ -145,7 +135,7 @@ export default function DashboardScreen() {
         if (pos && active) {
           setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
           // Enable map after we have a position
-          setTimeout(() => { if (active) setMapReady(true); }, 300);
+
         }
       }).catch(() => {});
       // Then get accurate position
@@ -153,7 +143,7 @@ export default function DashboardScreen() {
         .then((pos) => {
           if (active) {
             setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-            if (active) setMapReady(true);
+
           }
         })
         .catch(() => {});
@@ -175,20 +165,6 @@ export default function DashboardScreen() {
     };
   }, []);
 
-  // Animate map camera when user location updates
-  useEffect(() => {
-    if (mapRef.current && userLocation && stores.length > 0) {
-      // Fit map to show user + all stores
-      const coords = [
-        { latitude: userLocation.latitude, longitude: userLocation.longitude },
-        ...stores.map((s) => ({ latitude: s.lat, longitude: s.lng })),
-      ];
-      mapRef.current.fitToCoordinates(coords, {
-        edgePadding: { top: 40, right: 40, bottom: 40, left: 40 },
-        animated: true,
-      });
-    }
-  }, [userLocation, stores]);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
@@ -213,13 +189,6 @@ export default function DashboardScreen() {
     return a.distMeters - b.distMeters;
   });
 
-  // Compute map region to fit all stores + user
-  const mapRegion = userLocation ? {
-    latitude: userLocation.latitude,
-    longitude: userLocation.longitude,
-    latitudeDelta: stores.length > 0 ? 0.15 : 0.02,
-    longitudeDelta: stores.length > 0 ? 0.15 : 0.02,
-  } : undefined;
 
   return (
     <ScreenContainer>
@@ -260,62 +229,36 @@ export default function DashboardScreen() {
           <Text style={[styles.devToastText, { color: colors.background }]}>{devToastMsg}</Text>
         </Animated.View>
 
-        {/* Live Map */}
-        {Platform.OS !== "web" && (
+        {/* Location Status Card — replaces Google Maps (no API key required) */}
+        {userLocation && (
           <View style={[styles.mapCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
             <View style={styles.mapHeader}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <View style={[styles.mapLiveDot, { backgroundColor: userLocation ? colors.success : colors.muted }]} />
-                <Text style={[styles.mapTitle, { color: colors.foreground }]}>
-                  {userLocation ? "Live Location" : "Waiting for location…"}
-                </Text>
+                <View style={[styles.mapLiveDot, { backgroundColor: colors.success }]} />
+                <Text style={[styles.mapTitle, { color: colors.foreground }]}>Live Location</Text>
               </View>
               {stores.length > 0 && (
                 <Text style={[styles.mapStoreCount, { color: colors.muted }]}>
-                  {stores.length} store{stores.length !== 1 ? "s" : ""}
+                  {stores.length} store{stores.length !== 1 ? "s" : ""} monitored
                 </Text>
               )}
             </View>
-            {mapReady && userLocation && MapView ? (
-              <MapView
-                ref={mapRef}
-                style={styles.map}
-                initialRegion={mapRegion}
-                showsUserLocation={true}
-                showsMyLocationButton={false}
-                showsCompass={false}
-                toolbarEnabled={false}
-                moveOnMarkerPress={false}
-                pitchEnabled={false}
-                rotateEnabled={false}
-              >
-                {storesWithDistance.map((store) => {
-                  const isNearby = store.distMeters !== null && store.distMeters <= NEARBY_RADIUS_METERS;
-                  const distLabel = store.distMeters !== null
-                    ? formatDistance(store.distMeters, distanceUnit)
-                    : "";
-                  return (
-                    <Marker
-                      key={store.id}
-                      coordinate={{ latitude: store.lat, longitude: store.lng }}
-                      title={store.name}
-                      description={distLabel ? `${distLabel} away` : store.address}
-                      pinColor={isNearby ? "#22c55e" : colors.primary}
-                    />
-                  );
-                })}
-              </MapView>
-            ) : (
-              <View style={[styles.mapPlaceholder, { backgroundColor: colors.surface }]}>
-                {locationGranted ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <Text style={[styles.mapPlaceholderText, { color: colors.muted }]}>
-                    Enable location to see your map
-                  </Text>
-                )}
+            <View style={[styles.locationInfo, { borderTopColor: colors.border }]}>
+              <View style={styles.locationCoordRow}>
+                <IconSymbol name="location.fill" size={14} color={colors.primary} />
+                <Text style={[styles.locationCoordText, { color: colors.muted }]}>
+                  {userLocation.latitude.toFixed(4)}°, {userLocation.longitude.toFixed(4)}°
+                </Text>
               </View>
-            )}
+              {storesWithDistance.length > 0 && (
+                <Text style={[styles.locationNearestText, { color: colors.foreground }]}>
+                  Nearest: {storesWithDistance[0].name}
+                  {storesWithDistance[0].distMeters !== null
+                    ? ` · ${formatDistance(storesWithDistance[0].distMeters, distanceUnit)}`
+                    : ""}
+                </Text>
+              )}
+            </View>
           </View>
         )}
 
@@ -480,15 +423,16 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 13, marginTop: 2 },
   premiumBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginTop: 4 },
   premiumText: { color: "#fff", fontSize: 11, fontWeight: "700", letterSpacing: 0.5 },
-  // Map card
+  // Location card (replaces Google Maps)
   mapCard: { borderRadius: 16, borderWidth: 1, marginBottom: 16, overflow: "hidden" },
   mapHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 14, paddingVertical: 10 },
   mapLiveDot: { width: 8, height: 8, borderRadius: 4 },
   mapTitle: { fontSize: 13, fontWeight: "600" },
   mapStoreCount: { fontSize: 12 },
-  map: { width: "100%", height: 200 },
-  mapPlaceholder: { height: 120, alignItems: "center", justifyContent: "center" },
-  mapPlaceholderText: { fontSize: 13 },
+  locationInfo: { paddingHorizontal: 14, paddingVertical: 12, borderTopWidth: 1, gap: 6 },
+  locationCoordRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  locationCoordText: { fontSize: 12 },
+  locationNearestText: { fontSize: 13, fontWeight: "600" },
   // Status card
   statusCard: { borderRadius: 16, padding: 16, borderWidth: 1, marginBottom: 16 },
   statusRow: { flexDirection: "row", alignItems: "center", gap: 12 },
