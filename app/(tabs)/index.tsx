@@ -1,19 +1,16 @@
 /**
  * Dashboard Screen
  *
- * Map strategy: react-native-maps MapView is mounted lazily (after first render + location ready)
- * to avoid the Android crash bug with Expo SDK 54 + New Architecture (RN 0.81).
- * The map only renders when userLocation is available and mapReady is true.
- *
- * References:
- * https://github.com/react-native-maps/react-native-maps/issues/5759
- * https://github.com/react-native-maps/react-native-maps/issues/5699
+ * Map strategy: react-native-maps MapView with PROVIDER_DEFAULT + UrlTile (OpenStreetMap).
+ * No Google Maps API key required — uses OSM tile server directly.
+ * Map is mounted lazily after location is available to avoid any init issues.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View, Text, ScrollView, Pressable, StyleSheet, RefreshControl,
   Platform, Animated,
 } from "react-native";
+import { OsmMap } from "@/components/osm-map";
 import { useFocusEffect, useRouter } from "expo-router";
 import * as Location from "expo-location";
 import * as Haptics from "expo-haptics";
@@ -53,9 +50,7 @@ function formatDistance(meters: number, unit: DistanceUnit): string {
   return miles < 10 ? `${miles.toFixed(1)} mi` : `${Math.round(miles)} mi`;
 }
 
-// react-native-maps removed — requires Google Maps API key which causes
-// IllegalStateException crash on Android when not configured.
-// Replaced with native location status card.
+
 
 export default function DashboardScreen() {
   const colors = useColors();
@@ -229,13 +224,13 @@ export default function DashboardScreen() {
           <Text style={[styles.devToastText, { color: colors.background }]}>{devToastMsg}</Text>
         </Animated.View>
 
-        {/* Location Status Card — replaces Google Maps (no API key required) */}
+        {/* Live Map — OpenStreetMap tiles, no Google API key required */}
         {userLocation && (
-          <View style={[styles.mapCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+          <View style={[styles.mapCard, { borderColor: colors.border }]}>
             <View style={styles.mapHeader}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                 <View style={[styles.mapLiveDot, { backgroundColor: colors.success }]} />
-                <Text style={[styles.mapTitle, { color: colors.foreground }]}>Live Location</Text>
+                <Text style={[styles.mapTitle, { color: colors.foreground }]}>Live Map</Text>
               </View>
               {stores.length > 0 && (
                 <Text style={[styles.mapStoreCount, { color: colors.muted }]}>
@@ -243,22 +238,12 @@ export default function DashboardScreen() {
                 </Text>
               )}
             </View>
-            <View style={[styles.locationInfo, { borderTopColor: colors.border }]}>
-              <View style={styles.locationCoordRow}>
-                <IconSymbol name="location.fill" size={14} color={colors.primary} />
-                <Text style={[styles.locationCoordText, { color: colors.muted }]}>
-                  {userLocation.latitude.toFixed(4)}°, {userLocation.longitude.toFixed(4)}°
-                </Text>
-              </View>
-              {storesWithDistance.length > 0 && (
-                <Text style={[styles.locationNearestText, { color: colors.foreground }]}>
-                  Nearest: {storesWithDistance[0].name}
-                  {storesWithDistance[0].distMeters !== null
-                    ? ` · ${formatDistance(storesWithDistance[0].distMeters, distanceUnit)}`
-                    : ""}
-                </Text>
-              )}
-            </View>
+            <OsmMap
+              latitude={userLocation.latitude}
+              longitude={userLocation.longitude}
+              stores={storesWithDistance}
+              formatDistance={(m) => formatDistance(m, distanceUnit)}
+            />
           </View>
         )}
 
@@ -423,16 +408,15 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 13, marginTop: 2 },
   premiumBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginTop: 4 },
   premiumText: { color: "#fff", fontSize: 11, fontWeight: "700", letterSpacing: 0.5 },
-  // Location card (replaces Google Maps)
+  // Map card (OpenStreetMap)
   mapCard: { borderRadius: 16, borderWidth: 1, marginBottom: 16, overflow: "hidden" },
   mapHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 14, paddingVertical: 10 },
   mapLiveDot: { width: 8, height: 8, borderRadius: 4 },
   mapTitle: { fontSize: 13, fontWeight: "600" },
   mapStoreCount: { fontSize: 12 },
-  locationInfo: { paddingHorizontal: 14, paddingVertical: 12, borderTopWidth: 1, gap: 6 },
-  locationCoordRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  locationCoordText: { fontSize: 12 },
-  locationNearestText: { fontSize: 13, fontWeight: "600" },
+  map: { width: "100%", height: 220 },
+  mapWebFallback: { height: 80, alignItems: "center", justifyContent: "center", gap: 6 },
+  mapWebText: { fontSize: 12 },
   // Status card
   statusCard: { borderRadius: 16, padding: 16, borderWidth: 1, marginBottom: 16 },
   statusRow: { flexDirection: "row", alignItems: "center", gap: 12 },

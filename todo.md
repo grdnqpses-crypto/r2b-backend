@@ -190,3 +190,8 @@
 - [x] Distance badge on search results (use user location to show how far each result is)
 - [x] Recent searches history saved in AsyncStorage (last 5 searches, quick re-run)
 - [x] Report missing store button with manual name/address entry form
+
+## Release 1.0.54 — OpenStreetMap Map on Dashboard
+- [x] Add react-native-maps with OpenStreetMap tile provider to Dashboard home screen (no Google API key)
+- [x] Show user location pin and saved store pins on the map
+- [x] Bump version to 1.0.54 / versionCode 10054
