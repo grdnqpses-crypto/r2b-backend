@@ -17,9 +17,13 @@ interface LeafletMapProps {
 }
 
 /**
- * Pure OpenStreetMap map using Leaflet via WebView.
- * Uses CARTO free tile server (no Referer restriction, no API key needed).
- * Zero Google dependencies — no API key, no GMS, no crashes.
+ * Interactive OpenStreetMap via Leaflet in a WebView.
+ *
+ * Tile provider: CARTO Voyager — free, no API key, no Referer restriction.
+ * OSM tiles block requests from native WebViews (no Referer header), so we
+ * use CARTO which allows all origins.
+ *
+ * Zero Google dependencies — no react-native-maps, no GMS, no API key.
  */
 export function LeafletMap({ latitude, longitude, stores = [], style }: LeafletMapProps) {
   const storesJson = JSON.stringify(
@@ -29,7 +33,7 @@ export function LeafletMap({ latitude, longitude, stores = [], style }: LeafletM
   const html = `<!DOCTYPE html>
 <html>
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=4.0, user-scalable=yes" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
@@ -40,7 +44,15 @@ export function LeafletMap({ latitude, longitude, stores = [], style }: LeafletM
 <body>
   <div id="map"></div>
   <script>
-    var map = L.map('map', { zoomControl: false, attributionControl: false }).setView([${latitude}, ${longitude}], 15);
+    var map = L.map('map', {
+      zoomControl: true,
+      attributionControl: false,
+      tap: true,
+      dragging: true,
+      touchZoom: true,
+      scrollWheelZoom: true,
+      doubleClickZoom: true
+    }).setView([${latitude}, ${longitude}], 15);
 
     // CARTO Voyager tiles — free, no Referer restriction, works in native WebView
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
@@ -57,7 +69,7 @@ export function LeafletMap({ latitude, longitude, stores = [], style }: LeafletM
     });
     L.marker([${latitude}, ${longitude}], { icon: userIcon }).addTo(map);
 
-    // Store markers (red pins with 400m circle)
+    // Store markers (red pins with 400m geofence circle)
     var stores = ${storesJson};
     stores.forEach(function(s) {
       var storeIcon = L.divIcon({
@@ -67,7 +79,13 @@ export function LeafletMap({ latitude, longitude, stores = [], style }: LeafletM
         iconAnchor: [6, 6]
       });
       L.marker([s.lat, s.lng], { icon: storeIcon }).bindPopup(s.name).addTo(map);
-      L.circle([s.lat, s.lng], { radius: 400, color: '#EF4444', fillColor: '#EF4444', fillOpacity: 0.08, weight: 1.5 }).addTo(map);
+      L.circle([s.lat, s.lng], {
+        radius: 400,
+        color: '#EF4444',
+        fillColor: '#EF4444',
+        fillOpacity: 0.08,
+        weight: 1.5
+      }).addTo(map);
     });
   </script>
 </body>
@@ -90,11 +108,14 @@ export function LeafletMap({ latitude, longitude, stores = [], style }: LeafletM
       <WebView
         source={{ html }}
         style={styles.webview}
-        scrollEnabled={false}
+        // scrollEnabled must be true so the user can pan and zoom the map
+        scrollEnabled={true}
         javaScriptEnabled
         domStorageEnabled
         originWhitelist={["*"]}
         mixedContentMode="always"
+        // Prevent the WebView's scroll from conflicting with the parent ScrollView
+        nestedScrollEnabled={true}
       />
     </View>
   );

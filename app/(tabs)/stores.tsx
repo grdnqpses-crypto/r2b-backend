@@ -81,6 +81,8 @@ export default function StoresScreen() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const searchInputRef = useRef<any>(null);
+  // Track whether nearby stores have been loaded at least once
+  const nearbyLoadedRef = useRef(false);
   // Recent searches (persisted in AsyncStorage)
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   // User location for distance badges in search results
@@ -168,12 +170,13 @@ export default function StoresScreen() {
   useFocusEffect(
     useCallback(() => {
       loadSavedStores();
-      // Always pre-load nearby stores so they are ready when user taps Nearby tab
-      // showLoader=false means no spinner — it loads silently in the background
-      if (nearbyStores.length === 0) {
+      // Load nearby stores on first focus — use a ref so this doesn't re-trigger
+      // every time nearbyStores state changes (which would cause an infinite loop)
+      if (!nearbyLoadedRef.current) {
+        nearbyLoadedRef.current = true;
         loadNearbyStores(true);
       }
-    }, [loadSavedStores, loadNearbyStores, nearbyStores.length])
+    }, [loadSavedStores, loadNearbyStores])
   );
 
   const handleTabChange = (tab: Tab) => {
