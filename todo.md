@@ -185,3 +185,8 @@
 ## Release 1.0.46 — Build Fix (Kotlin version)
 - [x] Fix Kotlin version from 1.9.25 to 2.1.20 (KSP compatibility)
 - [x] Bump version to 1.0.46 / versionCode 46
+
+## Search Improvements (Round 9)
+- [x] Distance badge on search results (use user location to show how far each result is)
+- [x] Recent searches history saved in AsyncStorage (last 5 searches, quick re-run)
+- [x] Report missing store button with manual name/address entry form

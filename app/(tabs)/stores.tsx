@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   View, Text, FlatList, Pressable, StyleSheet,
   Alert, Platform, ActivityIndicator, TextInput, RefreshControl,
@@ -80,6 +81,42 @@ export default function StoresScreen() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const searchInputRef = useRef<any>(null);
+  // Recent searches (persisted in AsyncStorage)
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  // User location for distance badges in search results
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  // Report missing store modal
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportName, setReportName] = useState("");
+  const [reportAddress, setReportAddress] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+
+  // Load recent searches from AsyncStorage on mount
+  useEffect(() => {
+    AsyncStorage.getItem("r2b_recent_searches").then((raw) => {
+      if (raw) {
+        try { setRecentSearches(JSON.parse(raw)); } catch {}
+      }
+    });
+    // Get user location for distance badges in search results
+    Location.getForegroundPermissionsAsync().then(({ status }) => {
+      if (status === "granted") {
+        Location.getLastKnownPositionAsync().then((pos) => {
+          if (pos) setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        }).catch(() => {});
+      }
+    });
+  }, []);
+
+  const saveRecentSearch = useCallback(async (q: string) => {
+    const trimmed = q.trim();
+    if (!trimmed) return;
+    setRecentSearches((prev) => {
+      const updated = [trimmed, ...prev.filter((s) => s !== trimmed)].slice(0, 5);
+      AsyncStorage.setItem("r2b_recent_searches", JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
+  }, []);
 
   const loadSavedStores = useCallback(async () => {
     const [storesData, tierData] = await Promise.all([getSavedStores(), getTier()]);
@@ -180,9 +217,10 @@ export default function StoresScreen() {
     }
   };
 
-  const handleSearchStores = useCallback(async () => {
-    const q = searchQuery.trim();
+  const handleSearchStores = useCallback(async (overrideQuery?: string) => {
+    const q = (overrideQuery ?? searchQuery).trim();
     if (!q) return;
+    if (overrideQuery) setSearchQuery(overrideQuery);
     setSearchLoading(true);
     setSearchError(null);
     setSearchResults([]);
@@ -190,12 +228,46 @@ export default function StoresScreen() {
       const results = await searchStoresByName(q);
       setSearchResults(results);
       if (results.length === 0) setSearchError("No stores found. Try a different name or add a city.");
+      else await saveRecentSearch(q);
     } catch {
       setSearchError("Search failed. Please check your internet connection.");
     } finally {
       setSearchLoading(false);
     }
-  }, [searchQuery]);
+  }, [searchQuery, saveRecentSearch]);
+
+  const handleReportMissingStore = async () => {
+    const name = reportName.trim();
+    const address = reportAddress.trim();
+    if (!name) { Alert.alert("Store name required", "Please enter the store name."); return; }
+    if (!address) { Alert.alert("Address required", "Please enter the store address."); return; }
+    setReportSubmitting(true);
+    try {
+      // Geocode the address using Nominatim
+      const encoded = encodeURIComponent(`${name} ${address}`);
+      const url = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1`;
+      const resp = await fetch(url, { headers: { "User-Agent": "Remember2Buy/1.0 (com.remember2buy.shopping)" } });
+      const data = await resp.json();
+      if (!data || data.length === 0) throw new Error("Could not find that address");
+      const lat = parseFloat(data[0].lat);
+      const lng = parseFloat(data[0].lon);
+      if (atLimit) { setShowPaywall(true); setShowReportModal(false); return; }
+      await setupNotifications();
+      const newStore = await addSavedStore({ name, address, lat, lng, category: "Store" });
+      const allStores = [...savedStores, newStore];
+      await startGeofencing(allStores);
+      await loadSavedStores();
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowReportModal(false);
+      setReportName("");
+      setReportAddress("");
+      Alert.alert(t("stores.storeAdded"), t("stores.storeAddedMessage", { name }), [{ text: t("stores.gotIt") }]);
+    } catch (err: any) {
+      Alert.alert("Could not add store", err?.message ?? "Please check the address and try again.");
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
 
   const handleAddSearchResult = async (result: NominatimResult) => {
     if (atLimit) { setShowPaywall(true); return; }
@@ -478,7 +550,7 @@ export default function StoresScreen() {
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 returnKeyType="search"
-                onSubmitEditing={handleSearchStores}
+                onSubmitEditing={() => handleSearchStores()}
                 autoFocus={false}
               />
               {searchQuery.length > 0 && (
@@ -489,7 +561,7 @@ export default function StoresScreen() {
             </View>
             <Pressable
               style={({ pressed }) => [styles.searchSubmitBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
-              onPress={handleSearchStores}
+              onPress={() => handleSearchStores()}
             >
               {searchLoading ? (
                 <ActivityIndicator size="small" color="#fff" />
@@ -500,11 +572,37 @@ export default function StoresScreen() {
             <Text style={[styles.searchHint, { color: colors.muted }]}>
               Powered by OpenStreetMap · Works for any store worldwide
             </Text>
+
+            {/* Recent searches chips */}
+            {recentSearches.length > 0 && searchResults.length === 0 && !searchLoading && (
+              <View style={styles.recentRow}>
+                <Text style={[styles.recentLabel, { color: colors.muted }]}>Recent:</Text>
+                <View style={styles.recentChips}>
+                  {recentSearches.map((s) => (
+                    <Pressable
+                      key={s}
+                      style={[styles.recentChip, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                      onPress={() => handleSearchStores(s)}
+                    >
+                      <Text style={[styles.recentChipText, { color: colors.foreground }]} numberOfLines={1}>{s}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            )}
+
             {searchError ? (
               <View style={styles.centered}>
                 <Text style={styles.errorEmoji}>🔍</Text>
                 <Text style={[styles.errorText, { color: colors.foreground }]}>{searchError}</Text>
                 <Text style={[styles.errorDesc, { color: colors.muted }]}>Try adding a city name, e.g. "Walmart Chicago"</Text>
+                {/* Report missing store button shown after failed search */}
+                <Pressable
+                  style={({ pressed }) => [styles.reportBtn, { backgroundColor: colors.warning + "20", borderColor: colors.warning + "50", opacity: pressed ? 0.8 : 1 }]}
+                  onPress={() => { setReportName(searchQuery.trim()); setShowReportModal(true); }}
+                >
+                  <Text style={[styles.reportBtnText, { color: colors.warning }]}>Can't find it? Add manually</Text>
+                </Pressable>
               </View>
             ) : (
               <FlatList
@@ -520,6 +618,14 @@ export default function StoresScreen() {
                   const addr = item.address
                     ? [item.address.road, item.address.city, item.address.state].filter(Boolean).join(", ")
                     : item.display_name;
+                  // Calculate distance if user location is known
+                  let distMeters: number | null = null;
+                  if (userLocation) {
+                    const dLat = (lat - userLocation.lat) * Math.PI / 180;
+                    const dLng = (lng - userLocation.lng) * Math.PI / 180;
+                    const a = Math.sin(dLat / 2) ** 2 + Math.cos(userLocation.lat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+                    distMeters = 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                  }
                   return (
                     <View style={[styles.storeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                       <View style={[styles.storeIcon, { backgroundColor: colors.primary + "18" }]}>
@@ -530,6 +636,14 @@ export default function StoresScreen() {
                           {item.name || item.display_name.split(",")[0]}
                         </Text>
                         <Text style={[styles.storeAddress, { color: colors.muted }]} numberOfLines={2}>{addr}</Text>
+                        {distMeters !== null && (
+                          <View style={styles.storeMetaRow}>
+                            <View style={[styles.distanceBadge, { backgroundColor: colors.primary + "15" }]}>
+                              <IconSymbol name="location.fill" size={11} color={colors.primary} />
+                              <Text style={[styles.distanceText, { color: colors.primary }]}>{formatDistance(distMeters)}</Text>
+                            </View>
+                          </View>
+                        )}
                       </View>
                       <Pressable
                         style={({ pressed }) => [
@@ -550,9 +664,19 @@ export default function StoresScreen() {
                     </View>
                   );
                 }}
-                contentContainerStyle={styles.listContent}
+                contentContainerStyle={[styles.listContent, { paddingBottom: 80 }]}
                 showsVerticalScrollIndicator={false}
                 ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+                ListFooterComponent={
+                  searchResults.length > 0 ? (
+                    <Pressable
+                      style={({ pressed }) => [styles.reportBtn, { backgroundColor: colors.warning + "15", borderColor: colors.warning + "40", marginTop: 16, opacity: pressed ? 0.8 : 1 }]}
+                      onPress={() => setShowReportModal(true)}
+                    >
+                      <Text style={[styles.reportBtnText, { color: colors.warning }]}>Don't see the right location? Add manually</Text>
+                    </Pressable>
+                  ) : null
+                }
                 ListEmptyComponent={
                   searchResults.length === 0 && !searchLoading && !searchError ? (
                     <View style={styles.centered}>
@@ -605,6 +729,57 @@ export default function StoresScreen() {
           onDismiss={() => setShowPaywall(false)}
         />
       </Modal>
+
+      {/* Report / Add Missing Store Modal */}
+      <Modal
+        visible={showReportModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowReportModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.background }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Add Store Manually</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.muted }]}>
+              Can't find the store in search results? Enter the name and address below and we'll add it with geofencing.
+            </Text>
+            <TextInput
+              style={[styles.modalInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface }]}
+              placeholder="Store name (e.g. Bob's Hardware)"
+              placeholderTextColor={colors.muted}
+              value={reportName}
+              onChangeText={setReportName}
+              returnKeyType="next"
+            />
+            <TextInput
+              style={[styles.modalInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface }]}
+              placeholder="Address (e.g. 123 Main St, Chicago, IL)"
+              placeholderTextColor={colors.muted}
+              value={reportAddress}
+              onChangeText={setReportAddress}
+              returnKeyType="done"
+              onSubmitEditing={handleReportMissingStore}
+            />
+            <Pressable
+              style={({ pressed }) => [styles.modalSubmitBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
+              onPress={handleReportMissingStore}
+              disabled={reportSubmitting}
+            >
+              {reportSubmitting ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.modalSubmitText}>Add Store & Start Monitoring</Text>
+              )}
+            </Pressable>
+            <Pressable
+              style={styles.modalCancelBtn}
+              onPress={() => { setShowReportModal(false); setReportName(""); setReportAddress(""); }}
+            >
+              <Text style={[styles.modalCancelText, { color: colors.muted }]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </ScreenContainer>
   );
 }
@@ -649,4 +824,23 @@ const styles = StyleSheet.create({
   searchSubmitBtn: { paddingVertical: 13, borderRadius: 12, alignItems: "center", marginBottom: 6, marginTop: 4 },
   searchSubmitText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   searchHint: { fontSize: 11, textAlign: "center", marginBottom: 12 },
+  // Recent searches
+  recentRow: { marginBottom: 12 },
+  recentLabel: { fontSize: 12, fontWeight: "600", marginBottom: 6 },
+  recentChips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  recentChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1 },
+  recentChipText: { fontSize: 13 },
+  // Report missing store
+  reportBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, borderWidth: 1, alignItems: "center" },
+  reportBtnText: { fontSize: 14, fontWeight: "600" },
+  // Report modal
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  modalSheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, gap: 14 },
+  modalTitle: { fontSize: 18, fontWeight: "700" },
+  modalSubtitle: { fontSize: 13, lineHeight: 19 },
+  modalInput: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15 },
+  modalSubmitBtn: { paddingVertical: 14, borderRadius: 12, alignItems: "center" },
+  modalSubmitText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  modalCancelBtn: { paddingVertical: 10, alignItems: "center" },
+  modalCancelText: { fontSize: 15 },
 });
