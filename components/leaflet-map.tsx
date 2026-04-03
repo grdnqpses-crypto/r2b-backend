@@ -18,6 +18,7 @@ interface LeafletMapProps {
 
 /**
  * Pure OpenStreetMap map using Leaflet via WebView.
+ * Uses CARTO free tile server (no Referer restriction, no API key needed).
  * Zero Google dependencies — no API key, no GMS, no crashes.
  */
 export function LeafletMap({ latitude, longitude, stores = [], style }: LeafletMapProps) {
@@ -41,8 +42,10 @@ export function LeafletMap({ latitude, longitude, stores = [], style }: LeafletM
   <script>
     var map = L.map('map', { zoomControl: false, attributionControl: false }).setView([${latitude}, ${longitude}], 15);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19
+    // CARTO Voyager tiles — free, no Referer restriction, works in native WebView
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+      subdomains: 'abcd'
     }).addTo(map);
 
     // User location marker (blue dot)
