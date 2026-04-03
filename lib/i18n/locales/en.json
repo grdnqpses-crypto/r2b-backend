@@ -180,7 +180,11 @@
     "termsOfService": "Terms of Service",
     "contactSupport": "Contact Support",
     "developerMode": "Developer Mode",
-    "sendTestNotification": "Send Test Notification"
+    "sendTestNotification": "Send Test Notification",
+    "referAFriend": "Refer a Friend",
+    "referFriend": "Share Remember 2 Buy",
+    "referFriendDesc": "Give a friend 7 days free Premium",
+    "referFriendMessage": "Remember to try Remember 2 Buy! \ud83d\uded2\nUse my code {{code}} to get 7 days free Premium.\nNever forget to buy something again \u2014 it alerts you the second you arrive near a store.\nDownload it: https://play.google.com/store/apps/details?id=space.manus.remember2buy"
   },
   "onboarding": {
     "ad": {

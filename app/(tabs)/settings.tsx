@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
-  Alert, Platform, Linking, Switch, AppState, Modal, type AppStateStatus,
+  Alert, Platform, Linking, Switch, AppState, Modal, Share, type AppStateStatus,
 } from "react-native";
 import { useFocusEffect } from "expo-router";
 import Constants from "expo-constants";
@@ -14,7 +14,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
   getTier, setTier, getDistanceUnit, setDistanceUnit,
-  isDevModeEnabled, setDevModeEnabled,
+  isDevModeEnabled, setDevModeEnabled, getReferralCode,
   type Tier, type DistanceUnit,
 } from "@/lib/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -153,6 +153,17 @@ export default function SettingsScreen() {
 
   const handleUpgrade = () => {
     setShowPaywall(true);
+  };
+
+  const handleReferFriend = async () => {
+    try {
+      const code = await getReferralCode();
+      const message = t("settings.referFriendMessage", { code });
+      await Share.share({ message, title: t("settings.referFriend") });
+      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {
+      // user cancelled share sheet — no action needed
+    }
   };
 
   const handleRestorePurchases = async () => {
@@ -335,6 +346,23 @@ export default function SettingsScreen() {
                 </Pressable>
               </View>
             </View>
+          </View>
+        </View>
+
+        {/* Refer a Friend Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.muted }]}>{t("settings.referAFriend").toUpperCase()}</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Pressable
+              style={({ pressed }) => [styles.settingRow, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+              onPress={handleReferFriend}
+            >
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingLabel, { color: colors.primary }]}>{t("settings.referFriend")}</Text>
+                <Text style={[styles.settingDesc, { color: colors.muted }]}>{t("settings.referFriendDesc")}</Text>
+              </View>
+              <IconSymbol name="paperplane.fill" size={18} color={colors.primary} />
+            </Pressable>
           </View>
         </View>
 
