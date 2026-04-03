@@ -1,16 +1,15 @@
 /**
  * Dashboard Screen
  *
- * Map strategy: react-native-maps MapView with PROVIDER_DEFAULT + UrlTile (OpenStreetMap).
- * No Google Maps API key required — uses OSM tile server directly.
- * Map is mounted lazily after location is available to avoid any init issues.
+ * Map strategy: Pure Leaflet/OpenStreetMap via WebView.
+ * Zero Google dependencies — no react-native-maps, no GMS, no API key required.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View, Text, ScrollView, Pressable, StyleSheet, RefreshControl,
   Platform, Animated,
 } from "react-native";
-import { OsmMap } from "@/components/osm-map";
+import { LeafletMap } from "@/components/leaflet-map";
 import { useFocusEffect, useRouter } from "expo-router";
 import * as Location from "expo-location";
 import * as Haptics from "expo-haptics";
@@ -238,11 +237,10 @@ export default function DashboardScreen() {
                 </Text>
               )}
             </View>
-            <OsmMap
+            <LeafletMap
               latitude={userLocation.latitude}
               longitude={userLocation.longitude}
               stores={storesWithDistance}
-              formatDistance={(m) => formatDistance(m, distanceUnit)}
             />
           </View>
         )}
