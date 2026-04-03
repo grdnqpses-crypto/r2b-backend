@@ -23,8 +23,8 @@ export interface NearbyStore {
   brand?: string;     // e.g. "Walmart", "CVS"
 }
 
-// Radius in meters for nearby search (15 miles)
-const SEARCH_RADIUS_METERS = 24140;
+// Radius in meters for nearby search (5 miles — faster Overpass queries, still covers most users)
+const SEARCH_RADIUS_METERS = 8047;
 
 // Overpass API public endpoints — tried in order until one succeeds
 const OVERPASS_MIRRORS = [
@@ -147,7 +147,7 @@ function getCategory(tags: Record<string, string>): string {
 
 function buildOverpassQuery(lat: number, lng: number, radius: number): string {
   return `
-[out:json][timeout:25];
+[out:json][timeout:60];
 (
   node["shop"](around:${radius},${lat},${lng});
   node["amenity"~"pharmacy|fuel|supermarket"](around:${radius},${lat},${lng});
@@ -183,7 +183,7 @@ async function fetchOverpass(query: string): Promise<any> {
   for (const url of OVERPASS_MIRRORS) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000); // 8s per mirror
+      const timeout = setTimeout(() => controller.abort(), 30000); // 30s per mirror
       const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },

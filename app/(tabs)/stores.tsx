@@ -133,9 +133,20 @@ export default function StoresScreen() {
         setLocationError(t("stores.permissionDenied"));
         return;
       }
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      // Get location with fallback: try current position (15s timeout), fall back to last known
+      let location = await Location.getLastKnownPositionAsync().catch(() => null);
+      try {
+        const fresh = await Promise.race([
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Location timeout")), 15000)
+          ),
+        ]);
+        location = fresh;
+      } catch {
+        // Use last known position if fresh GPS times out
+        if (!location) throw new Error("Location unavailable");
+      }
       const stores = await getNearbyStores(location.coords.latitude, location.coords.longitude);
       setNearbyStores([...stores]);
       setLoading(false);
