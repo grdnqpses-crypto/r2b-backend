@@ -6,8 +6,7 @@ import "@/lib/i18n"; // Initialize i18next with all 21 locales
 import "@/global.css";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack, useRouter, useSegments, useRootNavigationState } from "expo-router";
-import { SplashScreen } from "expo-router";
+import { Stack, Redirect, SplashScreen } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -40,44 +39,33 @@ async function autoStartGeofencing() {
 }
 
 /**
- * RootNavigator handles auth-gated navigation using useRouter + useSegments.
+ * RootNavigator — uses <Redirect> instead of router.replace() to avoid
+ * the Android New Architecture crash where calling router.replace() during
+ * a React state update while a screen is still mounted causes a native exception.
  *
- * CRITICAL: We must wait for useRootNavigationState().key to be defined before
- * calling router.replace(). On Android, calling router.replace() before the
- * navigator is fully mounted causes a native crash. This is the root cause of
- * the crash after the referral/skip screen in onboarding — completeOnboarding()
- * sets isOnboardingComplete=true, which triggers this effect, but at that moment
- * the navigator may not yet be ready to accept navigation commands.
+ * The <Redirect> component is rendered as part of the React tree, so it
+ * participates in the normal render cycle and never races with navigation state.
+ * This is the officially supported pattern for expo-router 6.
  */
 function RootNavigator() {
   const { isLoaded, isOnboardingComplete } = useOnboarding();
-  const router = useRouter();
-  const segments = useSegments();
-  const navigationState = useRootNavigationState();
+  const [geofenceStarted, setGeofenceStarted] = useState(false);
 
   useEffect(() => {
-    // Wait for BOTH: onboarding state loaded AND navigator fully mounted
     if (!isLoaded) return;
-    if (!navigationState?.key) return; // Navigator not yet ready — do NOT call router
-
-    // Hide splash once we know onboarding state and navigator is ready
+    // Hide splash once we know onboarding state
     SplashScreen.hideAsync().catch(() => {});
+  }, [isLoaded]);
 
-    const inOnboarding = segments[0] === "onboarding";
-    const inTabs = segments[0] === "(tabs)";
-
-    if (!isOnboardingComplete && !inOnboarding) {
-      // Not done onboarding — send to onboarding
-      router.replace("/onboarding");
-    } else if (isOnboardingComplete && !inTabs) {
-      // Done onboarding — send to main app, then start geofencing
-      router.replace("/(tabs)");
-      // Delay geofencing start to avoid racing with navigation transition
-      setTimeout(() => {
-        autoStartGeofencing();
-      }, 1500);
-    }
-  }, [isLoaded, isOnboardingComplete, navigationState?.key]);
+  useEffect(() => {
+    if (!isOnboardingComplete || geofenceStarted) return;
+    setGeofenceStarted(true);
+    // Delay geofencing start to avoid racing with navigation transition
+    const timer = setTimeout(() => {
+      autoStartGeofencing();
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [isOnboardingComplete]);
 
   // Keep splash screen up until we know onboarding state
   if (!isLoaded) return null;
@@ -87,6 +75,8 @@ function RootNavigator() {
       <Stack.Screen name="onboarding" options={{ animation: "fade", gestureEnabled: false }} />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="oauth/callback" />
+      {/* <Redirect> is safe on Android New Architecture — it never calls router imperatively */}
+      {!isOnboardingComplete && <Redirect href="/onboarding" />}
     </Stack>
   );
 }

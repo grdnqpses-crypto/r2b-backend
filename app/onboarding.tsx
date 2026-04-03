@@ -14,6 +14,7 @@ import { useColors } from "@/hooks/use-colors";
 import { applyReferralCode, saveOnboardingStep, getSavedOnboardingStep } from "@/lib/storage";
 import { setupNotifications } from "@/lib/notifications";
 import { useOnboarding } from "@/lib/onboarding-context";
+import { useRouter } from "expo-router";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -47,6 +48,7 @@ export default function OnboardingScreen() {
   const colors = useColors();
   const { t } = useTranslation();
   const { completeOnboarding } = useOnboarding();
+  const router = useRouter();
   const [step, setStep] = useState(0);
   const [stepLoaded, setStepLoaded] = useState(false);
 
@@ -181,6 +183,17 @@ export default function OnboardingScreen() {
         await completeOnboarding();
       } catch {}
     }
+    // Belt-and-suspenders: explicitly navigate after state is set.
+    // The Redirect in _layout.tsx also handles this, but we navigate here
+    // too so the transition happens immediately without waiting for a re-render.
+    // Use setTimeout to let React flush the state update first.
+    setTimeout(() => {
+      try {
+        router.replace("/(tabs)");
+      } catch {
+        // Non-fatal — Redirect in _layout.tsx will handle it
+      }
+    }, 100);
   };
 
   const requestNotifications = async () => {
