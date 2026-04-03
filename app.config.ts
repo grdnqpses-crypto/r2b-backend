@@ -78,6 +78,7 @@ const config: ExpoConfig = {
   },
   plugins: [
     "./plugins/withGestureHandlerFix",
+    "./plugins/withMinSdkVersion",
     "expo-router",
     [
       "expo-location",
