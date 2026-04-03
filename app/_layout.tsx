@@ -6,7 +6,7 @@ import "@/lib/i18n"; // Initialize i18next with all 21 locales
 import "@/global.css";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack, Redirect, SplashScreen } from "expo-router";
+import { Stack, SplashScreen } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -39,13 +39,18 @@ async function autoStartGeofencing() {
 }
 
 /**
- * RootNavigator — uses <Redirect> instead of router.replace() to avoid
- * the Android New Architecture crash where calling router.replace() during
- * a React state update while a screen is still mounted causes a native exception.
+ * RootNavigator — uses Stack.Protected to show/hide screens based on onboarding state.
  *
- * The <Redirect> component is rendered as part of the React tree, so it
- * participates in the normal render cycle and never races with navigation state.
- * This is the officially supported pattern for expo-router 6.
+ * Stack.Protected with guard={false} excludes screens from the navigation stack entirely.
+ * This is a STATIC FILTER — it never calls router.replace() or any imperative navigation.
+ * React Navigation handles the transition internally when the guard prop changes.
+ *
+ * This is the correct, crash-free approach for expo-router 6.0.19 on Android New Architecture.
+ *
+ * How it works:
+ * - When isOnboardingComplete=false: only "onboarding" is in the stack
+ * - When isOnboardingComplete=true: only "(tabs)" is in the stack
+ * - The transition happens automatically — no router.replace(), no Redirect, no useEffect navigation
  */
 function RootNavigator() {
   const { isLoaded, isOnboardingComplete } = useOnboarding();
@@ -65,18 +70,26 @@ function RootNavigator() {
       autoStartGeofencing();
     }, 2000);
     return () => clearTimeout(timer);
-  }, [isOnboardingComplete]);
+  }, [isOnboardingComplete, geofenceStarted]);
 
   // Keep splash screen up until we know onboarding state
   if (!isLoaded) return null;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="onboarding" options={{ animation: "fade", gestureEnabled: false }} />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="oauth/callback" />
-      {/* <Redirect> is safe on Android New Architecture — it never calls router imperatively */}
-      {!isOnboardingComplete && <Redirect href="/onboarding" />}
+      {/* Onboarding screens — only accessible when onboarding is NOT complete */}
+      <Stack.Protected guard={!isOnboardingComplete}>
+        <Stack.Screen
+          name="onboarding"
+          options={{ animation: "none", gestureEnabled: false }}
+        />
+      </Stack.Protected>
+
+      {/* Main app screens — only accessible when onboarding IS complete */}
+      <Stack.Protected guard={isOnboardingComplete}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="oauth/callback" />
+      </Stack.Protected>
     </Stack>
   );
 }

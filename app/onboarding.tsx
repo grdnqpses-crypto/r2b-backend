@@ -14,7 +14,7 @@ import { useColors } from "@/hooks/use-colors";
 import { applyReferralCode, saveOnboardingStep, getSavedOnboardingStep } from "@/lib/storage";
 import { setupNotifications } from "@/lib/notifications";
 import { useOnboarding } from "@/lib/onboarding-context";
-import { useRouter } from "expo-router";
+
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -48,7 +48,6 @@ export default function OnboardingScreen() {
   const colors = useColors();
   const { t } = useTranslation();
   const { completeOnboarding } = useOnboarding();
-  const router = useRouter();
   const [step, setStep] = useState(0);
   const [stepLoaded, setStepLoaded] = useState(false);
 
@@ -175,25 +174,19 @@ export default function OnboardingScreen() {
    * Calling startGeofencing(0 stores) → stopGeofencing() → native crash on Android.
    */
   const finish = async () => {
+    // Stack.Protected in _layout.tsx handles navigation automatically.
+    // When isOnboardingComplete becomes true, Stack.Protected removes the
+    // onboarding screen and shows (tabs) with no imperative navigation.
+    // Do NOT call router.replace() here — the screen gets unmounted by
+    // Stack.Protected before any setTimeout fires, causing a native crash.
     try {
       await completeOnboarding();
     } catch {
-      // If completeOnboarding throws (rare), force-navigate by retrying once
+      // Retry once if completeOnboarding throws
       try {
         await completeOnboarding();
       } catch {}
     }
-    // Belt-and-suspenders: explicitly navigate after state is set.
-    // The Redirect in _layout.tsx also handles this, but we navigate here
-    // too so the transition happens immediately without waiting for a re-render.
-    // Use setTimeout to let React flush the state update first.
-    setTimeout(() => {
-      try {
-        router.replace("/(tabs)");
-      } catch {
-        // Non-fatal — Redirect in _layout.tsx will handle it
-      }
-    }, 100);
   };
 
   const requestNotifications = async () => {
