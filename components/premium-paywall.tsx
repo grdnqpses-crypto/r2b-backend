@@ -2,38 +2,26 @@
  * PremiumPaywall — Subscription paywall for Remember 2 Buy.
  *
  * Pricing:
- *   - $1.99/week auto-renewing
- *   - Freemium: 1 store & 3 items free, Premium unlocks everything
- *
- * Google Play Billing integration note:
- *   In production, replace the `onActivate` mock with a real call to
- *   `expo-iap` or `react-native-purchases` (RevenueCat) to initiate
- *   the Play Store / App Store subscription purchase flow.
- *
- *   Recommended: RevenueCat (https://revenuecat.com)
- *   - Product ID: "premium_weekly_199"
- *   - No free trial
- *   - Price: $1.99/week
- *
- *   The `onActivate` callback is called after a successful purchase
- *   or free trial start, and should update the premium state.
+ *   - $1.99/week  auto-renewing  (SKU: premium_weekly_199)
+ *   - $59.99/year auto-renewing  (SKU: premium_annual_5999)  ← save 42%
  */
 import { useState } from "react";
-import { View, Text, Pressable, ScrollView, StyleSheet, Platform, Linking } from "react-native";
+import {
+  View, Text, Pressable, ScrollView, StyleSheet, Platform, Linking,
+} from "react-native";
 import { useColors } from "@/hooks/use-colors";
-import { Haptics, LinearGradient } from "@/lib/safe-imports";
-import { useReferral } from "@/hooks/use-referral";
+import * as Haptics from "expo-haptics";
+
+type PlanType = "weekly" | "annual";
 
 interface PremiumPaywallProps {
   reason: "store-limit" | "item-limit" | "locked-feature" | "general";
   itemName?: string;
   featureName?: string;
   scansRemaining?: number;
-  /** Whether the Google Play Billing connection is ready for purchases */
   iapReady?: boolean;
-  /** Error message from the last purchase attempt */
   purchaseError?: string | null;
-  onActivate: (family: boolean) => void;
+  onActivate: (plan: PlanType) => void;
   onDismiss: () => void;
 }
 
@@ -41,22 +29,19 @@ const PREMIUM_FEATURES = [
   { emoji: "♾️", title: "Unlimited Lists", desc: "Create as many shopping lists as you need" },
   { emoji: "🌍", title: "Unlimited Stores", desc: "Add as many stores as you need — grocery, pharmacy, hardware, and more" },
   { emoji: "⏱️", title: "Unlimited Items", desc: "Add unlimited items to any list" },
-  { emoji: "🔬", title: "Coupon Section", desc: "Save and organize coupons alongside your shopping lists" },
+  { emoji: "🏷️", title: "Smart Savings", desc: "Find cash back and weekly deals for every item on your list with one tap" },
   { emoji: "🎭", title: "Smart Reminders", desc: "Get notified the moment you arrive at any store" },
-  { emoji: "🧘", title: "Family Sharing", desc: "Share lists with family members in real time" },
+  { emoji: "🔥", title: "Store Alerts", desc: "GPS alerts when you're 0.3 miles from any saved store" },
   { emoji: "📔", title: "Purchase History", desc: "Track what you've bought and how much you've spent" },
   { emoji: "📈", title: "Savings Tracker", desc: "See how much you save with coupons over time" },
-  { emoji: "👥", title: "Multiple Profiles", desc: "Create separate shopping profiles for each family member" },
   { emoji: "🎁", title: "Referral Rewards", desc: "Share with friends — you both get a free week" },
-  { emoji: "📄", title: "Scan Reports", desc: "Generate shareable image cards with full sensor data" },
-  { emoji: "🔥", title: "Store Alerts", desc: "Get GPS alerts when you're near any store on your list" },
-  { emoji: "🎨", title: "Custom Categories", desc: "Organize items into custom categories with your own labels" },
+  { emoji: "🎤", title: "Voice Input", desc: "Add items to your list hands-free with voice" },
   { emoji: "🌙", title: "Barcode Scanner", desc: "Scan barcodes to quickly add items to your list" },
+  { emoji: "🎨", title: "Custom Categories", desc: "Organize items into custom categories with your own labels" },
 ];
 
 export function PremiumPaywall({
   reason,
-  itemName,
   featureName,
   scansRemaining,
   iapReady = true,
@@ -65,19 +50,16 @@ export function PremiumPaywall({
   onDismiss,
 }: PremiumPaywallProps) {
   const colors = useColors();
-  const { referral } = useReferral();
-  // Only one plan: Premium $1.99/week
-
-  const hasFreeWeeks = referral.freeWeeksRemaining > 0;
+  const [selectedPlan, setSelectedPlan] = useState<PlanType>("annual");
 
   const getHeaderText = () => {
     switch (reason) {
       case "store-limit":
         return scansRemaining === 0
           ? "You've reached your free store limit"
-          : `You have reached the free plan limit`;
+          : "You have reached the free plan limit";
       case "item-limit":
-        return `Unlock unlimited stores & items`;
+        return "Unlock unlimited stores & items";
       case "locked-feature":
         return `${featureName} is a Premium feature`;
       default:
@@ -88,25 +70,18 @@ export function PremiumPaywall({
   const getSubtext = () => {
     switch (reason) {
       case "store-limit":
-        return "Upgrade to Premium for unlimited stores, unlimited items, and the coupon section.";
+        return "Upgrade to Premium for unlimited stores, unlimited items, and Smart Savings.";
       case "item-limit":
         return "Free users get 1 store and 3 items. Upgrade to add unlimited stores and items.";
       case "locked-feature":
         return "This feature requires Premium. Upgrade to unlock it.";
       default:
-        return "Get unlimited stores, unlimited items, the coupon section, and much more.";
+        return "Get unlimited stores, unlimited items, Smart Savings deals, and much more.";
     }
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <LinearGradient
-        colors={["rgba(155,122,255,0.2)", "rgba(155,122,255,0.05)", "transparent"]}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 0.5 }}
-      />
-
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -131,97 +106,126 @@ export function PremiumPaywall({
           {getSubtext()}
         </Text>
 
-        {/* Free week from referral banner */}
-        {hasFreeWeeks && (
-          <View style={[styles.freeWeekBanner, { backgroundColor: colors.success + "15", borderColor: colors.success + "40" }]}>
-            <Text style={styles.freeWeekEmoji}>🎁</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.freeWeekTitle, { color: colors.success }]}>
-                You have {referral.freeWeeksRemaining} free week{referral.freeWeeksRemaining !== 1 ? "s" : ""} from referrals!
-              </Text>
-              <Text style={[styles.freeWeekDesc, { color: colors.muted }]}>
-                Start your subscription and your first {referral.freeWeeksRemaining} week{referral.freeWeeksRemaining !== 1 ? "s" : ""} will be free.
-              </Text>
-            </View>
-          </View>
-        )}
-
         {/* Pricing cards */}
         <View style={styles.pricingSection}>
-          {/* Weekly plan — PRIMARY */}
+
+          {/* Annual plan — BEST VALUE */}
           <Pressable
-            onPress={() => {}}
+            onPress={() => setSelectedPlan("annual")}
             style={({ pressed }) => [
               styles.priceCard,
               {
                 backgroundColor: colors.surface,
-                borderColor: colors.primary,
-                borderWidth: 2,
+                borderColor: selectedPlan === "annual" ? "#22C55E" : colors.border,
+                borderWidth: selectedPlan === "annual" ? 2 : 1,
                 opacity: pressed ? 0.9 : 1,
-                transform: [{ scale: pressed ? 0.98 : 1 }],
               },
             ]}
           >
-            <View style={[styles.popularBadge, { backgroundColor: colors.primary }]}>
-              <Text style={styles.popularText}>⭐ MOST POPULAR</Text>
+            <View style={[styles.popularBadge, { backgroundColor: "#22C55E" }]}>
+              <Text style={styles.popularText}>🏆 BEST VALUE — SAVE 42%</Text>
             </View>
-            <Text style={[styles.planName, { color: colors.foreground }]}>Premium</Text>
+            <Text style={[styles.planName, { color: colors.foreground }]}>Premium Annual</Text>
+            <View style={styles.priceRow}>
+              <Text style={[styles.planPrice, { color: "#22C55E" }]}>$59.99</Text>
+              <Text style={[styles.planPeriod, { color: colors.muted }]}>/year</Text>
+            </View>
+            <View style={[styles.trialBadge, { backgroundColor: "#22C55E20", borderColor: "#22C55E40" }]}>
+              <Text style={[styles.trialText, { color: "#22C55E" }]}>
+                ✓ Only $1.15/week · Cancel anytime
+              </Text>
+            </View>
+            <Text style={[styles.planNote, { color: colors.muted }]}>
+              ~$5.00/month · Auto-renews yearly
+            </Text>
+
+            {selectedPlan === "annual" && (
+              <>
+                {!!purchaseError && (
+                  <View style={[styles.errorBanner, { backgroundColor: colors.error + "18", borderColor: colors.error + "40" }]}>
+                    <Text style={[styles.errorText, { color: colors.error }]}>{purchaseError}</Text>
+                  </View>
+                )}
+                <Pressable
+                  onPress={() => {
+                    if (Platform.OS !== "web") {
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    }
+                    onActivate("annual");
+                  }}
+                  style={({ pressed }) => [
+                    styles.ctaBtn,
+                    {
+                      backgroundColor: iapReady ? "#22C55E" : colors.muted,
+                      opacity: pressed ? 0.9 : 1,
+                    },
+                  ]}
+                >
+                  <Text style={styles.ctaBtnText}>
+                    {!iapReady ? "Connecting to store..." : "Start Annual — $59.99/year"}
+                  </Text>
+                </Pressable>
+              </>
+            )}
+          </Pressable>
+
+          {/* Weekly plan */}
+          <Pressable
+            onPress={() => setSelectedPlan("weekly")}
+            style={({ pressed }) => [
+              styles.priceCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: selectedPlan === "weekly" ? colors.primary : colors.border,
+                borderWidth: selectedPlan === "weekly" ? 2 : 1,
+                opacity: pressed ? 0.9 : 1,
+              },
+            ]}
+          >
+            <Text style={[styles.planName, { color: colors.foreground, marginTop: 4 }]}>Premium Weekly</Text>
             <View style={styles.priceRow}>
               <Text style={[styles.planPrice, { color: colors.primary }]}>$1.99</Text>
-              <Text style={[styles.planPeriod, { color: colors.muted }]}>/week, auto-renewing</Text>
+              <Text style={[styles.planPeriod, { color: colors.muted }]}>/week</Text>
             </View>
             <View style={[styles.trialBadge, { backgroundColor: colors.primary + "20", borderColor: colors.primary + "40" }]}>
               <Text style={[styles.trialText, { color: colors.primary }]}>
                 ✓ Instant access — cancel anytime
               </Text>
             </View>
-            <Text style={[styles.planAnnual, { color: colors.muted }]}>
+            <Text style={[styles.planNote, { color: colors.muted }]}>
               ~$8.63/month · Auto-renews weekly
             </Text>
-{/* Error message from last purchase attempt */}
-            {!!purchaseError && (
-              <View style={[styles.errorBanner, { backgroundColor: colors.error + "18", borderColor: colors.error + "40" }]}>
-                <Text style={[styles.errorText, { color: colors.error }]}>{purchaseError}</Text>
-              </View>
-            )}
 
-            <Pressable
-              onPress={() => {
-                if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                onActivate(false);
-              }}
-              style={({ pressed }) => [
-                styles.ctaBtn,
-                {
-                  backgroundColor: iapReady ? colors.primary : colors.muted,
-                  opacity: pressed ? 0.9 : 1,
-                },
-              ]}
-            >
-              <Text style={styles.ctaBtnText}>
-                {!iapReady
-                  ? "Connecting to store..."
-                  : hasFreeWeeks
-                  ? `Start Free — ${referral.freeWeeksRemaining + 0} week${referral.freeWeeksRemaining !== 1 ? "s" : ""} free`
-                  : "Start Premium — $1.99/week"}
-              </Text>
-            </Pressable>
+            {selectedPlan === "weekly" && (
+              <>
+                {!!purchaseError && (
+                  <View style={[styles.errorBanner, { backgroundColor: colors.error + "18", borderColor: colors.error + "40" }]}>
+                    <Text style={[styles.errorText, { color: colors.error }]}>{purchaseError}</Text>
+                  </View>
+                )}
+                <Pressable
+                  onPress={() => {
+                    if (Platform.OS !== "web") {
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    }
+                    onActivate("weekly");
+                  }}
+                  style={({ pressed }) => [
+                    styles.ctaBtn,
+                    {
+                      backgroundColor: iapReady ? colors.primary : colors.muted,
+                      opacity: pressed ? 0.9 : 1,
+                    },
+                  ]}
+                >
+                  <Text style={styles.ctaBtnText}>
+                    {!iapReady ? "Connecting to store..." : "Start Weekly — $1.99/week"}
+                  </Text>
+                </Pressable>
+              </>
+            )}
           </Pressable>
 
-          {/* Only one plan: Premium $1.99/week. Family plan removed. */}
-        </View>
-
-        {/* Referral promo */}
-        <View style={[styles.referralPromo, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={styles.referralPromoEmoji}>🎁</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.referralPromoTitle, { color: colors.foreground }]}>
-              Share & Get a Free Week
-            </Text>
-            <Text style={[styles.referralPromoDesc, { color: colors.muted }]}>
-              Share your referral code with a friend. When they subscribe, you both get 1 free week added to your account.
-            </Text>
-          </View>
         </View>
 
         {/* Features list */}
@@ -246,8 +250,8 @@ export function PremiumPaywall({
             ✓ Cancel anytime  ·  ✓ No commitment  ·  ✓ Instant access
           </Text>
           <Text style={[styles.trustSubtext, { color: colors.muted }]}>
-            Subscription auto-renews at $1.99/week unless cancelled.{"\n"}
-            Manage or cancel in Google Play / App Store settings.
+            Subscriptions auto-renew unless cancelled.{"\n"}
+            Manage or cancel in Google Play settings.
           </Text>
           <Pressable
             onPress={() => Linking.openURL("https://remember2buy.com/privacy")}
@@ -271,22 +275,13 @@ const styles = StyleSheet.create({
   closeBtn: { position: "absolute", top: 0, right: 0, padding: 8, zIndex: 10 },
   closeBtnText: { fontSize: 24, fontWeight: "300" },
   crownEmoji: { fontSize: 56, textAlign: "center", marginBottom: 12 },
-  headerTitle: { fontSize: 28, fontWeight: "900", textAlign: "center", marginBottom: 8 },
+  headerTitle: { fontSize: 26, fontWeight: "900", textAlign: "center", marginBottom: 8 },
   headerReason: { fontSize: 15, fontWeight: "600", textAlign: "center", marginBottom: 8 },
-  headerSubtext: { fontSize: 14, lineHeight: 22, textAlign: "center", marginBottom: 20, paddingHorizontal: 8 },
-  freeWeekBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    marginBottom: 20,
+  headerSubtext: {
+    fontSize: 14, lineHeight: 22, textAlign: "center",
+    marginBottom: 20, paddingHorizontal: 8,
   },
-  freeWeekEmoji: { fontSize: 28 },
-  freeWeekTitle: { fontSize: 14, fontWeight: "700" },
-  freeWeekDesc: { fontSize: 12, marginTop: 2, lineHeight: 18 },
-  pricingSection: { gap: 12, marginBottom: 16 },
+  pricingSection: { gap: 12, marginBottom: 24 },
   priceCard: {
     borderRadius: 20,
     padding: 20,
@@ -295,9 +290,7 @@ const styles = StyleSheet.create({
   },
   popularBadge: {
     position: "absolute",
-    top: 0,
-    right: 0,
-    left: 0,
+    top: 0, right: 0, left: 0,
     paddingVertical: 5,
     alignItems: "center",
   },
@@ -308,34 +301,17 @@ const styles = StyleSheet.create({
   planPeriod: { fontSize: 16, fontWeight: "500" },
   trialBadge: {
     marginTop: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
+    paddingHorizontal: 14, paddingVertical: 6,
+    borderRadius: 20, borderWidth: 1,
   },
   trialText: { fontSize: 13, fontWeight: "700", textAlign: "center" },
-  planAnnual: { fontSize: 12, marginTop: 6, textAlign: "center" },
+  planNote: { fontSize: 12, marginTop: 6, textAlign: "center" },
   ctaBtn: {
     marginTop: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 14,
-    alignItems: "center",
-    width: "100%",
+    paddingVertical: 14, paddingHorizontal: 32,
+    borderRadius: 14, alignItems: "center", width: "100%",
   },
   ctaBtnText: { color: "#fff", fontSize: 16, fontWeight: "800" },
-  referralPromo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 24,
-  },
-  referralPromoEmoji: { fontSize: 28 },
-  referralPromoTitle: { fontSize: 14, fontWeight: "700" },
-  referralPromoDesc: { fontSize: 12, lineHeight: 18, marginTop: 2 },
   featuresList: { marginBottom: 28 },
   featuresTitle: { fontSize: 16, fontWeight: "700", marginBottom: 16 },
   featureRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 14, gap: 12 },
@@ -348,11 +324,8 @@ const styles = StyleSheet.create({
   trustSubtext: { fontSize: 11, marginTop: 8, textAlign: "center", lineHeight: 18 },
   legalLink: { fontSize: 11, textDecorationLine: "underline" },
   errorBanner: {
-    marginTop: 12,
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    width: "100%",
+    marginTop: 12, padding: 10,
+    borderRadius: 10, borderWidth: 1, width: "100%",
   },
   errorText: { fontSize: 13, fontWeight: "600", textAlign: "center" },
 });

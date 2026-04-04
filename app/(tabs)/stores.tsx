@@ -752,7 +752,7 @@ export default function StoresScreen() {
       >
         <PremiumPaywall
           reason="store-limit"
-          onActivate={async (_family: boolean) => {
+          onActivate={async (_plan) => {
             setShowPaywall(false);
             await loadSavedStores();
           }}

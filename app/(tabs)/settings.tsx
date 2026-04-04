@@ -473,10 +473,13 @@ export default function SettingsScreen() {
           reason="general"
           iapReady={subscription.iapReady}
           purchaseError={subscription.error}
-          onActivate={async (_family: boolean) => {
+          onActivate={async (plan) => {
             try {
-              await subscription.purchase();
-              // purchase() resolves when Play dialog is shown.
+              if (plan === "annual") {
+                await subscription.purchaseAnnual();
+              } else {
+                await subscription.purchase();
+              }
               // purchaseUpdatedListener handles success and sets status to "active".
               // Close modal after a short delay to let the listener fire.
               setTimeout(() => {

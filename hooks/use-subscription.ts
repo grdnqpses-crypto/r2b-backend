@@ -52,8 +52,11 @@ function isIAPAvailable(): boolean {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 export const SUBSCRIPTION_SKU = "premium_weekly_199";
+export const ANNUAL_SKU = "premium_annual_5999";
 /** Weekly price shown to users */
 export const SUBSCRIPTION_PRICE = "$1.99";
+/** Annual price shown to users */
+export const ANNUAL_PRICE = "$59.99";
 /** Play Store URL for fallback when IAP is unavailable */
 export const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.remember2buy.shopping";
 
@@ -79,11 +82,15 @@ export interface SubscriptionState {
   /** Whether the user has seen and agreed to the subscription consent screen */
   hasConsented: boolean;
   /**
-   * Initiate a purchase via Google Play Billing.
-   * THROWS an Error if IAP is unavailable or connection is not ready,
-   * so callers can catch and fall back to the Play Store URL.
+   * Initiate a weekly ($1.99/week) purchase via Google Play Billing.
+   * THROWS an Error if IAP is unavailable or connection is not ready.
    */
   purchase: () => Promise<void>;
+  /**
+   * Initiate an annual ($59.99/year) purchase via Google Play Billing.
+   * THROWS an Error if IAP is unavailable or connection is not ready.
+   */
+  purchaseAnnual: () => Promise<void>;
   /** Restore previous purchases */
   restore: () => Promise<void>;
   /** Refresh subscription status from Play Store */
@@ -100,6 +107,7 @@ export function useSubscription(): SubscriptionState {
   const [hasConsented, setHasConsented] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offerToken, setOfferToken] = useState<string | null>(null);
+  const [annualOfferToken, setAnnualOfferToken] = useState<string | null>(null);
   const connectionRef = useRef(false);
   const purchaseListenerRef = useRef<{ remove: () => void } | null>(null);
   const errorListenerRef = useRef<{ remove: () => void } | null>(null);
@@ -175,25 +183,30 @@ export function useSubscription(): SubscriptionState {
         connectionRef.current = true;
         if (mounted) setIapReady(true);
 
-        // Fetch subscription product to get the offer token
+        // Fetch both subscription products to get offer tokens
         try {
-          const products = await fetchProducts({ skus: [SUBSCRIPTION_SKU] });
+          const products = await fetchProducts({ skus: [SUBSCRIPTION_SKU, ANNUAL_SKU] });
           if (mounted && products && products.length > 0) {
-            const sub = products[0] as {
-              subscriptionOfferDetailsAndroid?: Array<{
-                offerToken: string;
-                pricingPhases?: Array<{ formattedPrice?: string; priceAmountMicros?: string }>;
-              }>;
-            };
-            const offerDetails = sub.subscriptionOfferDetailsAndroid;
-            if (offerDetails && offerDetails.length > 0) {
-              // Use the base plan offer (the paid weekly offer, not a free trial)
-              const baseOffer = offerDetails.find((o) =>
-                o.pricingPhases?.every(
-                  (p) => p.priceAmountMicros !== "0"
-                )
-              ) ?? offerDetails[0];
-              setOfferToken(baseOffer.offerToken ?? null);
+            for (const product of products) {
+              const sub = product as {
+                productId?: string;
+                subscriptionOfferDetailsAndroid?: Array<{
+                  offerToken: string;
+                  pricingPhases?: Array<{ formattedPrice?: string; priceAmountMicros?: string }>;
+                }>;
+              };
+              const offerDetails = sub.subscriptionOfferDetailsAndroid;
+              if (offerDetails && offerDetails.length > 0) {
+                const baseOffer =
+                  offerDetails.find((o) =>
+                    o.pricingPhases?.every((p) => p.priceAmountMicros !== "0")
+                  ) ?? offerDetails[0];
+                if (sub.productId === SUBSCRIPTION_SKU) {
+                  setOfferToken(baseOffer.offerToken ?? null);
+                } else if (sub.productId === ANNUAL_SKU) {
+                  setAnnualOfferToken(baseOffer.offerToken ?? null);
+                }
+              }
             }
           }
         } catch {
@@ -202,7 +215,7 @@ export function useSubscription(): SubscriptionState {
 
         // Purchase success listener
         purchaseListenerRef.current = purchaseUpdatedListener(async (purchase) => {
-          if (purchase.productId === SUBSCRIPTION_SKU) {
+          if (purchase.productId === SUBSCRIPTION_SKU || purchase.productId === ANNUAL_SKU) {
             try {
               await finishTransaction({ purchase, isConsumable: false });
               await AsyncStorage.setItem(STORAGE_STATUS_KEY, "active");
@@ -283,9 +296,40 @@ export function useSubscription(): SubscriptionState {
         },
       },
     });
-    // Note: success is handled by purchaseUpdatedListener above.
-    // requestPurchase resolves when the purchase dialog is shown, not when complete.
+  // Note: success is handled by purchaseUpdatedListener above.
+  // requestPurchase resolves when the purchase dialog is shown, not when complete.
   }, [offerToken]);
+
+  /**
+   * Trigger the Google Play subscription purchase flow for premium_annual_5999.
+   * THROWS when IAP is unavailable or connection is not ready.
+   */
+  const purchaseAnnual = useCallback(async () => {
+    if (Platform.OS === "web") {
+      throw new Error("Subscriptions are only available on Android devices.");
+    }
+    if (!isIAPAvailable()) {
+      throw new Error("Google Play Billing is not available on this device.");
+    }
+    if (!connectionRef.current) {
+      throw new Error("Store connection not ready. Please try again in a moment.");
+    }
+    setError(null);
+    await AsyncStorage.setItem(STORAGE_CONSENT_KEY, "true");
+    setHasConsented(true);
+    const { requestPurchase } = await import("react-native-iap");
+    await requestPurchase({
+      type: "subs",
+      request: {
+        google: {
+          skus: [ANNUAL_SKU],
+          ...(annualOfferToken
+            ? { subscriptionOffers: [{ sku: ANNUAL_SKU, offerToken: annualOfferToken }] }
+            : {}),
+        },
+      },
+    });
+  }, [annualOfferToken]);
 
   const restore = useCallback(async () => {
     if (!isIAPAvailable()) {
@@ -296,7 +340,9 @@ export function useSubscription(): SubscriptionState {
       setError(null);
       const { getAvailablePurchases } = await import("react-native-iap");
       const purchases = await getAvailablePurchases();
-      const activeSub = purchases.find((p) => p.productId === SUBSCRIPTION_SKU);
+      const activeSub = purchases.find(
+      (p) => p.productId === SUBSCRIPTION_SKU || p.productId === ANNUAL_SKU
+    );
       if (activeSub) {
         await AsyncStorage.setItem(STORAGE_STATUS_KEY, "active");
         setStatus("active");
@@ -317,6 +363,7 @@ export function useSubscription(): SubscriptionState {
     iapReady,
     hasConsented,
     purchase,
+    purchaseAnnual,
     restore,
     refresh: refreshStatus,
     error,
