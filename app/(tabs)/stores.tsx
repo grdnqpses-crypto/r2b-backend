@@ -55,7 +55,7 @@ import {
   getSavedStores, addSavedStore, deleteSavedStore, getTier,
   FREE_STORE_LIMIT, type SavedStore, type Tier,
 } from "@/lib/storage";
-import { getNearbyStores, enrichStoreAddresses, formatDistance, type NearbyStore } from "@/lib/nearby-stores";
+import { getNearbyStores, enrichStoreAddresses, formatDistance, getPersistedNearbyStores, type NearbyStore } from "@/lib/nearby-stores";
 import { startGeofencing, stopGeofencing } from "@/lib/geofence";
 import { setupNotifications } from "@/lib/notifications";
 
@@ -127,21 +127,35 @@ export default function StoresScreen() {
   }, []);
 
   const loadNearbyStores = useCallback(async (showLoader = true) => {
-    if (showLoader) setLoading(true);
     setLocationError(null);
+
+    // ── INSTANT DISPLAY: show persisted results immediately while fresh data loads ──
+    // This eliminates the blank screen on first open. The user sees stores within ~100ms.
+    if (showLoader && nearbyStores.length === 0) {
+      const persisted = await getPersistedNearbyStores();
+      if (persisted && persisted.length > 0) {
+        setNearbyStores(persisted);
+        // Show a subtle spinner instead of a full loading screen since we have data
+        setLoading(false);
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+    }
+
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         setLocationError(t("stores.permissionDenied"));
         return;
       }
-      // Get location with fallback: try current position (15s timeout), fall back to last known
+      // Get location: use last-known immediately, race with fresh GPS (8s timeout)
       let location = await Location.getLastKnownPositionAsync().catch(() => null);
       try {
         const fresh = await Promise.race([
           Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("Location timeout")), 15000)
+            setTimeout(() => reject(new Error("Location timeout")), 8000)
           ),
         ]);
         location = fresh;
@@ -151,11 +165,10 @@ export default function StoresScreen() {
       }
       const stores = await getNearbyStores(location.coords.latitude, location.coords.longitude);
       setNearbyStores([...stores]);
-      setLoading(false);
+      // Enrich addresses in parallel batches — runs in background, updates UI when done
       enrichStoreAddresses(stores).then(() => {
         setNearbyStores([...stores]);
       }).catch(() => {});
-      return;
     } catch (err: any) {
       if (err?.message?.includes("Overpass")) {
         setLocationError(t("stores.networkError"));
@@ -164,8 +177,9 @@ export default function StoresScreen() {
       }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [t]);
+  }, [t, nearbyStores.length]);
 
   useFocusEffect(
     useCallback(() => {

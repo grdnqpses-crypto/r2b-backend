@@ -2,15 +2,15 @@
  * Nearby store discovery using the Overpass API (OpenStreetMap).
  * No API key required. Free to use.
  *
- * Strategy:
- * 1. getNearbyStores() returns stores immediately with OSM addr: tags where available.
- *    Stores without addr: tags get address = "" initially.
- * 2. enrichStoreAddresses() can be called separately to fill in missing addresses
- *    via Expo reverseGeocodeAsync, updating the array in-place.
- *    The caller is responsible for triggering a re-render after this.
+ * Performance strategy:
+ * 1. On first call, show any persisted (AsyncStorage) results INSTANTLY while fetching fresh data.
+ * 2. getNearbyStores() fetches from Overpass with a 20s timeout (down from 35s).
+ * 3. enrichStoreAddresses() runs in parallel batches of 5 (down from serial with 80ms delay).
+ * 4. Results are persisted to AsyncStorage so next open is instant.
  */
 
 import * as Location from "expo-location";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export interface NearbyStore {
   id: string;          // OSM node/way ID
@@ -25,6 +25,10 @@ export interface NearbyStore {
 
 // Radius in meters for nearby search (15 miles)
 const SEARCH_RADIUS_METERS = 24140;
+
+// AsyncStorage key for persisted nearby stores (instant display on next open)
+const PERSIST_KEY = "r2b_nearby_stores_cache";
+const PERSIST_TTL_MS = 10 * 60 * 1000; // 10 minutes — persist longer than in-memory cache
 
 // Overpass API public endpoints — tried in order until one succeeds
 const OVERPASS_MIRRORS = [
@@ -148,12 +152,10 @@ function getCategory(tags: Record<string, string>): string {
 }
 
 function buildOverpassQuery(lat: number, lng: number, radius: number): string {
-  // Broad shop query covers: supermarket, convenience, pharmacy, hardware, electronics,
-  // clothing, gas_station, dollar_store, etc. — including Wawa (shop=convenience or amenity=fuel)
-  // Amenity query covers: pharmacy, fuel (gas stations like Wawa), supermarket, convenience
+  // timeout reduced to 20s (was 30s) — Overpass usually responds in 3-8s for this query
   // Limit raised to 200 so dense areas don't cut off results
   return `
-[out:json][timeout:30];
+[out:json][timeout:20];
 (
   node["shop"](around:${radius},${lat},${lng});
   node["amenity"~"^(pharmacy|fuel|supermarket|convenience)$"](around:${radius},${lat},${lng});
@@ -175,6 +177,7 @@ interface OSMElement {
 
 /**
  * Try each Overpass mirror in order, returning the first successful response.
+ * Per-mirror timeout reduced to 22s (was 35s).
  * Throws an error with "Overpass" in the message if all mirrors fail.
  */
 async function fetchOverpass(query: string): Promise<any> {
@@ -182,7 +185,7 @@ async function fetchOverpass(query: string): Promise<any> {
   for (const url of OVERPASS_MIRRORS) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 35000); // 35s per mirror
+      const timeout = setTimeout(() => controller.abort(), 22000); // 22s per mirror
       const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -199,6 +202,33 @@ async function fetchOverpass(query: string): Promise<any> {
     }
   }
   throw lastError;
+}
+
+/**
+ * Load persisted nearby stores from AsyncStorage.
+ * Returns null if no cache or cache is expired.
+ */
+export async function getPersistedNearbyStores(): Promise<NearbyStore[] | null> {
+  try {
+    const raw = await AsyncStorage.getItem(PERSIST_KEY);
+    if (!raw) return null;
+    const parsed: { data: NearbyStore[]; ts: number } = JSON.parse(raw);
+    if (Date.now() - parsed.ts > PERSIST_TTL_MS) return null;
+    return parsed.data;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Persist nearby stores to AsyncStorage for instant display on next open.
+ */
+async function persistNearbyStores(stores: NearbyStore[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PERSIST_KEY, JSON.stringify({ data: stores, ts: Date.now() }));
+  } catch {
+    // Non-fatal
+  }
 }
 
 export async function getNearbyStores(
@@ -257,8 +287,11 @@ export async function getNearbyStores(
   // Sort by distance ascending by default
   stores.sort((a, b) => a.distanceMeters - b.distanceMeters);
 
-  // Write to cache
+  // Write to in-memory cache
   _cache.set(key, { data: stores, ts: Date.now() });
+
+  // Persist to AsyncStorage for instant display on next app open
+  persistNearbyStores(stores).catch(() => {});
 
   return stores;
 }
@@ -267,32 +300,37 @@ export async function getNearbyStores(
  * Enrich stores that are missing addresses using Expo reverse geocoding.
  * Mutates the store objects in-place. Call setNearbyStores([...stores]) after this.
  *
+ * Runs in parallel batches of 5 (was serial with 80ms delay) for ~5x speed improvement.
  * Only processes the first `limit` stores without addresses to avoid rate limiting.
  */
 export async function enrichStoreAddresses(
   stores: NearbyStore[],
-  limit = 30
+  limit = 15
 ): Promise<void> {
   const missing = stores.filter((s) => !s.address);
   if (missing.length === 0) return;
 
   const toEnrich = missing.slice(0, limit);
+  const BATCH_SIZE = 5;
 
-  for (const store of toEnrich) {
-    try {
-      const results = await Location.reverseGeocodeAsync({
-        latitude: store.lat,
-        longitude: store.lng,
-      });
-      if (results.length > 0) {
-        const addr = formatAddressFromGeocode(results[0]);
-        if (addr) store.address = addr;
-      }
-    } catch {
-      // Non-fatal — leave address blank
-    }
-    // Small delay to avoid geocoder rate limiting
-    await new Promise((r) => setTimeout(r, 80));
+  for (let i = 0; i < toEnrich.length; i += BATCH_SIZE) {
+    const batch = toEnrich.slice(i, i + BATCH_SIZE);
+    await Promise.allSettled(
+      batch.map(async (store) => {
+        try {
+          const results = await Location.reverseGeocodeAsync({
+            latitude: store.lat,
+            longitude: store.lng,
+          });
+          if (results.length > 0) {
+            const addr = formatAddressFromGeocode(results[0]);
+            if (addr) store.address = addr;
+          }
+        } catch {
+          // Non-fatal — leave address blank
+        }
+      })
+    );
   }
 }
 

@@ -62,7 +62,7 @@ export async function startGeofencing(stores: SavedStore[]): Promise<void> {
     longitude: store.lng,
     radius: GEOFENCE_RADIUS_METERS,
     notifyOnEnter: true,
-    notifyOnExit: false,
+    notifyOnExit: true,  // Required: Exit event cancels the 6-min in-store reminder for drive-bys
   }));
 
   // Android allows up to 100 geofences; iOS allows up to 20

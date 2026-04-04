@@ -12,6 +12,10 @@ import i18n from "@/lib/i18n";
 
 export const GEOFENCE_TASK_NAME = "R2B_GEOFENCE_TASK";
 
+// AsyncStorage key prefix for pending in-store notification identifiers.
+// Keyed by store identifier so we can cancel per-store.
+const PENDING_NOTIF_KEY_PREFIX = "r2b_pending_instore_";
+
 /**
  * Ensure i18n is initialized with the correct device language before
  * building notification strings. Background tasks run in a separate JS
@@ -43,6 +47,10 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
     region: Location.LocationRegion;
   };
 
+  const storeName = region.identifier || "a store";
+  const pendingKey = `${PENDING_NOTIF_KEY_PREFIX}${region.identifier}`;
+
+  // ── USER ENTERED the 0.3-mile boundary ──
   if (eventType === Location.GeofencingEventType.Enter) {
     try {
       ensureI18nLanguage();
@@ -54,7 +62,6 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
         : [];
       const unchecked = items.filter((i) => !i.checked);
 
-      const storeName = region.identifier || "a store";
       const top3 = unchecked.slice(0, 3);
       const remaining = unchecked.length - top3.length;
 
@@ -70,8 +77,9 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
       const itemList = buildItemList(top3, remaining);
 
       if (unchecked.length > 0) {
-        // ── NOTIFICATION 1: Immediate approach alert (fires right when user crosses 0.3mi boundary) ──
-        // Gives the user time to decide whether to stop at the store.
+        // ── NOTIFICATION 1: Immediate approach alert ──
+        // Fires the moment the user crosses the 0.3-mile boundary.
+        // Gives them time to decide whether to stop.
         await Notifications.scheduleNotificationAsync({
           content: {
             title: `📍 Approaching ${storeName}`,
@@ -82,9 +90,10 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
           trigger: null, // fire immediately
         });
 
-        // ── NOTIFICATION 2: In-store reminder (fires 6 minutes after entering the boundary) ──
-        // By 6 minutes the user has parked, grabbed a basket, and is walking the aisles.
-        await Notifications.scheduleNotificationAsync({
+        // ── NOTIFICATION 2: In-store reminder (6 minutes later) ──
+        // Only fires if the user is STILL inside the boundary after 6 minutes.
+        // If they exit before 6 minutes (drive-by), the Exit handler cancels this.
+        const instoreId = await Notifications.scheduleNotificationAsync({
           content: {
             title: `🛒 Time to grab at ${storeName}`,
             body: `Remember to buy: ${itemList}`,
@@ -93,8 +102,11 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
           },
           trigger: { seconds: 360, repeats: false } as any,
         });
+
+        // Save the identifier so the Exit handler can cancel it if the user leaves early
+        await AsyncStorage.setItem(pendingKey, instoreId);
       } else {
-        // No unchecked items — single gentle nudge immediately
+        // No unchecked items — single gentle nudge immediately, nothing to cancel
         await Notifications.scheduleNotificationAsync({
           content: {
             title: `🛒 You're near ${storeName}`,
@@ -102,11 +114,28 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
             sound: false,
             data: { storeId: region.identifier, type: "geofence_empty" },
           },
-          trigger: null, // fire immediately
+          trigger: null,
         });
       }
     } catch (err) {
-      console.error("[R2B Geofence] Notification error:", err);
+      console.error("[R2B Geofence] Enter notification error:", err);
+    }
+  }
+
+  // ── USER EXITED the 0.3-mile boundary ──
+  // If they left before 6 minutes (drive-by, passing the store, etc.),
+  // cancel the pending in-store reminder so they don't get a false notification
+  // when they're already pulling into their driveway.
+  if (eventType === Location.GeofencingEventType.Exit) {
+    try {
+      const pendingId = await AsyncStorage.getItem(pendingKey);
+      if (pendingId) {
+        await Notifications.cancelScheduledNotificationAsync(pendingId);
+        await AsyncStorage.removeItem(pendingKey);
+        console.log(`[R2B Geofence] Cancelled in-store reminder for ${storeName} (user exited before 6 min)`);
+      }
+    } catch (err) {
+      console.error("[R2B Geofence] Exit cancel error:", err);
     }
   }
 });
