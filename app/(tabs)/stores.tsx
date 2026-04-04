@@ -54,7 +54,11 @@ async function searchStoresByName(query: string): Promise<NominatimResult[]> {
 import {
   getSavedStores, addSavedStore, deleteSavedStore, getTier,
   FREE_STORE_LIMIT, type SavedStore, type Tier,
+  getStoreExtended, saveStoreExtended, toggleStoreFavorite, incrementStoreVisit,
+  type StoreExtended,
 } from "@/lib/storage";
+import * as Linking from "expo-linking";
+import * as Notifications from "expo-notifications";
 import { getNearbyStores, enrichStoreAddresses, formatDistance, getPersistedNearbyStores, type NearbyStore } from "@/lib/nearby-stores";
 import { startGeofencing, stopGeofencing } from "@/lib/geofence";
 import { setupNotifications } from "@/lib/notifications";
@@ -66,6 +70,10 @@ export default function StoresScreen() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>("nearby");
   const [savedStores, setSavedStores] = useState<SavedStore[]>([]);
+  const [storeExtMap, setStoreExtMap] = useState<Record<string, StoreExtended>>({});
+  const [selectedStore, setSelectedStore] = useState<SavedStore | null>(null);
+  const [storeDetailVisible, setStoreDetailVisible] = useState(false);
+  const [storeNotes, setStoreNotes] = useState("");
   const [nearbyStores, setNearbyStores] = useState<NearbyStore[]>([]);
   const [tier, setTierState] = useState<Tier>("free");
   const [loading, setLoading] = useState(false);
@@ -124,7 +132,60 @@ export default function StoresScreen() {
     const [storesData, tierData] = await Promise.all([getSavedStores(), getTier()]);
     setSavedStores(storesData);
     setTierState(tierData);
+    // Load extended info for all saved stores
+    const map: Record<string, StoreExtended> = {};
+    await Promise.all(storesData.map(async (s) => {
+      const ext = await getStoreExtended(s.id);
+      if (ext) map[s.id] = ext;
+    }));
+    setStoreExtMap(map);
   }, []);
+
+  const handleToggleFavorite = async (storeId: string) => {
+    await toggleStoreFavorite(storeId);
+    const ext = await getStoreExtended(storeId);
+    setStoreExtMap((prev) => ({ ...prev, [storeId]: ext ?? { storeId } }));
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const handleNavigateToStore = (store: SavedStore) => {
+    const label = encodeURIComponent(store.name);
+    const url = Platform.OS === "ios"
+      ? `maps://?q=${label}&ll=${store.lat},${store.lng}`
+      : `geo:${store.lat},${store.lng}?q=${label}`;
+    Linking.openURL(url).catch(() => {
+      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${store.lat},${store.lng}`);
+    });
+  };
+
+  const handleOnMyWay = async (store: SavedStore) => {
+    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    await incrementStoreVisit(store.id);
+    await loadSavedStores();
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "\uD83D\uDED2 On My Way!",
+        body: `Heading to ${store.name}. Your list is ready!`,
+        sound: true,
+      },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 1 },
+    }).catch(() => {});
+    Alert.alert("On My Way!", `Your visit to ${store.name} has been logged. List is ready!`);
+  };
+
+  const handleOpenStoreDetail = (store: SavedStore) => {
+    setSelectedStore(store);
+    setStoreNotes(storeExtMap[store.id]?.notes ?? "");
+    setStoreDetailVisible(true);
+  };
+
+  const handleSaveStoreNotes = async () => {
+    if (!selectedStore) return;
+    const ext = storeExtMap[selectedStore.id] ?? { storeId: selectedStore.id };
+    await saveStoreExtended({ ...ext, notes: storeNotes });
+    setStoreExtMap((prev) => ({ ...prev, [selectedStore.id]: { ...ext, notes: storeNotes } }));
+    setStoreDetailVisible(false);
+  };
 
   const loadNearbyStores = useCallback(async (showLoader = true) => {
     setLocationError(null);
@@ -415,28 +476,54 @@ export default function StoresScreen() {
     );
   };
 
-  const renderSavedStore = ({ item }: { item: SavedStore }) => (
-    <View style={[styles.storeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <View style={[styles.storeIcon, { backgroundColor: colors.success + "18" }]}>
-        <IconSymbol name="storefront.fill" size={20} color={colors.success} />
-      </View>
-      <View style={styles.storeInfo}>
-        <Text style={[styles.storeName, { color: colors.foreground }]} numberOfLines={1}>{item.name}</Text>
-        {item.address ? (
-          <Text style={[styles.storeAddress, { color: colors.muted }]} numberOfLines={1}>{item.address}</Text>
-        ) : null}
-        <View style={[styles.activeTag, { backgroundColor: colors.success + "18" }]}>
-          <Text style={[styles.activeTagText, { color: colors.success }]}>{t("stores.monitoringActive")}</Text>
-        </View>
-      </View>
+  const renderSavedStore = ({ item }: { item: SavedStore }) => {
+    const ext = storeExtMap[item.id];
+    const isFav = ext?.isFavorite ?? false;
+    const visitCount = ext?.visitCount ?? 0;
+    return (
       <Pressable
-        style={({ pressed }) => [styles.deleteBtn, { opacity: pressed ? 0.6 : 1 }]}
-        onPress={() => handleDeleteStore(item.id, item.name)}
+        style={({ pressed }) => [styles.storeCard, { backgroundColor: colors.surface, borderColor: isFav ? colors.warning : colors.border, opacity: pressed ? 0.95 : 1 }]}
+        onPress={() => handleOpenStoreDetail(item)}
       >
-        <IconSymbol name="trash.fill" size={18} color={colors.error} />
+        <View style={[styles.storeIcon, { backgroundColor: colors.success + "18" }]}>
+          <IconSymbol name="storefront.fill" size={20} color={colors.success} />
+        </View>
+        <View style={styles.storeInfo}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Text style={[styles.storeName, { color: colors.foreground, flex: 1 }]} numberOfLines={1}>{item.name}</Text>
+            {isFav && <Text style={{ fontSize: 14 }}>⭐</Text>}
+          </View>
+          {item.address ? (
+            <Text style={[styles.storeAddress, { color: colors.muted }]} numberOfLines={1}>{item.address}</Text>
+          ) : null}
+          <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+            <View style={[styles.activeTag, { backgroundColor: colors.success + "18" }]}>
+              <Text style={[styles.activeTagText, { color: colors.success }]}>{t("stores.monitoringActive")}</Text>
+            </View>
+            {visitCount > 0 && (
+              <View style={[styles.activeTag, { backgroundColor: colors.primary + "18" }]}>
+                <Text style={[styles.activeTagText, { color: colors.primary }]}>{visitCount} {visitCount === 1 ? "visit" : "visits"}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+        <View style={{ gap: 4 }}>
+          <Pressable style={({ pressed }) => [styles.iconBtn, { opacity: pressed ? 0.6 : 1 }]} onPress={() => handleToggleFavorite(item.id)}>
+            <Text style={{ fontSize: 18 }}>{isFav ? "⭐" : "☆"}</Text>
+          </Pressable>
+          <Pressable style={({ pressed }) => [styles.iconBtn, { opacity: pressed ? 0.6 : 1 }]} onPress={() => handleNavigateToStore(item)}>
+            <IconSymbol name="location.fill" size={18} color={colors.primary} />
+          </Pressable>
+          <Pressable style={({ pressed }) => [styles.iconBtn, { opacity: pressed ? 0.6 : 1 }]} onPress={() => handleOnMyWay(item)}>
+            <IconSymbol name="cart.fill" size={18} color={colors.success} />
+          </Pressable>
+          <Pressable style={({ pressed }) => [styles.deleteBtn, { opacity: pressed ? 0.6 : 1 }]} onPress={() => handleDeleteStore(item.id, item.name)}>
+            <IconSymbol name="trash.fill" size={18} color={colors.error} />
+          </Pressable>
+        </View>
       </Pressable>
-    </View>
-  );
+    );
+  };
 
   return (
     <ScreenContainer>
@@ -760,6 +847,61 @@ export default function StoresScreen() {
         />
       </Modal>
 
+      {/* Store Detail Modal */}
+      <Modal
+        visible={storeDetailVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setStoreDetailVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.background }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{selectedStore?.name}</Text>
+            {selectedStore?.address ? (
+              <Text style={[styles.modalSubtitle, { color: colors.muted }]}>{selectedStore.address}</Text>
+            ) : null}
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
+              <Pressable
+                style={({ pressed }) => [{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.primary, alignItems: "center", opacity: pressed ? 0.85 : 1 }]}
+                onPress={() => { if (selectedStore) { handleNavigateToStore(selectedStore); setStoreDetailVisible(false); } }}
+              >
+                <Text style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>Navigate</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.success, alignItems: "center", opacity: pressed ? 0.85 : 1 }]}
+                onPress={() => { if (selectedStore) { handleOnMyWay(selectedStore); setStoreDetailVisible(false); } }}
+              >
+                <Text style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>On My Way</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.warning + "30", alignItems: "center", opacity: pressed ? 0.85 : 1 }]}
+                onPress={() => { if (selectedStore) { handleToggleFavorite(selectedStore.id); } }}
+              >
+                <Text style={{ color: colors.warning, fontWeight: "700", fontSize: 14 }}>{storeExtMap[selectedStore?.id ?? ""]?.isFavorite ? "Unfav" : "Favorite"}</Text>
+              </Pressable>
+            </View>
+            <Text style={[{ fontSize: 14, fontWeight: "600", color: colors.foreground, marginTop: 8 }]}>Notes</Text>
+            <TextInput
+              style={[styles.modalInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface, minHeight: 80, textAlignVertical: "top" }]}
+              placeholder="Add notes about this store (e.g. best parking, open 24h)..."
+              placeholderTextColor={colors.muted}
+              value={storeNotes}
+              onChangeText={setStoreNotes}
+              multiline
+            />
+            <Pressable
+              style={({ pressed }) => [styles.modalSubmitBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
+              onPress={handleSaveStoreNotes}
+            >
+              <Text style={styles.modalSubmitText}>Save Notes</Text>
+            </Pressable>
+            <Pressable style={styles.modalCancelBtn} onPress={() => setStoreDetailVisible(false)}>
+              <Text style={[styles.modalCancelText, { color: colors.muted }]}>Close</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       {/* Report / Add Missing Store Modal */}
       <Modal
         visible={showReportModal}
@@ -842,6 +984,7 @@ const styles = StyleSheet.create({
   activeTagText: { fontSize: 11, fontWeight: "600" },
   addBtn: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   deleteBtn: { padding: 8 },
+  iconBtn: { padding: 8 },
   centered: { alignItems: "center", paddingVertical: 48, gap: 10 },
   loadingText: { fontSize: 14, marginTop: 8 },
   errorEmoji: { fontSize: 48 },

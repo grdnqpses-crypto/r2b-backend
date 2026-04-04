@@ -397,30 +397,32 @@ export default function DashboardScreen() {
         <View style={[styles.section, { marginTop: 4 }]}>
           <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 10 }]}>✨ Quick Access</Text>
           <View style={styles.quickGrid}>
-            <Pressable
-              style={({ pressed }) => [styles.quickCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 }]}
-              onPress={() => router.push("/budget" as never)}
-            >
-              <Text style={styles.quickEmoji}>💰</Text>
-              <Text style={[styles.quickLabel, { color: colors.foreground }]}>Budget</Text>
-              <Text style={[styles.quickSub, { color: colors.muted }]}>Trips & Goals</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.quickCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 }]}
-              onPress={() => router.push("/achievements" as never)}
-            >
-              <Text style={styles.quickEmoji}>🏆</Text>
-              <Text style={[styles.quickLabel, { color: colors.foreground }]}>Achievements</Text>
-              <Text style={[styles.quickSub, { color: colors.muted }]}>Badges & Streaks</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.quickCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 }]}
-              onPress={() => router.push("/meal-planner" as never)}
-            >
-              <Text style={styles.quickEmoji}>🍽️</Text>
-              <Text style={[styles.quickLabel, { color: colors.foreground }]}>Meal Planner</Text>
-              <Text style={[styles.quickSub, { color: colors.muted }]}>Recipes & Lists</Text>
-            </Pressable>
+            {([
+              { emoji: "💰", label: "Budget", sub: "Trips & Goals", route: "/budget" },
+              { emoji: "🏆", label: "Achievements", sub: "Badges & Streaks", route: "/achievements" },
+              { emoji: "🍽️", label: "Meal Planner", sub: "Recipes & Lists", route: "/meal-planner" },
+              { emoji: "🥦", label: "Pantry", sub: "Stock Tracker", route: "/pantry" },
+              { emoji: "⏰", label: "Reminders", sub: "Smart Alerts", route: "/reminders" },
+              { emoji: "👁️", label: "Watchlist", sub: "Price Drops", route: "/watchlist" },
+              { emoji: "👫", label: "Buddy Mode", sub: "Split List", route: "/shopping-buddy" },
+              { emoji: "💸", label: "Never Full Price", sub: "Savings Apps", route: "/never-full-price" },
+              { emoji: "🌱", label: "Carbon", sub: "Eco Tracker", route: "/carbon-footprint" },
+              { emoji: "🔄", label: "Healthy Swaps", sub: "Better Choices", route: "/healthy-swaps" },
+              { emoji: "🌿", label: "In Season", sub: "Fresh Produce", route: "/in-season" },
+              { emoji: "🧮", label: "Unit Price", sub: "Best Value", route: "/unit-price" },
+              { emoji: "📷", label: "Receipt Scan", sub: "Log Trip", route: "/receipt-scanner" },
+              { emoji: "❓", label: "Forgot?", sub: "Post-Trip Check", route: "/forgot-check" },
+            ] as const).map((item) => (
+              <Pressable
+                key={item.route}
+                style={({ pressed }) => [styles.quickCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 }]}
+                onPress={() => router.push(item.route as never)}
+              >
+                <Text style={styles.quickEmoji}>{item.emoji}</Text>
+                <Text style={[styles.quickLabel, { color: colors.foreground }]}>{item.label}</Text>
+                <Text style={[styles.quickSub, { color: colors.muted }]}>{item.sub}</Text>
+              </Pressable>
+            ))}
           </View>
         </View>
 

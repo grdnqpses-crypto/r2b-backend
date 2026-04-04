@@ -899,3 +899,343 @@ export async function isDevModeEnabled(): Promise<boolean> {
 export async function setDevModeEnabled(enabled: boolean): Promise<void> {
   await AsyncStorage.setItem(KEYS.DEV_MODE, enabled ? "1" : "0");
 }
+
+// ─── Extended Types for v2.0 Features ────────────────────────────────────────
+
+// Pantry / Staple Items
+export interface PantryItem {
+  id: string;
+  itemText: string;
+  category?: ItemCategory;
+  quantity?: number;
+  unit?: string;
+  currentStock: "plenty" | "low" | "out";
+  isStaple: boolean;
+  lastBoughtAt?: number;
+  notes?: string;
+}
+
+// Price Book
+export interface PriceBookEntry {
+  id: string;
+  itemText: string;
+  storeName: string;
+  price: number;
+  unitPrice?: number;
+  unitSize?: string;
+  date: number;
+  category?: ItemCategory;
+}
+
+// Watchlist (price drop alerts)
+export interface WatchlistItem {
+  id: string;
+  itemText: string;
+  targetPrice?: number;
+  currentPrice?: number;
+  storeName?: string;
+  addedAt: number;
+}
+
+// Scheduled Reminders
+export interface ShoppingReminder {
+  id: string;
+  label: string;
+  dayOfWeek: number;
+  hour: number;
+  minute: number;
+  isEnabled: boolean;
+  notificationId?: string;
+}
+
+// Store Extended Info
+export interface StoreExtended {
+  storeId: string;
+  phone?: string;
+  website?: string;
+  hours?: Record<string, string>;
+  notes?: string;
+  isFavorite?: boolean;
+  visitCount?: number;
+  lastVisitAt?: number;
+  tags?: string[];
+}
+
+// Dietary Preferences
+export interface DietaryPreferences {
+  glutenFree: boolean;
+  vegan: boolean;
+  vegetarian: boolean;
+  dairyFree: boolean;
+  nutFree: boolean;
+  lowSodium: boolean;
+  diabetic: boolean;
+  keto: boolean;
+  halal: boolean;
+  kosher: boolean;
+}
+
+// Weekly Savings Challenge
+export interface WeeklyChallenge {
+  weekStart: string;
+  targetAmount: number;
+  currentAmount: number;
+  isCompleted: boolean;
+}
+
+// App Settings
+export interface AppSettings {
+  fontSize: "small" | "medium" | "large" | "xlarge";
+  highContrast: boolean;
+  reduceMotion: boolean;
+  hapticEnabled: boolean;
+  notifyBestDeal: boolean;
+  notifyPriceDrop: boolean;
+  notifyExpiry: boolean;
+  neverPayFullPrice: boolean;
+  language: string;
+}
+
+// Efficiency Score
+export interface EfficiencyScore {
+  tripId: string;
+  date: number;
+  score: number;
+  itemsFound: number;
+  totalItems: number;
+  couponsUsed: number;
+  budgetAdherence: number;
+}
+
+// Shared List
+export interface SharedListInfo {
+  listId: string;
+  shareCode: string;
+  ownerName: string;
+  members: Array<{ name: string; joinedAt: number }>;
+  isActive: boolean;
+  createdAt: number;
+}
+
+// Item Assignment
+export interface ItemAssignment {
+  itemId: string;
+  assignedTo: string;
+}
+
+// ─── Extended Keys ────────────────────────────────────────────────────────────
+const EXTENDED_KEYS = {
+  PANTRY_ITEMS: "r2b_pantry_items",
+  PRICE_BOOK: "r2b_price_book",
+  WATCHLIST: "r2b_watchlist",
+  REMINDERS: "r2b_reminders",
+  STORE_EXTENDED_PREFIX: "r2b_store_ext_",
+  DIETARY_PREFS: "r2b_dietary_prefs",
+  WEEKLY_CHALLENGE: "r2b_weekly_challenge",
+  APP_SETTINGS: "r2b_app_settings",
+  LIFETIME_SAVINGS: "r2b_lifetime_savings",
+  EFFICIENCY_SCORES: "r2b_efficiency_scores",
+  SHARED_LISTS: "r2b_shared_lists",
+  ITEM_ASSIGNMENTS: "r2b_item_assignments",
+} as const;
+
+// ─── Pantry Functions ─────────────────────────────────────────────────────────
+export async function getPantryItems(): Promise<PantryItem[]> {
+  try {
+    const raw = await AsyncStorage.getItem(EXTENDED_KEYS.PANTRY_ITEMS);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+export async function addPantryItem(item: Omit<PantryItem, "id">): Promise<PantryItem> {
+  const items = await getPantryItems();
+  const newItem: PantryItem = { id: `pantry_${Date.now()}`, ...item };
+  await AsyncStorage.setItem(EXTENDED_KEYS.PANTRY_ITEMS, JSON.stringify([...items, newItem]));
+  return newItem;
+}
+export async function updatePantryItem(id: string, updates: Partial<PantryItem>): Promise<void> {
+  const items = await getPantryItems();
+  await AsyncStorage.setItem(EXTENDED_KEYS.PANTRY_ITEMS, JSON.stringify(items.map((i) => i.id === id ? { ...i, ...updates } : i)));
+}
+export async function deletePantryItem(id: string): Promise<void> {
+  const items = await getPantryItems();
+  await AsyncStorage.setItem(EXTENDED_KEYS.PANTRY_ITEMS, JSON.stringify(items.filter((i) => i.id !== id)));
+}
+
+// ─── Price Book Functions ─────────────────────────────────────────────────────
+export async function getPriceBook(): Promise<PriceBookEntry[]> {
+  try {
+    const raw = await AsyncStorage.getItem(EXTENDED_KEYS.PRICE_BOOK);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+export async function addPriceBookEntry(entry: Omit<PriceBookEntry, "id">): Promise<PriceBookEntry> {
+  const entries = await getPriceBook();
+  const newEntry: PriceBookEntry = { id: `pb_${Date.now()}`, ...entry };
+  await AsyncStorage.setItem(EXTENDED_KEYS.PRICE_BOOK, JSON.stringify([newEntry, ...entries]));
+  return newEntry;
+}
+export async function getPriceHistory(itemText: string): Promise<PriceBookEntry[]> {
+  const entries = await getPriceBook();
+  return entries.filter((e) => e.itemText.toLowerCase() === itemText.toLowerCase()).sort((a, b) => b.date - a.date);
+}
+
+// ─── Watchlist Functions ──────────────────────────────────────────────────────
+export async function getWatchlist(): Promise<WatchlistItem[]> {
+  try {
+    const raw = await AsyncStorage.getItem(EXTENDED_KEYS.WATCHLIST);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+export async function addToWatchlist(item: Omit<WatchlistItem, "id" | "addedAt">): Promise<WatchlistItem> {
+  const list = await getWatchlist();
+  const newItem: WatchlistItem = { id: `wl_${Date.now()}`, addedAt: Date.now(), ...item };
+  await AsyncStorage.setItem(EXTENDED_KEYS.WATCHLIST, JSON.stringify([...list, newItem]));
+  return newItem;
+}
+export async function removeFromWatchlist(id: string): Promise<void> {
+  const list = await getWatchlist();
+  await AsyncStorage.setItem(EXTENDED_KEYS.WATCHLIST, JSON.stringify(list.filter((i) => i.id !== id)));
+}
+
+// ─── Reminders Functions ──────────────────────────────────────────────────────
+export async function getReminders(): Promise<ShoppingReminder[]> {
+  try {
+    const raw = await AsyncStorage.getItem(EXTENDED_KEYS.REMINDERS);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+export async function saveReminders(reminders: ShoppingReminder[]): Promise<void> {
+  await AsyncStorage.setItem(EXTENDED_KEYS.REMINDERS, JSON.stringify(reminders));
+}
+export async function addReminder(reminder: Omit<ShoppingReminder, "id">): Promise<ShoppingReminder> {
+  const reminders = await getReminders();
+  const newR: ShoppingReminder = { id: `rem_${Date.now()}`, ...reminder };
+  await AsyncStorage.setItem(EXTENDED_KEYS.REMINDERS, JSON.stringify([...reminders, newR]));
+  return newR;
+}
+export async function deleteReminder(id: string): Promise<void> {
+  const reminders = await getReminders();
+  await AsyncStorage.setItem(EXTENDED_KEYS.REMINDERS, JSON.stringify(reminders.filter((r) => r.id !== id)));
+}
+
+// ─── Store Extended Functions ─────────────────────────────────────────────────
+export async function getStoreExtended(storeId: string): Promise<StoreExtended | null> {
+  try {
+    const raw = await AsyncStorage.getItem(EXTENDED_KEYS.STORE_EXTENDED_PREFIX + storeId);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+export async function saveStoreExtended(data: StoreExtended): Promise<void> {
+  await AsyncStorage.setItem(EXTENDED_KEYS.STORE_EXTENDED_PREFIX + data.storeId, JSON.stringify(data));
+}
+export async function toggleStoreFavorite(storeId: string): Promise<boolean> {
+  const ext = (await getStoreExtended(storeId)) ?? { storeId };
+  const newFav = !ext.isFavorite;
+  await saveStoreExtended({ ...ext, isFavorite: newFav });
+  return newFav;
+}
+export async function incrementStoreVisit(storeId: string): Promise<void> {
+  const ext = (await getStoreExtended(storeId)) ?? { storeId };
+  await saveStoreExtended({ ...ext, visitCount: (ext.visitCount ?? 0) + 1, lastVisitAt: Date.now() });
+}
+
+// ─── Dietary Preferences ─────────────────────────────────────────────────────
+const DEFAULT_DIETARY: DietaryPreferences = {
+  glutenFree: false, vegan: false, vegetarian: false, dairyFree: false,
+  nutFree: false, lowSodium: false, diabetic: false, keto: false, halal: false, kosher: false,
+};
+export async function getDietaryPreferences(): Promise<DietaryPreferences> {
+  try {
+    const raw = await AsyncStorage.getItem(EXTENDED_KEYS.DIETARY_PREFS);
+    return raw ? { ...DEFAULT_DIETARY, ...JSON.parse(raw) } : DEFAULT_DIETARY;
+  } catch { return DEFAULT_DIETARY; }
+}
+export async function saveDietaryPreferences(prefs: DietaryPreferences): Promise<void> {
+  await AsyncStorage.setItem(EXTENDED_KEYS.DIETARY_PREFS, JSON.stringify(prefs));
+}
+
+// ─── Weekly Challenge ─────────────────────────────────────────────────────────
+export async function getWeeklyChallenge(): Promise<WeeklyChallenge | null> {
+  try {
+    const raw = await AsyncStorage.getItem(EXTENDED_KEYS.WEEKLY_CHALLENGE);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+export async function saveWeeklyChallenge(challenge: WeeklyChallenge): Promise<void> {
+  await AsyncStorage.setItem(EXTENDED_KEYS.WEEKLY_CHALLENGE, JSON.stringify(challenge));
+}
+
+// ─── App Settings ─────────────────────────────────────────────────────────────
+const DEFAULT_APP_SETTINGS: AppSettings = {
+  fontSize: "medium", highContrast: false, reduceMotion: false, hapticEnabled: true,
+  notifyBestDeal: true, notifyPriceDrop: true, notifyExpiry: true, neverPayFullPrice: false, language: "en",
+};
+export async function getAppSettings(): Promise<AppSettings> {
+  try {
+    const raw = await AsyncStorage.getItem(EXTENDED_KEYS.APP_SETTINGS);
+    return raw ? { ...DEFAULT_APP_SETTINGS, ...JSON.parse(raw) } : DEFAULT_APP_SETTINGS;
+  } catch { return DEFAULT_APP_SETTINGS; }
+}
+export async function saveAppSettings(settings: Partial<AppSettings>): Promise<void> {
+  const current = await getAppSettings();
+  await AsyncStorage.setItem(EXTENDED_KEYS.APP_SETTINGS, JSON.stringify({ ...current, ...settings }));
+}
+
+// ─── Lifetime Savings ─────────────────────────────────────────────────────────
+export async function getLifetimeSavings(): Promise<number> {
+  try {
+    const raw = await AsyncStorage.getItem(EXTENDED_KEYS.LIFETIME_SAVINGS);
+    return raw ? parseFloat(raw) : 0;
+  } catch { return 0; }
+}
+export async function addToLifetimeSavings(amount: number): Promise<number> {
+  const current = await getLifetimeSavings();
+  const newTotal = current + amount;
+  await AsyncStorage.setItem(EXTENDED_KEYS.LIFETIME_SAVINGS, String(newTotal));
+  return newTotal;
+}
+
+// ─── Efficiency Scores ────────────────────────────────────────────────────────
+export async function getEfficiencyScores(): Promise<EfficiencyScore[]> {
+  try {
+    const raw = await AsyncStorage.getItem(EXTENDED_KEYS.EFFICIENCY_SCORES);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+export async function addEfficiencyScore(score: EfficiencyScore): Promise<void> {
+  const scores = await getEfficiencyScores();
+  await AsyncStorage.setItem(EXTENDED_KEYS.EFFICIENCY_SCORES, JSON.stringify([score, ...scores].slice(0, 100)));
+}
+
+// ─── Item Assignments ─────────────────────────────────────────────────────────
+export async function getItemAssignments(): Promise<ItemAssignment[]> {
+  try {
+    const raw = await AsyncStorage.getItem(EXTENDED_KEYS.ITEM_ASSIGNMENTS);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+export async function setItemAssignment(itemId: string, assignedTo: string): Promise<void> {
+  const assignments = await getItemAssignments();
+  const filtered = assignments.filter((a) => a.itemId !== itemId);
+  if (assignedTo) filtered.push({ itemId, assignedTo });
+  await AsyncStorage.setItem(EXTENDED_KEYS.ITEM_ASSIGNMENTS, JSON.stringify(filtered));
+}
+
+// ─── Shared Lists ─────────────────────────────────────────────────────────────
+export async function getSharedLists(): Promise<SharedListInfo[]> {
+  try {
+    const raw = await AsyncStorage.getItem(EXTENDED_KEYS.SHARED_LISTS);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+export async function createSharedList(listId: string, ownerName: string): Promise<SharedListInfo> {
+  const shareCode = Math.random().toString(36).slice(2, 8).toUpperCase();
+  const info: SharedListInfo = { listId, shareCode, ownerName, members: [], isActive: true, createdAt: Date.now() };
+  const lists = await getSharedLists();
+  await AsyncStorage.setItem(EXTENDED_KEYS.SHARED_LISTS, JSON.stringify([...lists, info]));
+  return info;
+}
+export async function deleteSharedList(listId: string): Promise<void> {
+  const lists = await getSharedLists();
+  await AsyncStorage.setItem(EXTENDED_KEYS.SHARED_LISTS, JSON.stringify(lists.filter((l) => l.listId !== listId)));
+}

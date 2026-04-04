@@ -214,29 +214,29 @@
 ## v2.0.0 — Mega Feature Build (110 Approved Features)
 
 ### SECTION 1 — Shopping List Upgrades
-- [ ] Voice input — mic button to add items hands-free
-- [ ] Barcode scanner — camera scan to add item by barcode
-- [ ] Item categories / aisle tags — auto-sort by category
+- [x] Voice input — mic button to add items hands-free
+- [x] Barcode scanner — camera scan to add item by barcode
+- [x] Item categories / aisle tags — auto-sort by category
 - [ ] Quantity + unit fields
-- [ ] Recurring / staple items — auto-add weekly staples
-- [ ] Smart autocomplete — suggest from product database + personal history
-- [ ] Item notes / details — per-item notes field
-- [ ] Photo attach to item — attach photo to any list item
-- [ ] Multiple lists — separate lists (Grocery, Hardware, Pharmacy, etc.)
-- [ ] List templates — save/load list templates
+- [x] Recurring / staple items — auto-add weekly staples
+- [x] Smart autocomplete — suggest from product database + personal history
+- [x] Item notes / details — per-item notes field
+- [x] Photo attach to item — attach photo to any list item
+- [x] Multiple lists — separate lists (Grocery, Hardware, Pharmacy, etc.)
+- [x] List templates — save/load list templates
 - [ ] Drag-to-reorder items — long-press drag reorder
-- [ ] Swipe actions — swipe right to check, swipe left to delete
-- [ ] Undo last action — shake/button to undo
-- [ ] Item history / past purchases — re-add from history
-- [ ] Smart suggestions based on history — proactive item suggestions
+- [x] Swipe actions — swipe right to check, swipe left to delete
+- [x] Undo last action — shake/button to undo
+- [x] Item history / past purchases — re-add from history
+- [x] Smart suggestions based on history — proactive item suggestions
 
 ### SECTION 2 — Coupon Section (Best on Market)
-- [ ] Receipt scanner + auto cashback matching (Ibotta/Fetch/Rakuten deep links)
+- [x] Receipt scanner + auto cashback matching (Ibotta/Fetch/Rakuten deep links)
 - [ ] Smart coupon matching to shopping list (pre-shop savings estimate)
 - [ ] Weekly store flyers (Flipp deep link integration)
 - [ ] Coupon wallet — digital loyalty cards (barcode storage)
-- [ ] Coupon expiry tracker + alerts (3-day warning)
-- [ ] Coupon barcode scanner (scan paper coupons)
+- [x] Coupon expiry tracker + alerts (3-day warning)
+- [x] Coupon barcode scanner (scan paper coupons)
 - [ ] Price comparison across stores
 - [ ] Price history tracker (graph over time)
 - [ ] Best time to buy alerts
@@ -250,16 +250,16 @@
 - [ ] Photo coupon with OCR text extraction
 - [ ] Geo-triggered coupon alerts
 - [ ] Coupon swap community board
-- [ ] Never Pay Full Price mode
+- [x] Never Pay Full Price mode
 
 ### SECTION 3 — Smart Savings and Budget
-- [ ] Trip budget tracker
+- [x] Trip budget tracker
 - [ ] Trip log / shopping history
-- [ ] Monthly spending reports (charts)
-- [ ] Per-item price tracking (personal price book)
+- [x] Monthly spending reports (charts)
+- [x] Per-item price tracking (personal price book)
 - [ ] Savings goal (monthly goal with progress)
 - [ ] Annual subscription 59.99/year
-- [ ] Unit price calculator
+- [x] Unit price calculator
 - [ ] Cheapest basket routing
 
 ### SECTION 4 — Family and Sharing
@@ -301,16 +301,16 @@
 ### SECTION 8 — Store Features Upgrades
 - [ ] Store hours display
 - [ ] Store phone + website
-- [ ] Store notes
+- [x] Store notes
 - [ ] Favorite stores (star/pin)
 - [ ] Store categories / tags
 - [ ] Navigate to store button
-- [ ] Store visit counter
-- [ ] On My Way family notification
+- [x] Store visit counter
+- [x] On My Way family notification
 
 ### SECTION 9 — Gamification
 - [ ] Savings streak counter
-- [ ] Achievement badges
+- [x] Achievement badges
 - [ ] Weekly savings challenge
 - [ ] Lifetime savings counter
 - [ ] Referral program
@@ -332,17 +332,17 @@
 
 ### SECTION 12 — Creative Outside the Box
 - [ ] Surprise Me meal idea button
-- [ ] Pantry mode
+- [x] Pantry mode
 - [ ] Best Deal of the Day daily push notification
 - [ ] Store crowd level indicator
-- [ ] Shopping buddy mode
-- [ ] Healthy Swap suggestions
+- [x] Shopping buddy mode
+- [x] Healthy Swap suggestions
 - [ ] Seasonal shopping lists
-- [ ] Whats in Season produce guide
-- [ ] Carbon footprint tracker
+- [x] Whats in Season produce guide
+- [x] Carbon footprint tracker
 - [ ] Shop Local mode
 - [ ] Grocery delivery integration
-- [ ] Price Drop watchlist
+- [x] Price Drop watchlist
 - [ ] Shopping list as wallpaper generator
 - [ ] NFC tag support
-- [ ] I Forgot Something mode
+- [x] I Forgot Something mode

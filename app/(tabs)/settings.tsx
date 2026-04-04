@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, Pressable, StyleSheet,
   Alert, Platform, Linking, Switch, AppState, Modal, Share, type AppStateStatus,
 } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import * as Haptics from "expo-haptics";
@@ -34,6 +34,7 @@ export default function SettingsScreen() {
   const colors = useColors();
   const colorScheme = useColorScheme();
   const { t } = useTranslation();
+  const router = useRouter();
   const [tier, setTierState] = useState<Tier>("free");
   const [locationPerms, setLocationPerms] = useState({ foreground: false, background: false });
   const [notifGranted, setNotifGranted] = useState(false);
@@ -459,6 +460,93 @@ export default function SettingsScreen() {
           </View>
         )}
 
+        {/* Quick Access — New Features */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.muted }]}>TOOLS & FEATURES</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            {[
+              { label: "⏰ Smart Reminders", desc: "Schedule weekly shopping reminders", route: "/reminders" },
+              { label: "🥦 Pantry Mode", desc: "Track what you have at home", route: "/pantry" },
+              { label: "🍽 Meal Planner", desc: "Plan meals and auto-add ingredients", route: "/meal-planner" },
+              { label: "💰 Budget & Savings", desc: "Track spending and set goals", route: "/budget" },
+              { label: "🏆 Achievements", desc: "Badges, streaks, and rewards", route: "/achievements" },
+              { label: "👫 Shopping Buddy", desc: "Split your list with someone", route: "/shopping-buddy" },
+              { label: "💸 Never Pay Full Price", desc: "Savings apps & stacking strategies", route: "/never-full-price" },
+              { label: "👁️ Price Drop Watchlist", desc: "Watch items for price drops", route: "/watchlist" },
+              { label: "🌱 Carbon Footprint", desc: "Track your basket's eco impact", route: "/carbon-footprint" },
+              { label: "🔄 Healthy Swaps", desc: "Healthier alternatives to your items", route: "/healthy-swaps" },
+              { label: "🌿 What's In Season", desc: "Freshest produce by month", route: "/in-season" },
+              { label: "🧮 Unit Price Calculator", desc: "Compare price per oz/lb/unit", route: "/unit-price" },
+              { label: "📷 Receipt Scanner", desc: "Scan receipt to log your trip", route: "/receipt-scanner" },
+              { label: "❓ Forgot Something?", desc: "Post-trip unchecked item check", route: "/forgot-check" },
+            ].map((item, idx, arr) => (
+              <View key={item.route}>
+                <Pressable
+                  style={({ pressed }) => [styles.settingRow, { opacity: pressed ? 0.7 : 1 }]}
+                  onPress={() => router.push(item.route as never)}
+                >
+                  <View style={styles.settingInfo}>
+                    <Text style={[styles.settingLabel, { color: colors.foreground }]}>{item.label}</Text>
+                    <Text style={[styles.settingDesc, { color: colors.muted }]}>{item.desc}</Text>
+                  </View>
+                  <IconSymbol name="chevron.right" size={16} color={colors.muted} />
+                </Pressable>
+                {idx < arr.length - 1 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
+              </View>
+            ))}
+          </View>
+        </View>
+        {/* Data Management */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.muted }]}>DATA MANAGEMENT</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Pressable
+              style={({ pressed }) => [styles.settingRow, { opacity: pressed ? 0.7 : 1 }]}
+              onPress={async () => {
+                const { getShoppingLists, getAllShoppingItems } = await import("@/lib/storage");
+                const allLists = await getShoppingLists();
+                const allItems = await getAllShoppingItems();
+                const text = allLists.map((l) => {
+                  const items = allItems.filter((i) => i.listId === l.id);
+                  return `=== ${l.name} ===\n` + items.map((i) => `- ${i.text}${i.quantity ? ` (${i.quantity} ${i.unit ?? ""})` : ""}`).join("\n");
+                }).join("\n\n");
+                await Share.share({ message: text || "No items in your lists." });
+              }}
+            >
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingLabel, { color: colors.foreground }]}>📤 Export All Lists</Text>
+                <Text style={[styles.settingDesc, { color: colors.muted }]}>Share all shopping lists as text</Text>
+              </View>
+              <IconSymbol name="chevron.right" size={16} color={colors.muted} />
+            </Pressable>
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <Pressable
+              style={({ pressed }) => [styles.settingRow, { opacity: pressed ? 0.7 : 1 }]}
+              onPress={() => {
+                Alert.alert(
+                  "Clear All Data",
+                  "This will permanently delete all your shopping lists, stores, coupons, and settings. This cannot be undone.",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Clear Everything", style: "destructive",
+                      onPress: async () => {
+                        await AsyncStorage.clear();
+                        Alert.alert("Done", "All data cleared. Restart the app.");
+                      },
+                    },
+                  ]
+                );
+              }}
+            >
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingLabel, { color: colors.error }]}>🗑 Clear All Data</Text>
+                <Text style={[styles.settingDesc, { color: colors.muted }]}>Permanently delete everything</Text>
+              </View>
+              <IconSymbol name="chevron.right" size={16} color={colors.muted} />
+            </Pressable>
+          </View>
+        </View>
         <View style={{ height: 40 }} />
       </ScrollView>
 
