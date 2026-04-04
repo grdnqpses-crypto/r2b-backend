@@ -420,3 +420,8 @@
 ## v1.0.64 — AI Suggestions & Savings Streak (Apr 2026)
 - [x] Build AI "What Am I Forgetting?" screen using server LLM + purchase history
 - [x] Build Savings Streak counter on Dashboard (fire badge for consecutive weeks meeting goal)
+
+## v1.0.65 — Voice Input, Streak Notification & Play Store Fix (Apr 2026)
+- [x] Voice input mic button on list screen → Whisper transcription → parse item
+- [x] Sunday streak reminder push notification (weekly, expo-notifications)
+- [x] Audit and fix all critical Play Store bugs (crashes, blank screens, broken flows)

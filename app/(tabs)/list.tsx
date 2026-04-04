@@ -683,12 +683,16 @@ export default function ListScreen() {
             onFocus={() => setShowSuggestions(inputText.trim().length > 0)}
           />
           <Pressable
-            style={({ pressed }) => [styles.iconInputBtn, { opacity: pressed ? 0.7 : 1 }]}
+            style={({ pressed }) => [
+              styles.iconInputBtn,
+              isRecording && { backgroundColor: colors.error + "20", borderRadius: 8 },
+              { opacity: pressed ? 0.7 : 1 }
+            ]}
             onPress={handleVoiceInput}
           >
             {isRecording
               ? <ActivityIndicator size="small" color={colors.error} />
-              : <IconSymbol name="mic.fill" size={20} color={isRecording ? colors.error : colors.muted} />}
+              : <IconSymbol name="mic.fill" size={20} color={colors.muted} />}
           </Pressable>
           <Pressable
             style={({ pressed }) => [styles.iconInputBtn, { opacity: pressed ? 0.7 : 1 }]}

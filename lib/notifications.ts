@@ -42,6 +42,69 @@ export async function cancelAllScheduledNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
 
+const STREAK_NOTIF_ID_KEY = "r2b_streak_notif_id";
+
+/**
+ * Schedules a weekly Sunday evening reminder to log savings and keep the streak alive.
+ * Cancels any previous streak notification before scheduling a new one.
+ */
+export async function scheduleStreakReminder(streakCount: number): Promise<void> {
+  if (Platform.OS === "web") return;
+
+  // Cancel existing streak reminder
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const existingId = await AsyncStorage.getItem(STREAK_NOTIF_ID_KEY);
+    if (existingId) {
+      await Notifications.cancelScheduledNotificationAsync(existingId);
+    }
+  } catch {}
+
+  const title = streakCount > 0
+    ? `🔥 Keep your ${streakCount}-week streak alive!`
+    : "💰 Log your savings this week!";
+  const body = streakCount > 0
+    ? "You're on a roll! Log this week's savings before midnight to extend your streak."
+    : "Set a savings goal and log your savings to start a streak. Every week counts!";
+
+  try {
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        sound: true,
+        data: { type: "streak_reminder" },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+        // Sunday = weekday 1 in Expo (1=Sunday, 2=Monday, ..., 7=Saturday)
+        weekday: 1,
+        hour: 19,
+        minute: 0,
+      },
+    });
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    await AsyncStorage.setItem(STREAK_NOTIF_ID_KEY, id);
+  } catch {
+    // non-critical
+  }
+}
+
+/**
+ * Cancels the streak reminder notification.
+ */
+export async function cancelStreakReminder(): Promise<void> {
+  if (Platform.OS === "web") return;
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const existingId = await AsyncStorage.getItem(STREAK_NOTIF_ID_KEY);
+    if (existingId) {
+      await Notifications.cancelScheduledNotificationAsync(existingId);
+      await AsyncStorage.removeItem(STREAK_NOTIF_ID_KEY);
+    }
+  } catch {}
+}
+
 export async function sendTestNotification(): Promise<void> {
   await Notifications.scheduleNotificationAsync({
     content: {

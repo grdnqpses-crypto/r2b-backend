@@ -50,6 +50,7 @@ const MAPPING = {
   "waveform": "graphic-eq",
   "cart.fill": "shopping-cart",
   "cart": "shopping-cart",
+  "cart.badge.plus": "add-shopping-cart",
   "creditcard.fill": "credit-card",
   "creditcard": "credit-card",
   "wallet.pass.fill": "account-balance-wallet",

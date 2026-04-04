@@ -25,6 +25,7 @@ import {
 } from "@/lib/storage";
 import { isGeofencingActive, checkLocationPermissions } from "@/lib/geofence";
 import { recalculateSavingsStreak, getStreakEmoji, getStreakMessage, type SavingsStreakData } from "@/lib/savings-streak";
+import { scheduleStreakReminder } from "@/lib/notifications";
 
 const DEV_TAP_TARGET = 11;
 
@@ -90,6 +91,8 @@ export default function DashboardScreen() {
       const cashbackEntries = await getCashbackEntries();
       const streak = await recalculateSavingsStreak(cashbackEntries);
       setSavingsStreak(streak);
+      // Schedule weekly Sunday streak reminder
+      scheduleStreakReminder(streak.currentStreak).catch(() => {});
     } catch {
       // non-critical
     }
