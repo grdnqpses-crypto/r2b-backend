@@ -184,7 +184,7 @@
     "referAFriend": "Refer a Friend",
     "referFriend": "Share Remember 2 Buy",
     "referFriendDesc": "Give a friend 7 days free Premium",
-    "referFriendMessage": "Remember to try Remember 2 Buy! \ud83d\uded2\nUse my code {{code}} to get 7 days free Premium.\nNever forget to buy something again \u2014 it alerts you the second you arrive near a store.\nDownload it: https://play.google.com/store/apps/details?id=space.manus.remember2buy"
+    "referFriendMessage": "Remember to try Remember 2 Buy! 🛒\nUse my code {{code}} to get 7 days free Premium.\nNever forget to buy something again — it alerts you the second you arrive near a store.\nDownload it: https://play.google.com/store/apps/details?id=space.manus.remember2buy"
   },
   "onboarding": {
     "ad": {
@@ -277,5 +277,67 @@
     "yes": "Yes",
     "no": "No",
     "tryAgain": "Try Again"
+  },
+  "budget": {
+    "title": "Budget & Savings",
+    "trips": "Trips",
+    "budgetTab": "Budget",
+    "goals": "Goals",
+    "logTrip": "Log Trip",
+    "addTrip": "Add Shopping Trip",
+    "store": "Store Name",
+    "amount": "Amount Spent",
+    "notes": "Notes (optional)",
+    "thisWeek": "This Week",
+    "thisMonth": "This Month",
+    "totalSaved": "Total Saved",
+    "avgTrip": "Avg Trip",
+    "weeklyBudget": "Weekly Budget",
+    "monthlyBudget": "Monthly Budget",
+    "editBudget": "Edit Budget",
+    "noTrips": "No trips logged yet",
+    "noTripsSubtitle": "Log a shopping trip to start tracking your spending",
+    "noBudget": "No budget set",
+    "noBudgetSubtitle": "Set a weekly or monthly budget to track your spending",
+    "noGoals": "No savings goals yet",
+    "noGoalsSubtitle": "Create a goal to start saving toward something special",
+    "addGoal": "Add Goal",
+    "goalName": "Goal Name",
+    "targetAmount": "Target Amount",
+    "currentAmount": "Current Amount",
+    "addProgress": "Add Progress",
+    "progressAmount": "Amount to Add",
+    "premiumRequired": "Budget tracking requires Premium",
+    "over": "Over budget!",
+    "remaining": "remaining"
+  },
+  "achievements": {
+    "title": "Achievements",
+    "weekStreak": "Week Streak",
+    "badges": "Badges",
+    "totalSaved": "Total Saved",
+    "overallProgress": "Overall Progress",
+    "unlocked": "Unlocked",
+    "of": "of",
+    "achievementsUnlocked": "achievements unlocked"
+  },
+  "mealPlanner": {
+    "title": "Meal Planner",
+    "search": "Recipes",
+    "myPlans": "My Plans",
+    "seasonal": "Seasonal",
+    "searchPlaceholder": "Search recipes (e.g. pasta, chicken, salad)",
+    "findRecipe": "Find a Recipe",
+    "findRecipeSubtitle": "Search for any recipe and instantly add its ingredients to your shopping list",
+    "noPlans": "No meal plans yet",
+    "noPlansSubtitle": "Search for recipes and add them to your meal plan",
+    "selectIngredients": "Select ingredients to add",
+    "selected": "selected",
+    "addToList": "Add {{count}} Ingredients to List",
+    "added": "Added!",
+    "addedMessage": "{{count}} ingredients from \"{{name}}\" added to your shopping list.",
+    "addSeasonalList": "Add {{name}}",
+    "addSeasonalConfirm": "Add {{count}} items to your shopping list?",
+    "addAll": "Add All"
   }
 }

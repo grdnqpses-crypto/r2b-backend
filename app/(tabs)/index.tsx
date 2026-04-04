@@ -393,6 +393,37 @@ export default function DashboardScreen() {
           </View>
         )}
 
+        {/* Quick Access Section */}
+        <View style={[styles.section, { marginTop: 4 }]}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 10 }]}>✨ Quick Access</Text>
+          <View style={styles.quickGrid}>
+            <Pressable
+              style={({ pressed }) => [styles.quickCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 }]}
+              onPress={() => router.push("/budget" as never)}
+            >
+              <Text style={styles.quickEmoji}>💰</Text>
+              <Text style={[styles.quickLabel, { color: colors.foreground }]}>Budget</Text>
+              <Text style={[styles.quickSub, { color: colors.muted }]}>Trips & Goals</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.quickCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 }]}
+              onPress={() => router.push("/achievements" as never)}
+            >
+              <Text style={styles.quickEmoji}>🏆</Text>
+              <Text style={[styles.quickLabel, { color: colors.foreground }]}>Achievements</Text>
+              <Text style={[styles.quickSub, { color: colors.muted }]}>Badges & Streaks</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.quickCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 }]}
+              onPress={() => router.push("/meal-planner" as never)}
+            >
+              <Text style={styles.quickEmoji}>🍽️</Text>
+              <Text style={[styles.quickLabel, { color: colors.foreground }]}>Meal Planner</Text>
+              <Text style={[styles.quickSub, { color: colors.muted }]}>Recipes & Lists</Text>
+            </Pressable>
+          </View>
+        </View>
+
         <View style={styles.bottomPadding} />
       </ScrollView>
     </ScreenContainer>
@@ -458,6 +489,11 @@ const styles = StyleSheet.create({
   emptyButtonOutline: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, borderWidth: 1.5 },
   emptyButtonOutlineText: { fontSize: 15, fontWeight: "600" },
   bottomPadding: { height: 20 },
+  quickGrid: { flexDirection: "row", gap: 10 },
+  quickCard: { flex: 1, borderRadius: 14, borderWidth: 1, padding: 12, alignItems: "center", gap: 4 },
+  quickEmoji: { fontSize: 26, marginBottom: 2 },
+  quickLabel: { fontSize: 13, fontWeight: "700", textAlign: "center" },
+  quickSub: { fontSize: 11, textAlign: "center" },
   devBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1 },
   devBadgeText: { fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
   devToast: { alignSelf: "center", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginBottom: 12, zIndex: 10 },

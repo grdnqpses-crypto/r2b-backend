@@ -13,7 +13,8 @@ A mobile app that reminds you what's on your shopping list the moment you arrive
 
 ## CRITICAL RULES (NEVER VIOLATE):
 1. **Subscription is LOCKED**: $1.99/week + $59.99/year ONLY. NO monthly, NO lifetime, NO family plan.
-2. **SKUs**: `premium_weekly_199` (weekly) and `premium_annual_5999` (annual)
+2. **SKUs**: `premium_weekly_199` (weekly, ACTIVE) and `premium_annual_5999` (annual $59.99/year, ACTIVE ✅)
+3a. **Build format**: AAB (Android App Bundle) ONLY — NOT APK
 3. **Free tier**: 1 store, 3 items, no coupons
 4. **Never delete** AGENT_MEMORY.md, FEATURE_SUGGESTIONS.md, SESSIONS_LOG.md, QUICK_START.md
 5. **Always bump version** before saving a checkpoint

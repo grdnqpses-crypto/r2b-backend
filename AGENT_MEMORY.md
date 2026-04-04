@@ -124,7 +124,7 @@ RTL languages: ar (Arabic), he (Hebrew) — I18nManager.forceRTL() is implemente
 
 - App is LIVE on Google Play
 - Weekly subscription product (premium_weekly_199) is active
-- Annual subscription product (premium_annual_5999) needs to be created in Play Console
+- Annual subscription product (premium_annual_5999) is ACTIVE in Play Console ✅ (confirmed Apr 4, 2026)
 - Store listing update submitted Apr 4, 2026 — awaiting review
 
 ---
@@ -341,3 +341,10 @@ RTL languages: ar (Arabic), he (Hebrew) — I18nManager.forceRTL() is implemente
 - Subscription locked: $1.99/week + $59.99/year ONLY
 - Starting mega v2.0.0 build
 - This AGENT_MEMORY.md file created to prevent future context loss
+
+## 15. BUILD FORMAT (CRITICAL)
+
+- **Build format: AAB (Android App Bundle) ONLY** — never APK
+- AABs are uploaded to Google Play Console via the Publish button in the Manus UI
+- Never attempt to build APKs — always AAB
+- Confirmed by user: Apr 4, 2026
