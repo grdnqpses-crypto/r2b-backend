@@ -69,21 +69,32 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
 
       const itemList = buildItemList(top3, remaining);
 
-      // Only send the 6-minute delayed notification.
-      // Rationale: user needs to park, enter the store, and get settled before the reminder.
-      // Firing immediately when they cross the 0.3-mile boundary is too early.
       if (unchecked.length > 0) {
+        // ── NOTIFICATION 1: Immediate approach alert (fires right when user crosses 0.3mi boundary) ──
+        // Gives the user time to decide whether to stop at the store.
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: `🛒 Remember to buy at ${storeName}`,
+            title: `📍 Approaching ${storeName}`,
+            body: `Don't forget: ${itemList}`,
+            sound: true,
+            data: { storeId: region.identifier, type: "geofence_approach" },
+          },
+          trigger: null, // fire immediately
+        });
+
+        // ── NOTIFICATION 2: In-store reminder (fires 6 minutes after entering the boundary) ──
+        // By 6 minutes the user has parked, grabbed a basket, and is walking the aisles.
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: `🛒 Time to grab at ${storeName}`,
             body: `Remember to buy: ${itemList}`,
             sound: true,
-            data: { storeId: region.identifier, type: "geofence_arrived" },
+            data: { storeId: region.identifier, type: "geofence_instore" },
           },
           trigger: { seconds: 360, repeats: false } as any,
         });
       } else {
-        // No unchecked items — send a gentle nudge after 6 minutes
+        // No unchecked items — single gentle nudge immediately
         await Notifications.scheduleNotificationAsync({
           content: {
             title: `🛒 You're near ${storeName}`,
@@ -91,7 +102,7 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
             sound: false,
             data: { storeId: region.identifier, type: "geofence_empty" },
           },
-          trigger: { seconds: 360, repeats: false } as any,
+          trigger: null, // fire immediately
         });
       }
     } catch (err) {

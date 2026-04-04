@@ -23,8 +23,8 @@ export interface NearbyStore {
   brand?: string;     // e.g. "Walmart", "CVS"
 }
 
-// Radius in meters for nearby search (5 miles)
-const SEARCH_RADIUS_METERS = 8047;
+// Radius in meters for nearby search (15 miles)
+const SEARCH_RADIUS_METERS = 24140;
 
 // Overpass API public endpoints — tried in order until one succeeds
 const OVERPASS_MIRRORS = [

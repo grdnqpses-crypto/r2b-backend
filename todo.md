@@ -204,3 +204,9 @@
 - [x] "Family Premium" tier shown in paywall but not in subscriptions — remove it
 - [x] Upgrade button in paywall dismisses modal but does nothing — must open Play Store subscription page
 - [x] Notification text wrong: says "You have items on your list" — change to "Remember to buy: [item1], [item2], [item3]" format for both immediate and 6-min follow-up
+
+## Issues fixed in v1.0.61 (Apr 3 2026)
+- [x] Store lookup radius: changed from 5 miles (8047m) to 15 miles (24140m) in nearby-stores.ts
+- [x] Two-stage geofence notifications: (1) immediate approach alert at 0.3mi boundary, (2) 6-minute in-store reminder
+- [x] Sort order confirmed: closest-to-furthest (default) and A-Z both working
+- [x] Manual store entry confirmed: Search tab + "Add manually" modal with name+address geocoding
