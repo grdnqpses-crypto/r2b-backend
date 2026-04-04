@@ -19,7 +19,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import {
   getShoppingItems, getSavedStores, getTier, setTier, getDistanceUnit,
-  isDevModeEnabled, setDevModeEnabled,
+  isDevModeEnabled, setDevModeEnabled, getRecentItems, addShoppingItem, getTotalCashback,
   type ShoppingItem, type SavedStore, type Tier, type DistanceUnit,
 } from "@/lib/storage";
 import { isGeofencingActive, checkLocationPermissions } from "@/lib/geofence";
@@ -67,17 +67,21 @@ export default function DashboardScreen() {
   const [devMode, setDevMode] = useState(false);
   const [devTapCount, setDevTapCount] = useState(0);
   const devTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [recentItems, setRecentItems] = useState<string[]>([]);
+  const [savingsTotals, setSavingsTotals] = useState({ week: 0, month: 0, allTime: 0 });
   const devToastAnim = useRef(new Animated.Value(0)).current;
   const [devToastMsg, setDevToastMsg] = useState("");
 
   const loadData = useCallback(async () => {
-    const [itemsData, storesData, tierData, geofenceActive, locationPerms, unit, devEnabled] =
+    const [itemsData, storesData, tierData, geofenceActive, locationPerms, unit, devEnabled, recentData, savingsData] =
       await Promise.all([
         getShoppingItems(), getSavedStores(), getTier(),
         isGeofencingActive(), checkLocationPermissions(), getDistanceUnit(),
-        isDevModeEnabled(),
+        isDevModeEnabled(), getRecentItems(20), getTotalCashback(),
       ]);
     setItems(itemsData);
+    setRecentItems(recentData);
+    setSavingsTotals({ week: savingsData.week, month: savingsData.month, allTime: savingsData.allTime });
     setStores(storesData);
     setTierState(tierData);
     setGeofencingActive(geofenceActive);
@@ -299,6 +303,31 @@ export default function DashboardScreen() {
           </Pressable>
         </View>
 
+        {/* Lifetime Savings Card */}
+        {savingsTotals.allTime > 0 && (
+          <Pressable
+            style={({ pressed }) => [styles.savingsCard, { backgroundColor: colors.success + "15", borderColor: colors.success + "30", opacity: pressed ? 0.85 : 1 }]}
+            onPress={() => router.push("/achievements" as never)}
+          >
+            <View style={styles.savingsRow}>
+              <View style={styles.savingsStat}>
+                <Text style={[styles.savingsValue, { color: colors.success }]}>${savingsTotals.week.toFixed(2)}</Text>
+                <Text style={[styles.savingsLabel, { color: colors.muted }]}>This Week</Text>
+              </View>
+              <View style={[styles.savingsDivider, { backgroundColor: colors.border }]} />
+              <View style={styles.savingsStat}>
+                <Text style={[styles.savingsValue, { color: colors.success }]}>${savingsTotals.month.toFixed(2)}</Text>
+                <Text style={[styles.savingsLabel, { color: colors.muted }]}>This Month</Text>
+              </View>
+              <View style={[styles.savingsDivider, { backgroundColor: colors.border }]} />
+              <View style={styles.savingsStat}>
+                <Text style={[styles.savingsValue, { color: colors.success }]}>${savingsTotals.allTime.toFixed(2)}</Text>
+                <Text style={[styles.savingsLabel, { color: colors.muted }]}>All Time</Text>
+              </View>
+            </View>
+            <Text style={[styles.savingsTitle, { color: colors.success }]}>💰 Total Savings Tracked</Text>
+          </Pressable>
+        )}
         {/* Monitored Stores with real-time distance */}
         {storesWithDistance.length > 0 && (
           <View style={styles.section}>
@@ -393,38 +422,52 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        {/* Quick Access Section */}
-        <View style={[styles.section, { marginTop: 4 }]}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 10 }]}>✨ Quick Access</Text>
-          <View style={styles.quickGrid}>
-            {([
-              { emoji: "💰", label: "Budget", sub: "Trips & Goals", route: "/budget" },
-              { emoji: "🏆", label: "Achievements", sub: "Badges & Streaks", route: "/achievements" },
-              { emoji: "🍽️", label: "Meal Planner", sub: "Recipes & Lists", route: "/meal-planner" },
-              { emoji: "🥦", label: "Pantry", sub: "Stock Tracker", route: "/pantry" },
-              { emoji: "⏰", label: "Reminders", sub: "Smart Alerts", route: "/reminders" },
-              { emoji: "👁️", label: "Watchlist", sub: "Price Drops", route: "/watchlist" },
-              { emoji: "👫", label: "Buddy Mode", sub: "Split List", route: "/shopping-buddy" },
-              { emoji: "💸", label: "Never Full Price", sub: "Savings Apps", route: "/never-full-price" },
-              { emoji: "🌱", label: "Carbon", sub: "Eco Tracker", route: "/carbon-footprint" },
-              { emoji: "🔄", label: "Healthy Swaps", sub: "Better Choices", route: "/healthy-swaps" },
-              { emoji: "🌿", label: "In Season", sub: "Fresh Produce", route: "/in-season" },
-              { emoji: "🧮", label: "Unit Price", sub: "Best Value", route: "/unit-price" },
-              { emoji: "📷", label: "Receipt Scan", sub: "Log Trip", route: "/receipt-scanner" },
-              { emoji: "❓", label: "Forgot?", sub: "Post-Trip Check", route: "/forgot-check" },
-            ] as const).map((item) => (
-              <Pressable
-                key={item.route}
-                style={({ pressed }) => [styles.quickCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 }]}
-                onPress={() => router.push(item.route as never)}
-              >
-                <Text style={styles.quickEmoji}>{item.emoji}</Text>
-                <Text style={[styles.quickLabel, { color: colors.foreground }]}>{item.label}</Text>
-                <Text style={[styles.quickSub, { color: colors.muted }]}>{item.sub}</Text>
-              </Pressable>
-            ))}
+        {/* Smart Suggestions from History */}
+        {recentItems.length > 0 && (() => {
+          const currentItemTexts = new Set(items.map((i) => i.text.toLowerCase()));
+          const suggestions = recentItems
+            .filter((r) => !currentItemTexts.has(r.toLowerCase()))
+            .slice(0, 5);
+          if (suggestions.length === 0) return null;
+          return (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>💡 Frequently Bought</Text>
+                <Text style={[{ fontSize: 11, color: colors.muted }]}>Tap to add to list</Text>
+              </View>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                {suggestions.map((item) => (
+                  <Pressable
+                    key={item}
+                    style={({ pressed }) => [styles.suggestionChip, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+                    onPress={async () => {
+                      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      await addShoppingItem(item, { listId: "default" });
+                      await loadData();
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, color: colors.foreground }}>+ {item}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          );
+        })()}
+        {/* Tools & Features Button */}
+        <Pressable
+          style={({ pressed }) => [styles.toolsBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.88 : 1 }]}
+          onPress={() => {
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push("/tools" as never);
+          }}
+        >
+          <Text style={styles.toolsBtnEmoji}>🧰</Text>
+          <View style={styles.toolsBtnText}>
+            <Text style={styles.toolsBtnTitle}>Tools & Features</Text>
+            <Text style={styles.toolsBtnSub}>Budget · Meal Planner · Savings & more</Text>
           </View>
-        </View>
+          <IconSymbol name="chevron.right" size={18} color="rgba(255,255,255,0.8)" />
+        </Pressable>
 
         <View style={styles.bottomPadding} />
       </ScrollView>
@@ -491,11 +534,19 @@ const styles = StyleSheet.create({
   emptyButtonOutline: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, borderWidth: 1.5 },
   emptyButtonOutlineText: { fontSize: 15, fontWeight: "600" },
   bottomPadding: { height: 20 },
-  quickGrid: { flexDirection: "row", gap: 10 },
-  quickCard: { flex: 1, borderRadius: 14, borderWidth: 1, padding: 12, alignItems: "center", gap: 4 },
-  quickEmoji: { fontSize: 26, marginBottom: 2 },
-  quickLabel: { fontSize: 13, fontWeight: "700", textAlign: "center" },
-  quickSub: { fontSize: 11, textAlign: "center" },
+  savingsCard: { borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 14 },
+  savingsTitle: { fontSize: 12, fontWeight: "600", textAlign: "center", marginTop: 8 },
+  savingsRow: { flexDirection: "row", justifyContent: "space-around", alignItems: "center" },
+  savingsStat: { flex: 1, alignItems: "center" },
+  savingsValue: { fontSize: 18, fontWeight: "700" },
+  savingsLabel: { fontSize: 11, marginTop: 2 },
+  savingsDivider: { width: 1, height: 36 },
+  suggestionChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
+  toolsBtn: { flexDirection: "row", alignItems: "center", borderRadius: 16, padding: 16, marginBottom: 20, gap: 12 },
+  toolsBtnEmoji: { fontSize: 28 },
+  toolsBtnText: { flex: 1 },
+  toolsBtnTitle: { fontSize: 16, fontWeight: "700", color: "#fff", marginBottom: 2 },
+  toolsBtnSub: { fontSize: 12, color: "rgba(255,255,255,0.8)" },
   devBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1 },
   devBadgeText: { fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
   devToast: { alignSelf: "center", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginBottom: 12, zIndex: 10 },

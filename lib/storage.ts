@@ -994,6 +994,9 @@ export interface AppSettings {
   notifyExpiry: boolean;
   neverPayFullPrice: boolean;
   language: string;
+  themeMode: "system" | "light" | "dark";
+  confettiEnabled: boolean;
+  hapticCelebration: boolean;
 }
 
 // Efficiency Score
@@ -1169,6 +1172,7 @@ export async function saveWeeklyChallenge(challenge: WeeklyChallenge): Promise<v
 const DEFAULT_APP_SETTINGS: AppSettings = {
   fontSize: "medium", highContrast: false, reduceMotion: false, hapticEnabled: true,
   notifyBestDeal: true, notifyPriceDrop: true, notifyExpiry: true, neverPayFullPrice: false, language: "en",
+  themeMode: "system", confettiEnabled: true, hapticCelebration: true,
 };
 export async function getAppSettings(): Promise<AppSettings> {
   try {

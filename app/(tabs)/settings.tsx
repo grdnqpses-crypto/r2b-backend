@@ -12,10 +12,12 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useThemeContext } from "@/lib/theme-provider";
 import {
   getTier, setTier, getDistanceUnit, setDistanceUnit,
   isDevModeEnabled, setDevModeEnabled, getReferralCode,
-  type Tier, type DistanceUnit,
+  getAppSettings, saveAppSettings,
+  type Tier, type DistanceUnit, type AppSettings,
 } from "@/lib/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -43,16 +45,19 @@ export default function SettingsScreen() {
   const [devMode, setDevMode] = useState(false);
   const [notifDenied, setNotifDenied] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
+  const { setColorScheme: setTheme } = useThemeContext();
   const subscription = useSubscription();
 
   const loadState = useCallback(async () => {
-    const [tierData, perms, geofence, unit, devEnabled, notifStatus] = await Promise.all([
+    const [tierData, perms, geofence, unit, devEnabled, notifStatus, appSettingsData] = await Promise.all([
       getTier(),
       checkLocationPermissions(),
       isGeofencingActive(),
       getDistanceUnit(),
       isDevModeEnabled(),
       Notifications.getPermissionsAsync(),
+      getAppSettings(),
     ]);
     setTierState(tierData);
     setLocationPerms(perms);
@@ -61,7 +66,12 @@ export default function SettingsScreen() {
     setDevMode(devEnabled);
     setNotifGranted(notifStatus.status === "granted");
     setNotifDenied(notifStatus.status === "denied");
-  }, []);
+    setAppSettings(appSettingsData);
+    // Apply saved theme
+    if (appSettingsData.themeMode !== "system") {
+      setTheme(appSettingsData.themeMode);
+    }
+  }, [setTheme]);
 
   // Re-check permissions when app comes back to foreground (user may have enabled in Settings)
   useEffect(() => {
@@ -323,6 +333,94 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Appearance Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.muted }]}>APPEARANCE</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            {/* Theme Mode */}
+            <View style={[styles.settingRow, { borderColor: colors.border }]}>
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingLabel, { color: colors.foreground }]}>Theme</Text>
+                <Text style={[styles.settingDesc, { color: colors.muted }]}>Choose light, dark, or follow system</Text>
+              </View>
+              <View style={styles.unitToggleRow}>
+                {(["light", "system", "dark"] as const).map((mode) => (
+                  <Pressable
+                    key={mode}
+                    style={({ pressed }) => [styles.unitBtn, {
+                      backgroundColor: (appSettings?.themeMode ?? "system") === mode ? colors.primary : colors.border,
+                      opacity: pressed ? 0.8 : 1,
+                    }]}
+                    onPress={async () => {
+                      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      await saveAppSettings({ themeMode: mode });
+                      setAppSettings((prev) => prev ? { ...prev, themeMode: mode } : null);
+                      setTheme(mode === "system" ? (colorScheme ?? "light") : mode);
+                    }}
+                  >
+                    <Text style={[styles.unitBtnText, { color: (appSettings?.themeMode ?? "system") === mode ? "#fff" : colors.muted }]}>
+                      {mode === "light" ? "☀️" : mode === "dark" ? "🌙" : "⚙️"}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            {/* Confetti on completion */}
+            <View style={[styles.settingRow, { borderColor: colors.border }]}>
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingLabel, { color: colors.foreground }]}>🎉 Confetti on List Complete</Text>
+                <Text style={[styles.settingDesc, { color: colors.muted }]}>Celebrate when you check off everything</Text>
+              </View>
+              <Switch
+                value={appSettings?.confettiEnabled ?? true}
+                onValueChange={async (val) => {
+                  await saveAppSettings({ confettiEnabled: val });
+                  setAppSettings((prev) => prev ? { ...prev, confettiEnabled: val } : null);
+                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor="#fff"
+              />
+            </View>
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            {/* Haptic celebration */}
+            <View style={[styles.settingRow, { borderColor: colors.border }]}>
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingLabel, { color: colors.foreground }]}>📳 Haptic Celebration</Text>
+                <Text style={[styles.settingDesc, { color: colors.muted }]}>Vibration pattern when list is complete</Text>
+              </View>
+              <Switch
+                value={appSettings?.hapticCelebration ?? true}
+                onValueChange={async (val) => {
+                  await saveAppSettings({ hapticCelebration: val });
+                  setAppSettings((prev) => prev ? { ...prev, hapticCelebration: val } : null);
+                  if (Platform.OS !== "web" && val) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                }}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor="#fff"
+              />
+            </View>
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            {/* Haptic feedback */}
+            <View style={[styles.settingRow, { borderColor: colors.border }]}>
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingLabel, { color: colors.foreground }]}>Haptic Feedback</Text>
+                <Text style={[styles.settingDesc, { color: colors.muted }]}>Vibrate on button taps and actions</Text>
+              </View>
+              <Switch
+                value={appSettings?.hapticEnabled ?? true}
+                onValueChange={async (val) => {
+                  await saveAppSettings({ hapticEnabled: val });
+                  setAppSettings((prev) => prev ? { ...prev, hapticEnabled: val } : null);
+                  if (Platform.OS !== "web" && val) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                }}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor="#fff"
+              />
+            </View>
+          </View>
+        </View>
         {/* Distance Unit Section */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.muted }]}>{t("settings.distanceUnit").toUpperCase()}</Text>

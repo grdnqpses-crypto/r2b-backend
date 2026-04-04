@@ -14,7 +14,8 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import {
   getAchievements, ACHIEVEMENT_DEFS, getShoppingStreak, getTotalCashback,
-  type Achievement,
+  getWeeklyChallenge, saveWeeklyChallenge,
+  type Achievement, type WeeklyChallenge,
 } from "@/lib/storage";
 
 type AchievementDef = typeof ACHIEVEMENT_DEFS[number];
@@ -26,16 +27,42 @@ export default function AchievementsScreen() {
   const [achievements, setAchievements] = useState<Record<string, Achievement>>({});
   const [streak, setStreak] = useState(0);
   const [cashbackTotals, setCashbackTotals] = useState({ week: 0, month: 0, year: 0, allTime: 0 });
+  const [weeklyChallenge, setWeeklyChallenge] = useState<WeeklyChallenge | null>(null);
 
   const loadData = useCallback(async () => {
-    const [achievementsData, streakData, cashback] = await Promise.all([
+    const [achievementsData, streakData, cashback, challengeData] = await Promise.all([
       getAchievements(),
       getShoppingStreak(),
       getTotalCashback(),
+      getWeeklyChallenge(),
     ]);
     setAchievements(achievementsData);
     setStreak(streakData);
     setCashbackTotals(cashback);
+    // Auto-create weekly challenge if none exists or it's a new week
+    const thisWeek = new Date();
+    const weekStart = new Date(thisWeek);
+    weekStart.setDate(thisWeek.getDate() - thisWeek.getDay());
+    const weekStartStr = weekStart.toISOString().split("T")[0];
+    if (!challengeData || challengeData.weekStart !== weekStartStr) {
+      const CHALLENGES = [
+        { targetAmount: 10, label: "Save $10 this week" },
+        { targetAmount: 15, label: "Save $15 this week" },
+        { targetAmount: 20, label: "Save $20 this week" },
+        { targetAmount: 5, label: "Save $5 this week" },
+      ];
+      const pick = CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
+      const newChallenge: WeeklyChallenge = {
+        weekStart: weekStartStr,
+        targetAmount: pick.targetAmount,
+        currentAmount: 0,
+        isCompleted: false,
+      };
+      await saveWeeklyChallenge(newChallenge);
+      setWeeklyChallenge(newChallenge);
+    } else {
+      setWeeklyChallenge(challengeData);
+    }
   }, []);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
@@ -133,6 +160,38 @@ export default function AchievementsScreen() {
           </Text>
         </View>
 
+        {/* Weekly Challenge */}
+        {weeklyChallenge && (
+          <View style={[styles.challengeCard, {
+            backgroundColor: weeklyChallenge.isCompleted ? colors.success + "15" : colors.warning + "15",
+            borderColor: weeklyChallenge.isCompleted ? colors.success + "40" : colors.warning + "40",
+          }]}>
+            <View style={styles.challengeHeader}>
+              <Text style={[styles.challengeTitle, { color: colors.foreground }]}>
+                {weeklyChallenge.isCompleted ? "🎉" : "🎯"} Weekly Challenge
+              </Text>
+              <Text style={[styles.challengeBadge, {
+                backgroundColor: weeklyChallenge.isCompleted ? colors.success : colors.warning,
+              }]}>
+                {weeklyChallenge.isCompleted ? "DONE!" : "IN PROGRESS"}
+              </Text>
+            </View>
+            <Text style={[styles.challengeGoal, { color: colors.foreground }]}>
+              Save ${weeklyChallenge.targetAmount.toFixed(0)} this week
+            </Text>
+            <View style={{ marginTop: 8 }}>
+              <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
+                <View style={[styles.progressFill, {
+                  backgroundColor: weeklyChallenge.isCompleted ? colors.success : colors.warning,
+                  width: `${Math.min((weeklyChallenge.currentAmount / weeklyChallenge.targetAmount) * 100, 100)}%` as any,
+                }]} />
+              </View>
+              <Text style={[styles.progressText, { color: colors.muted, marginTop: 4 }]}>
+                ${weeklyChallenge.currentAmount.toFixed(2)} / ${weeklyChallenge.targetAmount.toFixed(2)} saved
+              </Text>
+            </View>
+          </View>
+        )}
         {/* Achievement List */}
         <FlatList
           data={[...ACHIEVEMENT_DEFS].sort((a, b) => {
@@ -169,6 +228,11 @@ const styles = StyleSheet.create({
   progressTrack: { height: 8, borderRadius: 4, overflow: "hidden" },
   progressFill: { height: 8, borderRadius: 4 },
   progressText: { fontSize: 12 },
+  challengeCard: { borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 14 },
+  challengeHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
+  challengeTitle: { fontSize: 15, fontWeight: "700" },
+  challengeBadge: { fontSize: 10, fontWeight: "700", color: "#fff", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+  challengeGoal: { fontSize: 16, fontWeight: "600" },
   achCard: { flexDirection: "row", borderRadius: 14, borderWidth: 1, padding: 14, gap: 12, alignItems: "flex-start" },
   achEmoji: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
   achEmojiText: { fontSize: 24 },

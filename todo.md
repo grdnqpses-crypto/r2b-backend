@@ -346,3 +346,69 @@
 - [ ] Shopping list as wallpaper generator
 - [ ] NFC tag support
 - [x] I Forgot Something mode
+
+## v2.1.0 — UX Reorganization & Remaining Features
+
+- [ ] Create dedicated Tools screen with all features organized by category (Savings, Budget, AI & Smart, Store Tools, Export)
+- [ ] Simplify Dashboard — remove 14-card Quick Access grid, add single "Tools & Features" button
+- [ ] Add Price Drop Watchlist as 5th tab in Coupons screen
+- [ ] Add contextual prompts (log trip after last item checked off, coupon alert when adding item)
+- [ ] Build drag-to-reorder items in list
+- [ ] Build natural language item entry (parse "2 lbs organic chicken" into fields)
+- [ ] Build smart item deduplication
+- [ ] Build clipboard import (paste list from Notes app)
+- [ ] Build coupon barcode scanner (scan paper coupons)
+- [ ] Build geo-triggered coupon alerts
+- [ ] Build clip-all coupons button
+- [ ] Build coupon organizer by store
+- [ ] Build manufacturer coupon database
+- [ ] Build coupon sharing (share via text/email)
+- [ ] Build AI dietary filter
+- [ ] Build photo-to-list (fridge scan via AI vision)
+- [ ] Build recipe URL import → shopping list
+- [ ] Build AI "What Am I Forgetting?" scan
+- [ ] Build confetti animation on list completion
+- [ ] Build font size / accessibility settings
+- [ ] Build haptic enhancements (celebratory pattern on list complete)
+- [ ] Build dark mode toggle in settings
+- [ ] Build weekly savings challenge
+- [ ] Build lifetime savings counter (prominent display)
+- [ ] Build shopping efficiency score
+- [ ] Build referral program
+- [ ] Build I'm Shopping mode (notify family when entering store)
+- [ ] Build assignment tags (assign items to people)
+- [ ] Build share list via link (browser viewable)
+- [ ] Build Kids mode
+- [ ] Build Surprise Me meal idea
+- [ ] Build Best Deal of Day push notification
+- [ ] Build delivery integration (Instacart/DoorDash/Shipt)
+- [ ] Build wallpaper generator (list as phone wallpaper)
+- [ ] Build store crowd level indicator
+- [ ] Build email/SMS list export
+- [ ] Build CSV shopping history export
+- [ ] Build store hours display
+- [ ] Build store phone/website links
+- [ ] Build store categories/tags
+- [ ] Build cheapest basket routing
+- [ ] Build weather-aware reminders
+- [ ] Build price history tracker
+- [ ] Build best time to buy alerts
+- [ ] Build coupon swap community
+- [ ] Build NFC tag support
+
+## v2.2.0 — Batch Feature Implementation (Apr 2026)
+- [x] Simplify Dashboard — remove 14-card Quick Access grid, add single "Tools & Features" button
+- [x] Create dedicated Tools screen with all features organized by category
+- [x] Build dark mode toggle in settings (Light / Dark / System)
+- [x] Build confetti animation on list completion with haptic celebration
+- [x] Build contextual "Log this trip?" prompt after last item checked off
+- [x] Build natural language item entry (parse "2 lbs chicken breast" into qty/unit/name/category)
+- [x] Build NL parse preview hint below input field
+- [x] Build smart suggestions from purchase history on Dashboard ("Frequently Bought" chips)
+- [x] Build weekly savings challenge in Achievements screen (auto-rotating weekly goal)
+- [x] Build lifetime savings counter on Dashboard (week/month/all-time)
+- [x] Build clipboard import (detect pasted list, offer to import all items)
+- [x] Build email list export (via mail composer)
+- [x] Build SMS list export (via SMS)
+- [x] Add store phone/website fields to store detail modal
+- [x] Fix useEffect/useRouter missing imports in list.tsx

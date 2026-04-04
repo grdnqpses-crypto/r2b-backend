@@ -74,6 +74,8 @@ export default function StoresScreen() {
   const [selectedStore, setSelectedStore] = useState<SavedStore | null>(null);
   const [storeDetailVisible, setStoreDetailVisible] = useState(false);
   const [storeNotes, setStoreNotes] = useState("");
+  const [storePhone, setStorePhone] = useState("");
+  const [storeWebsite, setStoreWebsite] = useState("");
   const [nearbyStores, setNearbyStores] = useState<NearbyStore[]>([]);
   const [tier, setTierState] = useState<Tier>("free");
   const [loading, setLoading] = useState(false);
@@ -176,14 +178,17 @@ export default function StoresScreen() {
   const handleOpenStoreDetail = (store: SavedStore) => {
     setSelectedStore(store);
     setStoreNotes(storeExtMap[store.id]?.notes ?? "");
+    setStorePhone(storeExtMap[store.id]?.phone ?? "");
+    setStoreWebsite(storeExtMap[store.id]?.website ?? "");
     setStoreDetailVisible(true);
   };
 
   const handleSaveStoreNotes = async () => {
     if (!selectedStore) return;
     const ext = storeExtMap[selectedStore.id] ?? { storeId: selectedStore.id };
-    await saveStoreExtended({ ...ext, notes: storeNotes });
-    setStoreExtMap((prev) => ({ ...prev, [selectedStore.id]: { ...ext, notes: storeNotes } }));
+    const updated = { ...ext, notes: storeNotes, phone: storePhone.trim() || undefined, website: storeWebsite.trim() || undefined };
+    await saveStoreExtended(updated);
+    setStoreExtMap((prev) => ({ ...prev, [selectedStore.id]: updated }));
     setStoreDetailVisible(false);
   };
 
@@ -860,6 +865,46 @@ export default function StoresScreen() {
             {selectedStore?.address ? (
               <Text style={[styles.modalSubtitle, { color: colors.muted }]}>{selectedStore.address}</Text>
             ) : null}
+            {/* Store Hours Display */}
+            {selectedStore && storeExtMap[selectedStore.id]?.hours && Object.keys(storeExtMap[selectedStore.id]?.hours ?? {}).length > 0 && (
+              <View style={{ marginTop: 10, padding: 10, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground, marginBottom: 6 }}>🕐 Store Hours</Text>
+                {(() => {
+                  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+                  const today = days[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
+                  const hours = storeExtMap[selectedStore.id]?.hours ?? {};
+                  return days.map((day) => (
+                    hours[day] ? (
+                      <View key={day} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 2 }}>
+                        <Text style={{ fontSize: 12, color: day === today ? colors.primary : colors.muted, fontWeight: day === today ? "700" : "400" }}>{day === today ? `${day} (today)` : day}</Text>
+                        <Text style={{ fontSize: 12, color: day === today ? colors.primary : colors.foreground, fontWeight: day === today ? "700" : "400" }}>{hours[day]}</Text>
+                      </View>
+                    ) : null
+                  ));
+                })()}
+              </View>
+            )}
+            {/* Phone & Website */}
+            {selectedStore && (storeExtMap[selectedStore.id]?.phone || storeExtMap[selectedStore.id]?.website) && (
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+                {storeExtMap[selectedStore.id]?.phone && (
+                  <Pressable
+                    style={({ pressed }) => [{ flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: "center", opacity: pressed ? 0.7 : 1 }]}
+                    onPress={() => Linking.openURL(`tel:${storeExtMap[selectedStore.id]?.phone}`)}
+                  >
+                    <Text style={{ fontSize: 12, color: colors.primary, fontWeight: "600" }}>📞 Call</Text>
+                  </Pressable>
+                )}
+                {storeExtMap[selectedStore.id]?.website && (
+                  <Pressable
+                    style={({ pressed }) => [{ flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: "center", opacity: pressed ? 0.7 : 1 }]}
+                    onPress={() => Linking.openURL(storeExtMap[selectedStore.id]?.website ?? "")}
+                  >
+                    <Text style={{ fontSize: 12, color: colors.primary, fontWeight: "600" }}>🌐 Website</Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
             <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
               <Pressable
                 style={({ pressed }) => [{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.primary, alignItems: "center", opacity: pressed ? 0.85 : 1 }]}
@@ -880,7 +925,26 @@ export default function StoresScreen() {
                 <Text style={{ color: colors.warning, fontWeight: "700", fontSize: 14 }}>{storeExtMap[selectedStore?.id ?? ""]?.isFavorite ? "Unfav" : "Favorite"}</Text>
               </Pressable>
             </View>
-            <Text style={[{ fontSize: 14, fontWeight: "600", color: colors.foreground, marginTop: 8 }]}>Notes</Text>
+            <Text style={[{ fontSize: 14, fontWeight: "600", color: colors.foreground, marginTop: 8 }]}>📞 Phone (optional)</Text>
+            <TextInput
+              style={[styles.modalInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface }]}
+              placeholder="e.g. (555) 123-4567"
+              placeholderTextColor={colors.muted}
+              value={storePhone}
+              onChangeText={setStorePhone}
+              keyboardType="phone-pad"
+            />
+            <Text style={[{ fontSize: 14, fontWeight: "600", color: colors.foreground, marginTop: 8 }]}>🌐 Website (optional)</Text>
+            <TextInput
+              style={[styles.modalInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface }]}
+              placeholder="e.g. https://www.walmart.com"
+              placeholderTextColor={colors.muted}
+              value={storeWebsite}
+              onChangeText={setStoreWebsite}
+              keyboardType="url"
+              autoCapitalize="none"
+            />
+            <Text style={[{ fontSize: 14, fontWeight: "600", color: colors.foreground, marginTop: 8 }]}>📝 Notes</Text>
             <TextInput
               style={[styles.modalInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface, minHeight: 80, textAlignVertical: "top" }]}
               placeholder="Add notes about this store (e.g. best parking, open 24h)..."

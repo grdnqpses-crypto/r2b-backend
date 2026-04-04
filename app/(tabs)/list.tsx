@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Share, Keyboard } from "react-native";
 import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync } from "expo-audio";
 import * as FileSystem from "expo-file-system/legacy";
@@ -11,11 +11,17 @@ import {
   StyleSheet, Alert, Platform, ActivityIndicator,
   Modal, ScrollView, TouchableOpacity,
 } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
 import { ScreenContainer } from "@/components/screen-container";
+import { Confetti } from "@/components/confetti";
+import { getAppSettings } from "@/lib/storage";
+import { parseItemInput, hasStructuredInput } from "@/lib/parse-item";
+import * as Clipboard from "expo-clipboard";
+import * as MailComposer from "expo-mail-composer";
+import * as SMS from "expo-sms";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import {
@@ -46,6 +52,7 @@ const LIST_ICONS = ["🛒", "🏪", "💊", "🏠", "🎉", "🌿", "🐾", "�
 export default function ListScreen() {
   const colors = useColors();
   const { t } = useTranslation();
+  const router = useRouter();
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [activeListId, setActiveListId] = useState("default");
@@ -63,6 +70,12 @@ export default function ListScreen() {
   const [newListColor, setNewListColor] = useState(LIST_COLORS[0]);
   const [undoItem, setUndoItem] = useState<ShoppingItem | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [confettiEnabled, setConfettiEnabled] = useState(true);
+  const prevUncheckedCount = useRef<number>(-1);
+  const [showTripPrompt, setShowTripPrompt] = useState(false);
+  const [clipboardItems, setClipboardItems] = useState<string[]>([]);
+  const [showClipboardImport, setShowClipboardImport] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [barcodeScanLocked, setBarcodeScanLocked] = useState(false);
@@ -71,30 +84,89 @@ export default function ListScreen() {
   const transcribeMutation = trpc.voice.transcribe.useMutation();
 
   const loadData = useCallback(async () => {
-    const [allItems, listsData, tierData, recent, tplData] = await Promise.all([
-      getAllShoppingItems(), getShoppingLists(), getTier(), getRecentItems(30), getListTemplates(),
+    const [allItems, listsData, tierData, recent, tplData, appSettings] = await Promise.all([
+      getAllShoppingItems(), getShoppingLists(), getTier(), getRecentItems(30), getListTemplates(), getAppSettings(),
     ]);
     setItems(allItems);
     setLists(listsData);
     setTier(tierData);
     setRecentItems(recent);
     setTemplates(tplData);
+    setConfettiEnabled(appSettings.confettiEnabled ?? true);
   }, []);
 
-  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+  useFocusEffect(useCallback(() => {
+    loadData();
+    // Clipboard check is deferred to avoid declaration order issue
+    setTimeout(() => checkClipboard(), 100);
+  }, [loadData])); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeItems = items.filter((i) => (i.listId ?? "default") === activeListId);
   const unchecked = activeItems.filter((i) => !i.checked);
   const checked = activeItems.filter((i) => i.checked);
   const atLimit = tier === "free" && unchecked.length >= FREE_ITEM_LIMIT;
 
+  // Confetti: trigger when all items are checked off (and there were items before)
+  useEffect(() => {
+    const totalActive = activeItems.length;
+    const uncheckedCount = unchecked.length;
+    if (
+      confettiEnabled &&
+      totalActive > 0 &&
+      uncheckedCount === 0 &&
+      prevUncheckedCount.current > 0
+    ) {
+      setShowConfetti(true);
+      setShowTripPrompt(true);
+      if (Platform.OS !== "web") {
+        setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success), 100);
+        setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 400);
+        setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success), 700);
+      }
+    }
+    prevUncheckedCount.current = uncheckedCount;
+  }, [unchecked.length, activeItems.length, confettiEnabled]);
+
+  // Check clipboard for potential shopping list on focus
+  const checkClipboard = useCallback(async () => {
+    try {
+      const text = await Clipboard.getStringAsync();
+      if (!text || text.length < 5 || text.length > 2000) return;
+      // Detect if it looks like a list (multiple lines, bullet points, or numbered items)
+      const lines = text.split(/[\n\r,;]+/).map((l) => l.trim()).filter((l) => l.length > 1 && l.length < 80);
+      const cleaned = lines.map((l) => l.replace(/^[-•*·\d+\.]+\s*/, "").trim()).filter((l) => l.length > 1);
+      if (cleaned.length >= 2 && cleaned.length <= 30) {
+        setClipboardItems(cleaned);
+        setShowClipboardImport(true);
+      }
+    } catch {}
+  }, []);
+
+  const handleClipboardImport = async () => {
+    setShowClipboardImport(false);
+    for (const item of clipboardItems) {
+      const parsed = parseItemInput(item);
+      await addShoppingItem(parsed.text, {
+        listId: activeListId,
+        quantity: parsed.quantity,
+        unit: parsed.unit,
+        category: parsed.category as ItemCategory | undefined,
+      });
+    }
+    await loadData();
+    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Alert.alert("Imported!", `Added ${clipboardItems.length} items from clipboard.`);
+    setClipboardItems([]);
+    await Clipboard.setStringAsync(""); // Clear so it doesn't re-trigger
+  };
+
   const filteredSuggestions = inputText.trim().length > 0
     ? recentItems.filter((r) => r.toLowerCase().includes(inputText.toLowerCase()) && r.toLowerCase() !== inputText.toLowerCase()).slice(0, 5)
     : [];
 
   const handleAdd = async (text?: string) => {
-    const finalText = (text ?? inputText).trim();
-    if (!finalText) return;
+    const rawText = (text ?? inputText).trim();
+    if (!rawText) return;
     if (atLimit) {
       Alert.alert(t("list.freeLimitReached"), t("list.freeLimitMessage", { limit: FREE_ITEM_LIMIT }), [{ text: t("common.ok") }]);
       return;
@@ -102,7 +174,14 @@ export default function ListScreen() {
     setLoading(true);
     setShowSuggestions(false);
     Keyboard.dismiss();
-    await addShoppingItem(finalText, { listId: activeListId });
+    // Parse natural language input (e.g., "2 lbs chicken breast")
+    const parsed = parseItemInput(rawText);
+    await addShoppingItem(parsed.text, {
+      listId: activeListId,
+      quantity: parsed.quantity,
+      unit: parsed.unit,
+      category: parsed.category as ItemCategory | undefined,
+    });
     setInputText("");
     await loadData();
     setLoading(false);
@@ -113,6 +192,8 @@ export default function ListScreen() {
     await toggleShoppingItem(id);
     await loadData();
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Check if all items are now checked (list complete!)
+    // We check after loadData so items state is fresh
   };
 
   const handleDelete = async (id: string) => {
@@ -194,7 +275,60 @@ export default function ListScreen() {
     } catch { /* user cancelled */ }
   };
 
-  const handleClearChecked = async () => {
+  const handleEmailExport = async () => {
+    if (activeItems.length === 0) {
+      Alert.alert("Nothing to share", "Add some items to your list first.");
+      return;
+    }
+    const listName = lists.find((l) => l.id === activeListId)?.name ?? "My Shopping List";
+    const uncheckedItems = activeItems.filter((i) => !i.checked);
+    const checkedItems = activeItems.filter((i) => i.checked);
+    const uncheckedLines = uncheckedItems.map((i) => {
+      const qty = i.quantity ? `${i.quantity}${i.unit ? " " + i.unit : ""} ` : "";
+      return `  - ${qty}${i.text}`;
+    });
+    const checkedLines = checkedItems.map((i) => `  - ${i.text} (got)`);
+    const bodyParts = [
+      `Shopping List: ${listName}`,
+      "",
+      uncheckedItems.length > 0 ? "To Buy:" : "",
+      ...uncheckedLines,
+      checkedItems.length > 0 ? "\nAlready Got:" : "",
+      ...checkedLines,
+      "",
+      "Sent from Remember 2 Buy",
+    ].filter(Boolean);
+    const body = bodyParts.join("\n");
+    const isAvailable = await MailComposer.isAvailableAsync();
+    if (!isAvailable) {
+      Alert.alert("Email not available", "Please set up an email account on your device.");
+      return;
+    }
+    await MailComposer.composeAsync({
+      subject: `Shopping List: ${listName}`,
+      body,
+    });
+  };
+    const handleSMSExport = async () => {
+    if (activeItems.length === 0) {
+      Alert.alert("Nothing to share", "Add some items to your list first.");
+      return;
+    }
+    const listName = lists.find((l) => l.id === activeListId)?.name ?? "My Shopping List";
+    const uncheckedItems = activeItems.filter((i) => !i.checked);
+    const lines = uncheckedItems.map((i) => {
+      const qty = i.quantity ? `${i.quantity}${i.unit ? " " + i.unit : ""} ` : "";
+      return `- ${qty}${i.text}`;
+    });
+    const message = [`Shopping: ${listName}`, ...lines].join("\n");
+    const isAvailable = await SMS.isAvailableAsync();
+    if (!isAvailable) {
+      Alert.alert("SMS not available", "SMS is not available on this device.");
+      return;
+    }
+    await SMS.sendSMSAsync([], message);
+  };
+    const handleClearChecked = async () => {
     const checkedCount = checked.length;
     if (checkedCount === 0) return;
     Alert.alert(
@@ -445,6 +579,7 @@ export default function ListScreen() {
 
   return (
     <ScreenContainer>
+      <Confetti visible={showConfetti} onComplete={() => setShowConfetti(false)} />
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -507,6 +642,33 @@ export default function ListScreen() {
           </View>
         )}
 
+        {/* Clipboard Import Banner */}
+        {showClipboardImport && clipboardItems.length > 0 && (
+          <View style={[styles.clipboardBanner, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[{ fontSize: 13, fontWeight: "700", color: colors.foreground }]}>
+                📋 Clipboard list detected ({clipboardItems.length} items)
+              </Text>
+              <Text style={[{ fontSize: 11, color: colors.muted, marginTop: 2 }]} numberOfLines={1}>
+                {clipboardItems.slice(0, 3).join(", ")}{clipboardItems.length > 3 ? "..." : ""}
+              </Text>
+            </View>
+            <View style={{ flexDirection: "row", gap: 8, marginLeft: 8 }}>
+              <Pressable
+                style={({ pressed }) => [{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
+                onPress={handleClipboardImport}
+              >
+                <Text style={{ fontSize: 12, fontWeight: "700", color: "#fff" }}>Import</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.border, opacity: pressed ? 0.8 : 1 }]}
+                onPress={() => setShowClipboardImport(false)}
+              >
+                <Text style={{ fontSize: 12, color: colors.muted }}>Dismiss</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
         {/* Input Row */}
         <View style={[styles.inputRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <TextInput
@@ -543,6 +705,19 @@ export default function ListScreen() {
           </Pressable>
         </View>
 
+        {/* Natural Language Parse Preview */}
+        {inputText.trim().length > 0 && hasStructuredInput(inputText) && (() => {
+          const p = parseItemInput(inputText);
+          if (!p.quantity && !p.unit) return null;
+          return (
+            <View style={[styles.parseHint, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" }]}>
+              <Text style={{ fontSize: 11, color: colors.primary }}>
+                ✨ Will add: <Text style={{ fontWeight: "700" }}>{p.quantity ? `${p.quantity}${p.unit ? " " + p.unit : ""} ` : ""}{p.text}</Text>
+                {p.category ? <Text style={{ color: colors.muted }}> · {p.category}</Text> : null}
+              </Text>
+            </View>
+          );
+        })()}
         {/* Autocomplete suggestions */}
         {showSuggestions && filteredSuggestions.length > 0 && (
           <View style={[styles.suggestionsBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -589,6 +764,20 @@ export default function ListScreen() {
             <Text style={styles.quickBtnEmoji}>📄</Text>
             <Text style={[styles.quickBtnText, { color: colors.foreground }]}>PDF</Text>
           </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.quickBtn, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.8 : 1 }]}
+            onPress={handleEmailExport}
+          >
+            <Text style={styles.quickBtnEmoji}>✉️</Text>
+            <Text style={[styles.quickBtnText, { color: colors.foreground }]}>Email</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.quickBtn, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.8 : 1 }]}
+            onPress={handleSMSExport}
+          >
+            <Text style={styles.quickBtnEmoji}>💬</Text>
+            <Text style={[styles.quickBtnText, { color: colors.foreground }]}>SMS</Text>
+          </Pressable>
         </View>
 
         {/* List */}
@@ -610,6 +799,27 @@ export default function ListScreen() {
           />
         )}
 
+        {/* Trip Log Contextual Prompt */}
+        {showTripPrompt && checked.length > 0 && unchecked.length === 0 && (
+          <View style={[styles.tripPrompt, { backgroundColor: colors.success + "15", borderColor: colors.success + "40" }]}>
+            <Text style={[styles.tripPromptEmoji]}>🛒</Text>
+            <View style={styles.tripPromptText}>
+              <Text style={[styles.tripPromptTitle, { color: colors.foreground }]}>Shopping complete!</Text>
+              <Text style={[styles.tripPromptSub, { color: colors.muted }]}>Log this trip to track your spending?</Text>
+            </View>
+            <View style={styles.tripPromptActions}>
+              <Pressable
+                style={({ pressed }) => [styles.tripPromptBtn, { backgroundColor: colors.success, opacity: pressed ? 0.8 : 1 }]}
+                onPress={() => { setShowTripPrompt(false); router.push("/budget" as never); }}
+              >
+                <Text style={styles.tripPromptBtnText}>Log Trip</Text>
+              </Pressable>
+              <Pressable onPress={() => setShowTripPrompt(false)} style={{ padding: 8 }}>
+                <IconSymbol name="xmark.circle.fill" size={20} color={colors.muted} />
+              </Pressable>
+            </View>
+          </View>
+        )}
         {/* Undo Snackbar */}
         {undoItem && (
           <View style={[styles.snackbar, { backgroundColor: colors.foreground }]}>
@@ -778,6 +988,16 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
   emptyTitle: { fontSize: 20, fontWeight: "600", marginBottom: 6 },
   emptySubtitle: { fontSize: 14, textAlign: "center", lineHeight: 20 },
+  clipboardBanner: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1, marginBottom: 8 },
+  parseHint: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, marginBottom: 4 },
+  tripPrompt: { flexDirection: "row", alignItems: "center", margin: 12, padding: 12, borderRadius: 14, borderWidth: 1, gap: 10 },
+  tripPromptEmoji: { fontSize: 24 },
+  tripPromptText: { flex: 1 },
+  tripPromptTitle: { fontSize: 14, fontWeight: "700" },
+  tripPromptSub: { fontSize: 12, marginTop: 1 },
+  tripPromptActions: { flexDirection: "row", alignItems: "center", gap: 6 },
+  tripPromptBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  tripPromptBtnText: { color: "#fff", fontSize: 12, fontWeight: "700" },
   snackbar: { position: "absolute", bottom: 16, left: 16, right: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 14, borderRadius: 12 },
   snackbarText: { fontSize: 14, flex: 1 },
   snackbarUndo: { fontSize: 14, fontWeight: "700", marginLeft: 12 },
