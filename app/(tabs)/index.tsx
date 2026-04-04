@@ -20,9 +20,11 @@ import { useColors } from "@/hooks/use-colors";
 import {
   getShoppingItems, getSavedStores, getTier, setTier, getDistanceUnit,
   isDevModeEnabled, setDevModeEnabled, getRecentItems, addShoppingItem, getTotalCashback,
+  getCashbackEntries,
   type ShoppingItem, type SavedStore, type Tier, type DistanceUnit,
 } from "@/lib/storage";
 import { isGeofencingActive, checkLocationPermissions } from "@/lib/geofence";
+import { recalculateSavingsStreak, getStreakEmoji, getStreakMessage, type SavingsStreakData } from "@/lib/savings-streak";
 
 const DEV_TAP_TARGET = 11;
 
@@ -69,6 +71,7 @@ export default function DashboardScreen() {
   const devTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [recentItems, setRecentItems] = useState<string[]>([]);
   const [savingsTotals, setSavingsTotals] = useState({ week: 0, month: 0, allTime: 0 });
+  const [savingsStreak, setSavingsStreak] = useState<SavingsStreakData | null>(null);
   const devToastAnim = useRef(new Animated.Value(0)).current;
   const [devToastMsg, setDevToastMsg] = useState("");
 
@@ -82,6 +85,14 @@ export default function DashboardScreen() {
     setItems(itemsData);
     setRecentItems(recentData);
     setSavingsTotals({ week: savingsData.week, month: savingsData.month, allTime: savingsData.allTime });
+    // Load savings streak
+    try {
+      const cashbackEntries = await getCashbackEntries();
+      const streak = await recalculateSavingsStreak(cashbackEntries);
+      setSavingsStreak(streak);
+    } catch {
+      // non-critical
+    }
     setStores(storesData);
     setTierState(tierData);
     setGeofencingActive(geofenceActive);
@@ -328,6 +339,52 @@ export default function DashboardScreen() {
             <Text style={[styles.savingsTitle, { color: colors.success }]}>💰 Total Savings Tracked</Text>
           </Pressable>
         )}
+        {/* Savings Streak Card */}
+        {savingsStreak !== null && savingsStreak.currentStreak > 0 && (
+          <Pressable
+            style={({ pressed }) => [styles.streakCard, {
+              backgroundColor: savingsStreak.currentStreak >= 4 ? "#FF6B0015" : colors.warning + "12",
+              borderColor: savingsStreak.currentStreak >= 4 ? "#FF6B0030" : colors.warning + "30",
+              opacity: pressed ? 0.85 : 1,
+            }]}
+            onPress={() => router.push("/savings-goal" as never)}
+          >
+            <View style={styles.streakRow}>
+              <Text style={styles.streakEmoji}>{getStreakEmoji(savingsStreak.currentStreak)}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.streakTitle, { color: colors.foreground }]}>
+                  {savingsStreak.currentStreak}-Week Savings Streak
+                </Text>
+                <Text style={[styles.streakMsg, { color: colors.muted }]}>
+                  {getStreakMessage(savingsStreak.currentStreak)}
+                </Text>
+              </View>
+              {savingsStreak.longestStreak > savingsStreak.currentStreak && (
+                <View style={[styles.bestBadge, { backgroundColor: colors.primary + "15" }]}>
+                  <Text style={[styles.bestText, { color: colors.primary }]}>Best: {savingsStreak.longestStreak}w</Text>
+                </View>
+              )}
+            </View>
+            {/* Mini week dots */}
+            <View style={styles.weekDots}>
+              {savingsStreak.weeklyHistory.slice(-8).map((w, i) => (
+                <View
+                  key={w.week}
+                  style={[
+                    styles.weekDot,
+                    {
+                      backgroundColor: w.met
+                        ? colors.success
+                        : w.week === savingsStreak.lastCheckedWeek
+                        ? colors.warning + "60"
+                        : colors.border,
+                    },
+                  ]}
+                />
+              ))}
+            </View>
+          </Pressable>
+        )}
         {/* Monitored Stores with real-time distance */}
         {storesWithDistance.length > 0 && (
           <View style={styles.section}>
@@ -547,6 +604,15 @@ const styles = StyleSheet.create({
   toolsBtnText: { flex: 1 },
   toolsBtnTitle: { fontSize: 16, fontWeight: "700", color: "#fff", marginBottom: 2 },
   toolsBtnSub: { fontSize: 12, color: "rgba(255,255,255,0.8)" },
+  streakCard: { borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 14 },
+  streakRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10 },
+  streakEmoji: { fontSize: 32 },
+  streakTitle: { fontSize: 15, fontWeight: "700", marginBottom: 2 },
+  streakMsg: { fontSize: 12, lineHeight: 16 },
+  bestBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  bestText: { fontSize: 12, fontWeight: "700" },
+  weekDots: { flexDirection: "row", gap: 6 },
+  weekDot: { width: 10, height: 10, borderRadius: 5 },
   devBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1 },
   devBadgeText: { fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
   devToast: { alignSelf: "center", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginBottom: 12, zIndex: 10 },

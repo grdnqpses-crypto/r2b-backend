@@ -130,6 +130,13 @@ const TOOL_SECTIONS: ToolSection[] = [
         route: "/forgot-check",
       },
       {
+        icon: "brain",
+        label: "What Am I Forgetting?",
+        description: "AI scans your history to find missing items",
+        route: "/ai-suggestions",
+        badge: "AI",
+      },
+      {
         icon: "leaf.fill",
         label: "Dietary Filter",
         description: "Flag items that don't match your diet",

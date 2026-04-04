@@ -412,3 +412,11 @@
 - [x] Build SMS list export (via SMS)
 - [x] Add store phone/website fields to store detail modal
 - [x] Fix useEffect/useRouter missing imports in list.tsx
+
+## v2.3.0 — AI Suggestions & Savings Streak (Apr 2026)
+- [ ] Build AI "What Am I Forgetting?" screen using server LLM + purchase history
+- [ ] Build Savings Streak counter on Dashboard (fire badge for consecutive weeks meeting goal)
+
+## v1.0.64 — AI Suggestions & Savings Streak (Apr 2026)
+- [x] Build AI "What Am I Forgetting?" screen using server LLM + purchase history
+- [x] Build Savings Streak counter on Dashboard (fire badge for consecutive weeks meeting goal)
