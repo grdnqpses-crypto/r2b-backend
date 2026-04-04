@@ -29,6 +29,10 @@ interface PremiumPaywallProps {
   itemName?: string;
   featureName?: string;
   scansRemaining?: number;
+  /** Whether the Google Play Billing connection is ready for purchases */
+  iapReady?: boolean;
+  /** Error message from the last purchase attempt */
+  purchaseError?: string | null;
   onActivate: (family: boolean) => void;
   onDismiss: () => void;
 }
@@ -55,6 +59,8 @@ export function PremiumPaywall({
   itemName,
   featureName,
   scansRemaining,
+  iapReady = true,
+  purchaseError,
   onActivate,
   onDismiss,
 }: PremiumPaywallProps) {
@@ -172,6 +178,13 @@ export function PremiumPaywall({
             <Text style={[styles.planAnnual, { color: colors.muted }]}>
               ~$8.63/month · Auto-renews weekly
             </Text>
+{/* Error message from last purchase attempt */}
+            {!!purchaseError && (
+              <View style={[styles.errorBanner, { backgroundColor: colors.error + "18", borderColor: colors.error + "40" }]}>
+                <Text style={[styles.errorText, { color: colors.error }]}>{purchaseError}</Text>
+              </View>
+            )}
+
             <Pressable
               onPress={() => {
                 if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -179,11 +192,16 @@ export function PremiumPaywall({
               }}
               style={({ pressed }) => [
                 styles.ctaBtn,
-                { backgroundColor: colors.primary, opacity: pressed ? 0.9 : 1 },
+                {
+                  backgroundColor: iapReady ? colors.primary : colors.muted,
+                  opacity: pressed ? 0.9 : 1,
+                },
               ]}
             >
               <Text style={styles.ctaBtnText}>
-                {hasFreeWeeks
+                {!iapReady
+                  ? "Connecting to store..."
+                  : hasFreeWeeks
                   ? `Start Free — ${referral.freeWeeksRemaining + 0} week${referral.freeWeeksRemaining !== 1 ? "s" : ""} free`
                   : "Start Premium — $1.99/week"}
               </Text>
@@ -329,4 +347,12 @@ const styles = StyleSheet.create({
   trustText: { fontSize: 13, fontWeight: "500", textAlign: "center" },
   trustSubtext: { fontSize: 11, marginTop: 8, textAlign: "center", lineHeight: 18 },
   legalLink: { fontSize: 11, textDecorationLine: "underline" },
+  errorBanner: {
+    marginTop: 12,
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    width: "100%",
+  },
+  errorText: { fontSize: 13, fontWeight: "600", textAlign: "center" },
 });

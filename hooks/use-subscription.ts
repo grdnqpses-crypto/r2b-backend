@@ -19,7 +19,9 @@
  * Subscription product: premium_weekly_199
  *   - $1.99 / week, auto-renewing
  *   - No free trial
+ *   - Base Plan ID: premium-weekly
  *   - Freemium model: free tier = 1 store + 3 items (no coupons)
+ *   - Package: com.remember2buy.shopping
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -52,6 +54,8 @@ function isIAPAvailable(): boolean {
 export const SUBSCRIPTION_SKU = "premium_weekly_199";
 /** Weekly price shown to users */
 export const SUBSCRIPTION_PRICE = "$1.99";
+/** Play Store URL for fallback when IAP is unavailable */
+export const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.remember2buy.shopping";
 
 const STORAGE_STATUS_KEY = "@r2b_subscription_status";
 const STORAGE_CONSENT_KEY = "@r2b_subscription_consented";
@@ -70,9 +74,15 @@ export interface SubscriptionState {
   hasAccess: boolean;
   status: SubscriptionStatus;
   loading: boolean;
+  /** Whether the IAP connection is ready for purchases */
+  iapReady: boolean;
   /** Whether the user has seen and agreed to the subscription consent screen */
   hasConsented: boolean;
-  /** Initiate a purchase via Google Play Billing */
+  /**
+   * Initiate a purchase via Google Play Billing.
+   * THROWS an Error if IAP is unavailable or connection is not ready,
+   * so callers can catch and fall back to the Play Store URL.
+   */
   purchase: () => Promise<void>;
   /** Restore previous purchases */
   restore: () => Promise<void>;
@@ -86,6 +96,7 @@ export interface SubscriptionState {
 export function useSubscription(): SubscriptionState {
   const [status, setStatus] = useState<SubscriptionStatus>("loading");
   const [loading, setLoading] = useState(true);
+  const [iapReady, setIapReady] = useState(false);
   const [hasConsented, setHasConsented] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offerToken, setOfferToken] = useState<string | null>(null);
@@ -162,6 +173,7 @@ export function useSubscription(): SubscriptionState {
 
         await initConnection();
         connectionRef.current = true;
+        if (mounted) setIapReady(true);
 
         // Fetch subscription product to get the offer token
         try {
@@ -242,38 +254,37 @@ export function useSubscription(): SubscriptionState {
   /**
    * Trigger the Google Play subscription purchase flow for premium_weekly_199.
    * On success, purchaseUpdatedListener sets status to "active".
+   *
+   * THROWS when IAP is unavailable or connection is not ready so callers
+   * can catch and fall back to opening the Play Store URL directly.
    */
   const purchase = useCallback(async () => {
     if (Platform.OS === "web") {
-      setError("Subscriptions are only available on Android devices.");
-      return;
+      throw new Error("Subscriptions are only available on Android devices.");
     }
-    if (!isIAPAvailable() || !connectionRef.current) {
-      setError("Store connection not ready. Please try again.");
-      return;
+    if (!isIAPAvailable()) {
+      throw new Error("Google Play Billing is not available on this device.");
     }
-    try {
-      setError(null);
-      await AsyncStorage.setItem(STORAGE_CONSENT_KEY, "true");
-      setHasConsented(true);
-      const { requestPurchase } = await import("react-native-iap");
-      await requestPurchase({
-        type: "subs",
-        request: {
-          google: {
-            skus: [SUBSCRIPTION_SKU],
-            ...(offerToken
-              ? { subscriptionOffers: [{ sku: SUBSCRIPTION_SKU, offerToken }] }
-              : {}),
-          },
+    if (!connectionRef.current) {
+      throw new Error("Store connection not ready. Please try again in a moment.");
+    }
+    setError(null);
+    await AsyncStorage.setItem(STORAGE_CONSENT_KEY, "true");
+    setHasConsented(true);
+    const { requestPurchase } = await import("react-native-iap");
+    await requestPurchase({
+      type: "subs",
+      request: {
+        google: {
+          skus: [SUBSCRIPTION_SKU],
+          ...(offerToken
+            ? { subscriptionOffers: [{ sku: SUBSCRIPTION_SKU, offerToken }] }
+            : {}),
         },
-      });
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Purchase failed.";
-      if (!msg.toLowerCase().includes("cancel")) {
-        setError(msg);
-      }
-    }
+      },
+    });
+    // Note: success is handled by purchaseUpdatedListener above.
+    // requestPurchase resolves when the purchase dialog is shown, not when complete.
   }, [offerToken]);
 
   const restore = useCallback(async () => {
@@ -303,6 +314,7 @@ export function useSubscription(): SubscriptionState {
     hasAccess,
     status,
     loading,
+    iapReady,
     hasConsented,
     purchase,
     restore,

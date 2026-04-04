@@ -27,7 +27,7 @@ import {
   getSavedStores,
 } from "@/lib/geofence";
 import { setupNotifications, sendTestNotification } from "@/lib/notifications";
-import { useSubscription } from "@/hooks/use-subscription";
+import { useSubscription, PLAY_STORE_URL } from "@/hooks/use-subscription";
 import { PremiumPaywall } from "@/components/premium-paywall";
 
 export default function SettingsScreen() {
@@ -471,20 +471,26 @@ export default function SettingsScreen() {
       >
         <PremiumPaywall
           reason="general"
+          iapReady={subscription.iapReady}
+          purchaseError={subscription.error}
           onActivate={async (_family: boolean) => {
             try {
               await subscription.purchase();
-              // If purchase() succeeded (no error thrown), close the modal and refresh
-              setShowPaywall(false);
-              await loadState();
-            } catch {
-              // IAP not available (e.g. Expo Go, sideloaded build) —
-              // fall back to opening the Play Store subscription page directly
-              const playStoreUrl =
-                "https://play.google.com/store/apps/details?id=space.manus.remember2buy";
-              const supported = await Linking.canOpenURL(playStoreUrl);
+              // purchase() resolves when Play dialog is shown.
+              // purchaseUpdatedListener handles success and sets status to "active".
+              // Close modal after a short delay to let the listener fire.
+              setTimeout(() => {
+                setShowPaywall(false);
+                loadState();
+              }, 1500);
+            } catch (e: unknown) {
+              const msg = e instanceof Error ? e.message : "";
+              // User cancelled — do nothing
+              if (msg.toLowerCase().includes("cancel")) return;
+              // IAP not available or connection not ready — open Play Store directly
+              const supported = await Linking.canOpenURL(PLAY_STORE_URL);
               if (supported) {
-                await Linking.openURL(playStoreUrl);
+                await Linking.openURL(PLAY_STORE_URL);
               } else {
                 Alert.alert(
                   "Open Play Store",
