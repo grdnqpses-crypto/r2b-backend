@@ -13,6 +13,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { PremiumPaywall } from "@/components/premium-paywall";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { useSubscription } from "@/hooks/use-subscription";
 
 interface NominatimResult {
   place_id: number;
@@ -67,6 +68,7 @@ type Tab = "nearby" | "search" | "saved";
 
 export default function StoresScreen() {
   const colors = useColors();
+  const storeSubscription = useSubscription();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>("nearby");
   const [savedStores, setSavedStores] = useState<SavedStore[]>([]);
@@ -844,9 +846,24 @@ export default function StoresScreen() {
       >
         <PremiumPaywall
           reason="store-limit"
-          onActivate={async (_plan) => {
-            setShowPaywall(false);
-            await loadSavedStores();
+          iapReady={storeSubscription.iapReady}
+          iapFailed={storeSubscription.iapFailed}
+          purchaseError={storeSubscription.error}
+          onRetry={storeSubscription.retryConnect}
+          onActivate={async (plan) => {
+            try {
+              if (plan === "annual") {
+                await storeSubscription.purchaseAnnual();
+              } else {
+                await storeSubscription.purchase();
+              }
+              setTimeout(() => {
+                setShowPaywall(false);
+                loadSavedStores();
+              }, 1500);
+            } catch {
+              setShowPaywall(false);
+            }
           }}
           onDismiss={() => setShowPaywall(false)}
         />

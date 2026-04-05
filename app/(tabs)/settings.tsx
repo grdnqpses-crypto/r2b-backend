@@ -658,7 +658,9 @@ export default function SettingsScreen() {
         <PremiumPaywall
           reason="general"
           iapReady={subscription.iapReady}
+          iapFailed={subscription.iapFailed}
           purchaseError={subscription.error}
+          onRetry={subscription.retryConnect}
           onActivate={async (plan) => {
             try {
               if (plan === "annual") {

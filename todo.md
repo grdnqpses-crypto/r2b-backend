@@ -431,3 +431,9 @@
 - [x] Approaching notification at 0.3 miles: "You're approaching [Store] — your list is ready!"
 - [x] Arrived notification: 6-minute delay after entering store radius: "You're at [Store] — don't forget your list!"
 - [x] Remove false "You're Here" trigger when user is miles away
+
+## v1.0.68 — IAP Subscription Fix (Apr 2026)
+- [x] Fix "Connecting to store" hang in subscription/IAP flow
+- [x] Ensure correct product IDs match Play Store subscription setup
+- [x] Verify react-native-iap initialization and connection lifecycle
+- [x] Add proper error handling and retry logic for IAP connection failures

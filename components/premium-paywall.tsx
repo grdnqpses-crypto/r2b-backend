@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import * as Haptics from "expo-haptics";
+import { PLAY_STORE_URL } from "@/hooks/use-subscription";
 
 type PlanType = "weekly" | "annual";
 
@@ -20,9 +21,13 @@ interface PremiumPaywallProps {
   featureName?: string;
   scansRemaining?: number;
   iapReady?: boolean;
+  /** True when all IAP connection retries have been exhausted */
+  iapFailed?: boolean;
   purchaseError?: string | null;
   onActivate: (plan: PlanType) => void;
   onDismiss: () => void;
+  /** Called when user taps Retry to re-attempt the IAP connection */
+  onRetry?: () => void;
 }
 
 const PREMIUM_FEATURES = [
@@ -45,9 +50,11 @@ export function PremiumPaywall({
   featureName,
   scansRemaining,
   iapReady = true,
+  iapFailed = false,
   purchaseError,
   onActivate,
   onDismiss,
+  onRetry,
 }: PremiumPaywallProps) {
   const colors = useColors();
   const [selectedPlan, setSelectedPlan] = useState<PlanType>("annual");
@@ -146,25 +153,55 @@ export function PremiumPaywall({
                     <Text style={[styles.errorText, { color: colors.error }]}>{purchaseError}</Text>
                   </View>
                 )}
-                <Pressable
-                  onPress={() => {
-                    if (Platform.OS !== "web") {
-                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    }
-                    onActivate("annual");
-                  }}
-                  style={({ pressed }) => [
-                    styles.ctaBtn,
-                    {
-                      backgroundColor: iapReady ? "#22C55E" : colors.muted,
-                      opacity: pressed ? 0.9 : 1,
-                    },
-                  ]}
-                >
-                  <Text style={styles.ctaBtnText}>
-                    {!iapReady ? "Connecting to store..." : "Start Annual — $59.99/year"}
-                  </Text>
-                </Pressable>
+                {iapFailed ? (
+                  <View style={styles.failedContainer}>
+                    <Text style={[styles.failedText, { color: colors.muted }]}>
+                      Could not connect to Google Play.
+                    </Text>
+                    <View style={styles.failedBtns}>
+                      {!!onRetry && (
+                        <Pressable
+                          onPress={onRetry}
+                          style={({ pressed }) => [
+                            styles.retryBtn,
+                            { borderColor: "#22C55E", opacity: pressed ? 0.7 : 1 },
+                          ]}
+                        >
+                          <Text style={[styles.retryBtnText, { color: "#22C55E" }]}>↺ Retry</Text>
+                        </Pressable>
+                      )}
+                      <Pressable
+                        onPress={() => Linking.openURL(PLAY_STORE_URL)}
+                        style={({ pressed }) => [
+                          styles.ctaBtn,
+                          { backgroundColor: "#22C55E", opacity: pressed ? 0.9 : 1, marginTop: 0, flex: 1 },
+                        ]}
+                      >
+                        <Text style={styles.ctaBtnText}>Open Play Store</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={() => {
+                      if (Platform.OS !== "web") {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      }
+                      onActivate("annual");
+                    }}
+                    style={({ pressed }) => [
+                      styles.ctaBtn,
+                      {
+                        backgroundColor: iapReady ? "#22C55E" : colors.muted,
+                        opacity: pressed ? 0.9 : 1,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.ctaBtnText}>
+                      {!iapReady ? "Connecting to store..." : "Start Annual — $59.99/year"}
+                    </Text>
+                  </Pressable>
+                )}
               </>
             )}
           </Pressable>
@@ -203,25 +240,55 @@ export function PremiumPaywall({
                     <Text style={[styles.errorText, { color: colors.error }]}>{purchaseError}</Text>
                   </View>
                 )}
-                <Pressable
-                  onPress={() => {
-                    if (Platform.OS !== "web") {
-                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    }
-                    onActivate("weekly");
-                  }}
-                  style={({ pressed }) => [
-                    styles.ctaBtn,
-                    {
-                      backgroundColor: iapReady ? colors.primary : colors.muted,
-                      opacity: pressed ? 0.9 : 1,
-                    },
-                  ]}
-                >
-                  <Text style={styles.ctaBtnText}>
-                    {!iapReady ? "Connecting to store..." : "Start Weekly — $1.99/week"}
-                  </Text>
-                </Pressable>
+                {iapFailed ? (
+                  <View style={styles.failedContainer}>
+                    <Text style={[styles.failedText, { color: colors.muted }]}>
+                      Could not connect to Google Play.
+                    </Text>
+                    <View style={styles.failedBtns}>
+                      {!!onRetry && (
+                        <Pressable
+                          onPress={onRetry}
+                          style={({ pressed }) => [
+                            styles.retryBtn,
+                            { borderColor: colors.primary, opacity: pressed ? 0.7 : 1 },
+                          ]}
+                        >
+                          <Text style={[styles.retryBtnText, { color: colors.primary }]}>↺ Retry</Text>
+                        </Pressable>
+                      )}
+                      <Pressable
+                        onPress={() => Linking.openURL(PLAY_STORE_URL)}
+                        style={({ pressed }) => [
+                          styles.ctaBtn,
+                          { backgroundColor: colors.primary, opacity: pressed ? 0.9 : 1, marginTop: 0, flex: 1 },
+                        ]}
+                      >
+                        <Text style={styles.ctaBtnText}>Open Play Store</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={() => {
+                      if (Platform.OS !== "web") {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      }
+                      onActivate("weekly");
+                    }}
+                    style={({ pressed }) => [
+                      styles.ctaBtn,
+                      {
+                        backgroundColor: iapReady ? colors.primary : colors.muted,
+                        opacity: pressed ? 0.9 : 1,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.ctaBtnText}>
+                      {!iapReady ? "Connecting to store..." : "Start Weekly — $1.99/week"}
+                    </Text>
+                  </Pressable>
+                )}
               </>
             )}
           </Pressable>
@@ -328,4 +395,12 @@ const styles = StyleSheet.create({
     borderRadius: 10, borderWidth: 1, width: "100%",
   },
   errorText: { fontSize: 13, fontWeight: "600", textAlign: "center" },
+  failedContainer: { marginTop: 12, width: "100%", alignItems: "center", gap: 8 },
+  failedText: { fontSize: 13, textAlign: "center" },
+  failedBtns: { flexDirection: "row", gap: 8, width: "100%" },
+  retryBtn: {
+    paddingVertical: 14, paddingHorizontal: 20,
+    borderRadius: 14, borderWidth: 2, alignItems: "center", justifyContent: "center",
+  },
+  retryBtnText: { fontSize: 15, fontWeight: "800" },
 });

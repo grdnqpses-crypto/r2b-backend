@@ -3,24 +3,27 @@
  *
  * Native Google Play Billing subscription hook using react-native-iap v14 (Nitro Modules).
  *
- * CRASH PREVENTION STRATEGY:
- * react-native-iap v14 uses react-native-nitro-modules (JSI). When the native Nitro
- * module is absent (Expo Go, any build without native linking), importing the library
- * throws a fatal error that cannot be caught with try/catch because it happens at
- * module evaluation time (TurboModuleRegistry.getEnforcing throws synchronously).
+ * FIX for "Connecting to store..." hang:
  *
- * Guard: check global.NitroModulesProxy before any dynamic import of react-native-iap.
- * This is the actual object Nitro installs into the JS global — if it's null/undefined,
- * the native module is not linked and we must not import the library at all.
+ * Root cause: The previous NitroModulesProxy guard was too strict. On some Android
+ * devices/OS versions, global.NitroModulesProxy is populated asynchronously after
+ * the JS bundle loads, so the synchronous check returned false even in production
+ * builds where the native module IS available. This caused isIAPAvailable() to
+ * permanently return false, keeping iapReady=false and showing "Connecting to store..."
+ * forever.
  *
- * Fallback: pure AsyncStorage-based status tracking (no billing calls).
- * The app works normally in dev/Expo Go; real billing only activates in production EAS builds.
+ * Fix strategy:
+ *   1. Remove the NitroModulesProxy guard — instead, attempt initConnection() directly
+ *      inside a try/catch. If the native module is absent, it will throw and we fall back.
+ *   2. Add a 10-second timeout on initConnection() so it never hangs indefinitely.
+ *   3. Retry up to 3 times with exponential backoff (1s, 2s, 4s) before giving up.
+ *   4. Expose a `retryConnect` action so users can manually retry from the paywall.
+ *   5. If all retries fail, show a "Buy on Play Store" fallback link instead of
+ *      permanently showing "Connecting to store...".
  *
- * Subscription product: premium_weekly_199
- *   - $1.99 / week, auto-renewing
- *   - No free trial
- *   - Base Plan ID: premium-weekly
- *   - Freemium model: free tier = 1 store + 3 items (no coupons)
+ * Subscription products:
+ *   - premium_weekly_199  → $1.99/week, auto-renewing
+ *   - premium_annual_5999 → $59.99/year, auto-renewing
  *   - Package: com.remember2buy.shopping
  */
 
@@ -28,74 +31,65 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 
-// ─── Native module availability check ─────────────────────────────────────────
-
-/**
- * Returns true ONLY when:
- *  1. We are on Android (IAP is Android-only in this app)
- *  2. The Nitro runtime is installed (global.NitroModulesProxy exists)
- *
- * This is the correct guard for react-native-iap v14 which uses Nitro Modules.
- * Checking NativeModules.RNIapModule (old API) is WRONG for v14 — it will always
- * be undefined even in production builds, causing the guard to fail.
- *
- * Safe to call synchronously at any point — reads only from the JS global.
- */
-function isIAPAvailable(): boolean {
-  if (Platform.OS !== "android") return false;
-  // NitroModulesProxy is installed into global by react-native-nitro-modules
-  // when the native TurboModule is linked. If it's absent, any import of
-  // react-native-iap will throw a fatal ModuleNotFoundError.
-  return typeof (global as Record<string, unknown>).NitroModulesProxy !== "undefined";
-}
-
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 export const SUBSCRIPTION_SKU = "premium_weekly_199";
 export const ANNUAL_SKU = "premium_annual_5999";
-/** Weekly price shown to users */
 export const SUBSCRIPTION_PRICE = "$1.99";
-/** Annual price shown to users */
 export const ANNUAL_PRICE = "$59.99";
-/** Play Store URL for fallback when IAP is unavailable */
-export const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.remember2buy.shopping";
+export const PLAY_STORE_URL =
+  "https://play.google.com/store/apps/details?id=com.remember2buy.shopping";
 
 const STORAGE_STATUS_KEY = "@r2b_subscription_status";
 const STORAGE_CONSENT_KEY = "@r2b_subscription_consented";
+
+/** Maximum time (ms) to wait for initConnection() before timing out */
+const IAP_CONNECT_TIMEOUT_MS = 10_000;
+/** Maximum number of connection attempts before giving up */
+const MAX_RETRIES = 3;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type SubscriptionStatus =
   | "loading"
-  | "none"       // free tier — no active subscription
-  | "active"     // paid subscription active
-  | "expired"    // subscription lapsed
-  | "cancelled"; // user cancelled but still within paid period
+  | "none"
+  | "active"
+  | "expired"
+  | "cancelled";
 
 export interface SubscriptionState {
-  /** True when status is "active" */
   hasAccess: boolean;
   status: SubscriptionStatus;
   loading: boolean;
-  /** Whether the IAP connection is ready for purchases */
   iapReady: boolean;
-  /** Whether the user has seen and agreed to the subscription consent screen */
+  /** True when all retries have been exhausted and IAP is unavailable */
+  iapFailed: boolean;
   hasConsented: boolean;
-  /**
-   * Initiate a weekly ($1.99/week) purchase via Google Play Billing.
-   * THROWS an Error if IAP is unavailable or connection is not ready.
-   */
   purchase: () => Promise<void>;
-  /**
-   * Initiate an annual ($59.99/year) purchase via Google Play Billing.
-   * THROWS an Error if IAP is unavailable or connection is not ready.
-   */
   purchaseAnnual: () => Promise<void>;
-  /** Restore previous purchases */
   restore: () => Promise<void>;
-  /** Refresh subscription status from Play Store */
   refresh: () => Promise<void>;
+  /** Manually retry the IAP connection (e.g. from a "Retry" button in the paywall) */
+  retryConnect: () => void;
   error: string | null;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Wrap a promise with a timeout. Rejects with "timeout" if it takes too long. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms);
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
+}
+
+/** Sleep for `ms` milliseconds */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -104,6 +98,7 @@ export function useSubscription(): SubscriptionState {
   const [status, setStatus] = useState<SubscriptionStatus>("loading");
   const [loading, setLoading] = useState(true);
   const [iapReady, setIapReady] = useState(false);
+  const [iapFailed, setIapFailed] = useState(false);
   const [hasConsented, setHasConsented] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offerToken, setOfferToken] = useState<string | null>(null);
@@ -111,22 +106,26 @@ export function useSubscription(): SubscriptionState {
   const connectionRef = useRef(false);
   const purchaseListenerRef = useRef<{ remove: () => void } | null>(null);
   const errorListenerRef = useRef<{ remove: () => void } | null>(null);
+  const mountedRef = useRef(true);
+  const retryTrigger = useRef(0);
+  const [retryCount, setRetryCount] = useState(0);
 
-  // ── Determine status from persisted data + Play Store ──────────────────────
+  // ── Refresh subscription status ────────────────────────────────────────────
   const refreshStatus = useCallback(async () => {
     try {
-      // 1. Check for active Play Store purchases (Android + Nitro only)
-      if (isIAPAvailable() && connectionRef.current) {
+      if (connectionRef.current) {
         try {
           const { getAvailablePurchases } = await import("react-native-iap");
-          const purchases = await getAvailablePurchases();
+          const purchases = await withTimeout(getAvailablePurchases(), 8_000);
           const activeSub = purchases.find(
-            (p) => p.productId === SUBSCRIPTION_SKU && p.purchaseToken
+            (p) =>
+              (p.productId === SUBSCRIPTION_SKU || p.productId === ANNUAL_SKU) &&
+              p.purchaseToken
           );
           if (activeSub) {
             await AsyncStorage.setItem(STORAGE_STATUS_KEY, "active");
-            setStatus("active");
-            setLoading(false);
+            if (mountedRef.current) setStatus("active");
+            if (mountedRef.current) setLoading(false);
             return;
           }
         } catch {
@@ -134,115 +133,142 @@ export function useSubscription(): SubscriptionState {
         }
       }
 
-      // 2. Check locally stored subscription status
       const [storedStatus, consentedStr] = await Promise.all([
         AsyncStorage.getItem(STORAGE_STATUS_KEY),
         AsyncStorage.getItem(STORAGE_CONSENT_KEY),
       ]);
 
-      setHasConsented(consentedStr === "true");
+      if (mountedRef.current) setHasConsented(consentedStr === "true");
 
       if (storedStatus === "active") {
-        setStatus("active");
+        if (mountedRef.current) setStatus("active");
       } else if (storedStatus === "cancelled") {
-        setStatus("cancelled");
+        if (mountedRef.current) setStatus("cancelled");
       } else if (storedStatus === "expired") {
-        setStatus("expired");
+        if (mountedRef.current) setStatus("expired");
       } else {
-        setStatus("none");
+        if (mountedRef.current) setStatus("none");
       }
     } catch {
-      // On web or simulator, default to free tier
-      setStatus("none");
+      if (mountedRef.current) setStatus("none");
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, []);
 
-  // ── Initialize IAP connection (only when Nitro is available) ───────────────
+  // ── Initialize IAP connection with retry logic ─────────────────────────────
   useEffect(() => {
-    let mounted = true;
+    mountedRef.current = true;
 
     const init = async () => {
-      try {
-        if (!isIAPAvailable()) {
-          // Nitro not available — use local status tracking only
-          await refreshStatus();
-          return;
-        }
+      // Web or non-Android: skip IAP entirely, use local status
+      if (Platform.OS !== "android") {
+        await refreshStatus();
+        return;
+      }
 
-        const {
-          initConnection,
-          fetchProducts,
-          purchaseUpdatedListener,
-          purchaseErrorListener,
-          finishTransaction,
-        } = await import("react-native-iap");
+      let attempt = 0;
+      let connected = false;
 
-        await initConnection();
-        connectionRef.current = true;
-        if (mounted) setIapReady(true);
-
-        // Fetch both subscription products to get offer tokens
+      while (attempt < MAX_RETRIES && !connected && mountedRef.current) {
         try {
-          const products = await fetchProducts({ skus: [SUBSCRIPTION_SKU, ANNUAL_SKU] });
-          if (mounted && products && products.length > 0) {
-            for (const product of products) {
-              const sub = product as {
-                productId?: string;
-                subscriptionOfferDetailsAndroid?: Array<{
-                  offerToken: string;
-                  pricingPhases?: Array<{ formattedPrice?: string; priceAmountMicros?: string }>;
-                }>;
-              };
-              const offerDetails = sub.subscriptionOfferDetailsAndroid;
-              if (offerDetails && offerDetails.length > 0) {
-                const baseOffer =
-                  offerDetails.find((o) =>
-                    o.pricingPhases?.every((p) => p.priceAmountMicros !== "0")
-                  ) ?? offerDetails[0];
-                if (sub.productId === SUBSCRIPTION_SKU) {
-                  setOfferToken(baseOffer.offerToken ?? null);
-                } else if (sub.productId === ANNUAL_SKU) {
-                  setAnnualOfferToken(baseOffer.offerToken ?? null);
+          const {
+            initConnection,
+            fetchProducts,
+            purchaseUpdatedListener,
+            purchaseErrorListener,
+            finishTransaction,
+          } = await import("react-native-iap");
+
+          // Attempt connection with timeout
+          await withTimeout(initConnection(), IAP_CONNECT_TIMEOUT_MS);
+          connectionRef.current = true;
+          connected = true;
+
+          if (!mountedRef.current) return;
+          setIapReady(true);
+          setIapFailed(false);
+
+          // Fetch products to get offer tokens (non-blocking)
+          try {
+            const products = await withTimeout(
+              fetchProducts({ skus: [SUBSCRIPTION_SKU, ANNUAL_SKU] }),
+              8_000
+            );
+            if (mountedRef.current && products && products.length > 0) {
+              for (const product of products) {
+                const sub = product as {
+                  productId?: string;
+                  subscriptionOfferDetailsAndroid?: Array<{
+                    offerToken: string;
+                    pricingPhases?: Array<{
+                      formattedPrice?: string;
+                      priceAmountMicros?: string;
+                    }>;
+                  }>;
+                };
+                const offerDetails = sub.subscriptionOfferDetailsAndroid;
+                if (offerDetails && offerDetails.length > 0) {
+                  const baseOffer =
+                    offerDetails.find((o) =>
+                      o.pricingPhases?.every((p) => p.priceAmountMicros !== "0")
+                    ) ?? offerDetails[0];
+                  if (sub.productId === SUBSCRIPTION_SKU) {
+                    if (mountedRef.current) setOfferToken(baseOffer.offerToken ?? null);
+                  } else if (sub.productId === ANNUAL_SKU) {
+                    if (mountedRef.current) setAnnualOfferToken(baseOffer.offerToken ?? null);
+                  }
                 }
               }
             }
+          } catch {
+            // Product fetch failed — purchase will still work without offer token
           }
-        } catch {
-          // Product fetch failed — purchase will still work without offer token
-        }
 
-        // Purchase success listener
-        purchaseListenerRef.current = purchaseUpdatedListener(async (purchase) => {
-          if (purchase.productId === SUBSCRIPTION_SKU || purchase.productId === ANNUAL_SKU) {
-            try {
-              await finishTransaction({ purchase, isConsumable: false });
-              await AsyncStorage.setItem(STORAGE_STATUS_KEY, "active");
-              await AsyncStorage.setItem(STORAGE_CONSENT_KEY, "true");
-              if (mounted) {
-                setStatus("active");
-                setHasConsented(true);
-                setError(null);
+          // Purchase success listener
+          purchaseListenerRef.current = purchaseUpdatedListener(async (purchase) => {
+            if (
+              purchase.productId === SUBSCRIPTION_SKU ||
+              purchase.productId === ANNUAL_SKU
+            ) {
+              try {
+                await finishTransaction({ purchase, isConsumable: false });
+                await AsyncStorage.setItem(STORAGE_STATUS_KEY, "active");
+                await AsyncStorage.setItem(STORAGE_CONSENT_KEY, "true");
+                if (mountedRef.current) {
+                  setStatus("active");
+                  setHasConsented(true);
+                  setError(null);
+                }
+              } catch {
+                // Transaction finish failed — will retry on next app open
               }
-            } catch {
-              // Transaction finish failed — will retry on next app open
             }
-          }
-        });
+          });
 
-        // Purchase error listener
-        errorListenerRef.current = purchaseErrorListener((err) => {
-          if (mounted && err.code !== "user-cancelled") {
-            setError(err.message ?? "Purchase failed. Please try again.");
-          }
-        });
+          // Purchase error listener
+          errorListenerRef.current = purchaseErrorListener((err) => {
+            if (mountedRef.current && err.code !== "user-cancelled") {
+              setError(err.message ?? "Purchase failed. Please try again.");
+            }
+          });
 
-        await refreshStatus();
-      } catch {
-        // IAP init failed — fall back to local status tracking
-        if (mounted) {
           await refreshStatus();
+        } catch (err) {
+          attempt++;
+          connectionRef.current = false;
+
+          if (attempt < MAX_RETRIES && mountedRef.current) {
+            // Exponential backoff: 1s, 2s, 4s
+            await sleep(1000 * Math.pow(2, attempt - 1));
+          } else {
+            // All retries exhausted — fall back to local status tracking
+            if (mountedRef.current) {
+              setIapFailed(true);
+              setIapReady(false);
+            }
+            await refreshStatus();
+          }
         }
       }
     };
@@ -250,7 +276,7 @@ export function useSubscription(): SubscriptionState {
     init();
 
     return () => {
-      mounted = false;
+      mountedRef.current = false;
       purchaseListenerRef.current?.remove();
       errorListenerRef.current?.remove();
       if (connectionRef.current) {
@@ -260,30 +286,22 @@ export function useSubscription(): SubscriptionState {
         connectionRef.current = false;
       }
     };
-  }, [refreshStatus]);
+    // retryCount is intentionally included to re-run init on manual retry
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retryCount, refreshStatus]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
-  /**
-   * Trigger the Google Play subscription purchase flow for premium_weekly_199.
-   * On success, purchaseUpdatedListener sets status to "active".
-   *
-   * THROWS when IAP is unavailable or connection is not ready so callers
-   * can catch and fall back to opening the Play Store URL directly.
-   */
   const purchase = useCallback(async () => {
     if (Platform.OS === "web") {
       throw new Error("Subscriptions are only available on Android devices.");
     }
-    if (!isIAPAvailable()) {
-      throw new Error("Google Play Billing is not available on this device.");
-    }
     if (!connectionRef.current) {
-      throw new Error("Store connection not ready. Please try again in a moment.");
+      throw new Error("Store connection not ready. Please tap Retry and try again.");
     }
     setError(null);
     await AsyncStorage.setItem(STORAGE_CONSENT_KEY, "true");
-    setHasConsented(true);
+    if (mountedRef.current) setHasConsented(true);
     const { requestPurchase } = await import("react-native-iap");
     await requestPurchase({
       type: "subs",
@@ -296,27 +314,18 @@ export function useSubscription(): SubscriptionState {
         },
       },
     });
-  // Note: success is handled by purchaseUpdatedListener above.
-  // requestPurchase resolves when the purchase dialog is shown, not when complete.
   }, [offerToken]);
 
-  /**
-   * Trigger the Google Play subscription purchase flow for premium_annual_5999.
-   * THROWS when IAP is unavailable or connection is not ready.
-   */
   const purchaseAnnual = useCallback(async () => {
     if (Platform.OS === "web") {
       throw new Error("Subscriptions are only available on Android devices.");
     }
-    if (!isIAPAvailable()) {
-      throw new Error("Google Play Billing is not available on this device.");
-    }
     if (!connectionRef.current) {
-      throw new Error("Store connection not ready. Please try again in a moment.");
+      throw new Error("Store connection not ready. Please tap Retry and try again.");
     }
     setError(null);
     await AsyncStorage.setItem(STORAGE_CONSENT_KEY, "true");
-    setHasConsented(true);
+    if (mountedRef.current) setHasConsented(true);
     const { requestPurchase } = await import("react-native-iap");
     await requestPurchase({
       type: "subs",
@@ -332,25 +341,35 @@ export function useSubscription(): SubscriptionState {
   }, [annualOfferToken]);
 
   const restore = useCallback(async () => {
-    if (!isIAPAvailable()) {
-      setError("Restore is only available on Android devices.");
+    if (!connectionRef.current) {
+      setError("Store not connected. Please tap Retry first.");
       return;
     }
     try {
       setError(null);
       const { getAvailablePurchases } = await import("react-native-iap");
-      const purchases = await getAvailablePurchases();
+      const purchases = await withTimeout(getAvailablePurchases(), 8_000);
       const activeSub = purchases.find(
-      (p) => p.productId === SUBSCRIPTION_SKU || p.productId === ANNUAL_SKU
-    );
+        (p) => p.productId === SUBSCRIPTION_SKU || p.productId === ANNUAL_SKU
+      );
       if (activeSub) {
         await AsyncStorage.setItem(STORAGE_STATUS_KEY, "active");
-        setStatus("active");
+        if (mountedRef.current) setStatus("active");
       } else {
-        setError("No active subscription found for this account.");
+        if (mountedRef.current) setError("No active subscription found for this account.");
       }
     } catch {
-      setError("Could not restore purchases. Please try again.");
+      if (mountedRef.current) setError("Could not restore purchases. Please try again.");
+    }
+  }, []);
+
+  /** Manually retry the IAP connection — resets state and re-runs the init effect */
+  const retryConnect = useCallback(() => {
+    if (mountedRef.current) {
+      setIapFailed(false);
+      setIapReady(false);
+      setError(null);
+      setRetryCount((c) => c + 1);
     }
   }, []);
 
@@ -361,11 +380,13 @@ export function useSubscription(): SubscriptionState {
     status,
     loading,
     iapReady,
+    iapFailed,
     hasConsented,
     purchase,
     purchaseAnnual,
     restore,
     refresh: refreshStatus,
+    retryConnect,
     error,
   };
 }
