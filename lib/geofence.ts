@@ -4,8 +4,39 @@ import { type SavedStore } from "./storage";
 
 export { getSavedStores } from "./storage";
 
-// 0.3 miles in meters (~483m) — alert fires when user is within 0.3 miles of a saved store
-const GEOFENCE_RADIUS_METERS = 483;
+/**
+ * Dual-radius geofencing strategy:
+ *
+ * OUTER ring — 0.3 miles (483m):
+ *   Fires the "Approaching [Store]" notification so the user has time to decide
+ *   whether to stop. This is the user-facing "heads up" alert.
+ *
+ * INNER ring — 100m (at the store entrance):
+ *   Starts the 6-minute countdown for the "You're at [Store]" reminder.
+ *   Only fires when the user is physically at the store, not just driving by.
+ *   If the user exits the inner ring before 6 minutes, the reminder is cancelled.
+ *
+ * Why two rings instead of one?
+ *   Android's geofencing API has a minimum accuracy of ~100–200m. With a single
+ *   small radius, the OS can falsely trigger "Enter" events when GPS is weak
+ *   (indoors, in a car, etc.), causing "You're Here" alerts miles away.
+ *   The outer ring gives the approach alert at a safe distance, and the inner
+ *   ring ensures the arrived alert only fires when the user is actually there.
+ *
+ * Identifier convention:
+ *   Outer ring: "<storeName>__APPROACH"
+ *   Inner ring: "<storeName>__ARRIVED"
+ */
+
+// 0.3 miles in meters — "Approaching" alert fires here
+export const APPROACH_RADIUS_METERS = 483;
+
+// 100m — "Arrived" 6-minute countdown starts here
+export const ARRIVED_RADIUS_METERS = 100;
+
+// Suffix constants used in tasks.ts to distinguish ring type from identifier
+export const APPROACH_SUFFIX = "__APPROACH";
+export const ARRIVED_SUFFIX = "__ARRIVED";
 
 export interface GeofenceRegion {
   identifier: string;
@@ -51,21 +82,36 @@ export async function checkLocationPermissions(): Promise<{
 
 export async function startGeofencing(stores: SavedStore[]): Promise<void> {
   if (stores.length === 0) {
-    // Stop geofencing if no stores
     await stopGeofencing();
     return;
   }
 
-  const regions: GeofenceRegion[] = stores.map((store) => ({
-    identifier: store.name,
-    latitude: store.lat,
-    longitude: store.lng,
-    radius: GEOFENCE_RADIUS_METERS,
-    notifyOnEnter: true,
-    notifyOnExit: true,  // Required: Exit event cancels the 6-min in-store reminder for drive-bys
-  }));
+  const regions: GeofenceRegion[] = [];
 
-  // Android allows up to 100 geofences; iOS allows up to 20
+  for (const store of stores) {
+    // Outer ring: approach alert at 0.3 miles
+    regions.push({
+      identifier: `${store.name}${APPROACH_SUFFIX}`,
+      latitude: store.lat,
+      longitude: store.lng,
+      radius: APPROACH_RADIUS_METERS,
+      notifyOnEnter: true,
+      notifyOnExit: false, // No exit action needed for the outer ring
+    });
+
+    // Inner ring: arrived alert (6-min countdown) at 100m
+    regions.push({
+      identifier: `${store.name}${ARRIVED_SUFFIX}`,
+      latitude: store.lat,
+      longitude: store.lng,
+      radius: ARRIVED_RADIUS_METERS,
+      notifyOnEnter: true,
+      notifyOnExit: true, // Exit cancels the 6-min reminder (drive-by protection)
+    });
+  }
+
+  // Android allows up to 100 geofences; iOS allows up to 20.
+  // With 2 regions per store, we can track up to 10 stores on iOS.
   const limited = regions.slice(0, 20);
 
   await Location.startGeofencingAsync(GEOFENCE_TASK_NAME, limited);
@@ -79,7 +125,7 @@ export async function stopGeofencing(): Promise<void> {
     if (isRegistered) {
       await Location.stopGeofencingAsync(GEOFENCE_TASK_NAME);
     }
-  } catch (err) {
+  } catch {
     // Ignore errors when stopping
   }
 }

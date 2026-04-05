@@ -425,3 +425,9 @@
 - [x] Voice input mic button on list screen → Whisper transcription → parse item
 - [x] Sunday streak reminder push notification (weekly, expo-notifications)
 - [x] Audit and fix all critical Play Store bugs (crashes, blank screens, broken flows)
+
+## v1.0.67 — Geofencing Fix (Apr 2026)
+- [x] Fix geofencing: dual-radius approach (480m outer = approaching, 50m inner = arrived)
+- [x] Approaching notification at 0.3 miles: "You're approaching [Store] — your list is ready!"
+- [x] Arrived notification: 6-minute delay after entering store radius: "You're at [Store] — don't forget your list!"
+- [x] Remove false "You're Here" trigger when user is miles away
