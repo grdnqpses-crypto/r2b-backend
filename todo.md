@@ -481,3 +481,10 @@
 
 **Phase 6 — Verification**
 - [x] TypeScript check: 0 errors (exit code 0)
+
+## Final UI Wiring — Build 71 Pre-Compile (Apr 7 2026)
+
+- [x] Wire normalizeIAPError() into paywall.tsx handlePurchase and handleRestore catch blocks
+- [x] Replace raw subscription.error displays in paywall.tsx with normalizeIAPError(err).message
+- [x] Add startup permissions banner to Dashboard/Home screen with useFocusEffect
+- [x] Banner checks background location + battery optimization, is dismissible, high-visibility

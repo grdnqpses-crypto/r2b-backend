@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/use-colors";
 import { Haptics } from "@/lib/safe-imports";
 import type { SubscriptionState } from "@/hooks/use-subscription";
+import { normalizeIAPError } from "@/lib/subscription-context";
 
 interface PaywallProps {
   subscription: SubscriptionState;
@@ -91,9 +92,17 @@ export function Paywall({ subscription, onDismiss, required = false }: PaywallPr
           setMessage("🎉 Welcome to Premium! Your subscription is active.");
           setTimeout(() => onDismiss?.(), 1500);
         } else if (subscription.error) {
-          setMessage(subscription.error);
+          // Use normalizeIAPError to get a user-friendly message
+          const { message: friendlyMsg } = normalizeIAPError({ message: subscription.error });
+          if (friendlyMsg) setMessage(friendlyMsg);
         }
       }, 500);
+    } catch (err) {
+      // Catch synchronous throws (e.g. store not connected)
+      const { message: friendlyMsg, isCancellation } = normalizeIAPError(err);
+      if (!isCancellation && friendlyMsg) {
+        setMessage(friendlyMsg);
+      }
     } finally {
       setPurchasing(false);
     }
@@ -112,10 +121,20 @@ export function Paywall({ subscription, onDismiss, required = false }: PaywallPr
           }
           setMessage("✅ Subscription restored!");
           setTimeout(() => onDismiss?.(), 1500);
+        } else if (subscription.error) {
+          // Use normalizeIAPError to get a user-friendly message
+          const { message: friendlyMsg } = normalizeIAPError({ message: subscription.error });
+          setMessage(friendlyMsg ?? "No active subscription found for this account.");
         } else {
-          setMessage(subscription.error ?? "No active subscription found.");
+          setMessage("No active subscription found for this account.");
         }
       }, 500);
+    } catch (err) {
+      // Catch synchronous throws (e.g. store not connected)
+      const { message: friendlyMsg, isCancellation } = normalizeIAPError(err);
+      if (!isCancellation) {
+        setMessage(friendlyMsg ?? "Could not restore purchases. Please try again.");
+      }
     } finally {
       setRestoring(false);
     }

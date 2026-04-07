@@ -24,6 +24,7 @@ import {
   type ShoppingItem, type SavedStore, type Tier, type DistanceUnit,
 } from "@/lib/storage";
 import { isGeofencingActive, checkLocationPermissions } from "@/lib/geofence";
+import { usePermissions } from "@/hooks/use-permissions";
 import { recalculateSavingsStreak, getStreakEmoji, getStreakMessage, type SavingsStreakData } from "@/lib/savings-streak";
 import { scheduleStreakReminder } from "@/lib/notifications";
 
@@ -75,6 +76,10 @@ export default function DashboardScreen() {
   const [savingsStreak, setSavingsStreak] = useState<SavingsStreakData | null>(null);
   const devToastAnim = useRef(new Animated.Value(0)).current;
   const [devToastMsg, setDevToastMsg] = useState("");
+  // Permissions banner state
+  const permissions = usePermissions();
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const bannerSlide = useRef(new Animated.Value(0)).current;
 
   const loadData = useCallback(async () => {
     const [itemsData, storesData, tierData, geofenceActive, locationPerms, unit, devEnabled, recentData, savingsData] =
@@ -178,7 +183,23 @@ export default function DashboardScreen() {
   }, []);
 
 
-  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+  useFocusEffect(useCallback(() => {
+    loadData();
+    // Refresh permission state every time screen comes into focus
+    permissions.refresh();
+  }, [loadData, permissions.refresh]));
+
+  // Animate banner in when it becomes visible
+  const showBanner = !bannerDismissed && Platform.OS === "android" &&
+    (!permissions.background || !permissions.batteryOptimizationEnabled);
+
+  useEffect(() => {
+    Animated.timing(bannerSlide, {
+      toValue: showBanner ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [showBanner, bannerSlide]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -228,6 +249,57 @@ export default function DashboardScreen() {
             </View>
           )}
         </View>
+
+        {/* Permissions Banner — Android only, shown when background location or battery optimization is missing */}
+        {showBanner && (
+          <Animated.View
+            style={[
+              styles.permBanner,
+              {
+                backgroundColor: colors.warning + "18",
+                borderColor: colors.warning + "60",
+                opacity: bannerSlide,
+                transform: [{ translateY: bannerSlide.interpolate({ inputRange: [0, 1], outputRange: [-12, 0] }) }],
+              },
+            ]}
+          >
+            <View style={styles.permBannerContent}>
+              <Text style={styles.permBannerIcon}>⚠️</Text>
+              <View style={styles.permBannerText}>
+                <Text style={[styles.permBannerTitle, { color: colors.foreground }]}>
+                  {!permissions.background && !permissions.batteryOptimizationEnabled
+                    ? "Location & Battery Fix Needed"
+                    : !permissions.background
+                    ? "Background Location Required"
+                    : "Battery Optimization Active"}
+                </Text>
+                <Text style={[styles.permBannerDesc, { color: colors.muted }]}>
+                  {!permissions.background
+                    ? "Store arrival reminders won't fire until you allow location 'All the time'."
+                    : "Android may kill the app in your pocket. Tap Fix to exempt it."}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => {
+                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push("/(tabs)/settings" as never);
+                }}
+                style={({ pressed }) => [
+                  styles.permBannerBtn,
+                  { backgroundColor: colors.warning, opacity: pressed ? 0.8 : 1 },
+                ]}
+              >
+                <Text style={styles.permBannerBtnText}>Fix</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setBannerDismissed(true)}
+                style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, padding: 4 })}
+              >
+                <Text style={[styles.permBannerClose, { color: colors.muted }]}>✕</Text>
+              </Pressable>
+            </View>
+          </Animated.View>
+        )}
 
         {/* Dev mode toast */}
         <Animated.View
@@ -620,4 +692,14 @@ const styles = StyleSheet.create({
   devBadgeText: { fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
   devToast: { alignSelf: "center", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginBottom: 12, zIndex: 10 },
   devToastText: { fontSize: 13, fontWeight: "600" },
+  // Permissions banner
+  permBanner: { borderRadius: 12, borderWidth: 1, marginBottom: 8, overflow: "hidden" },
+  permBannerContent: { flexDirection: "row", alignItems: "center", padding: 12, gap: 8 },
+  permBannerIcon: { fontSize: 20 },
+  permBannerText: { flex: 1, gap: 2 },
+  permBannerTitle: { fontSize: 13, fontWeight: "700", lineHeight: 18 },
+  permBannerDesc: { fontSize: 11, lineHeight: 15 },
+  permBannerBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  permBannerBtnText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  permBannerClose: { fontSize: 16, fontWeight: "600", paddingHorizontal: 2 },
 });
