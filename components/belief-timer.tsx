@@ -145,7 +145,7 @@ export function ItemTimer({ itemName, itemEmoji, score, onDismiss }: ItemTimerPr
   // Phase messages based on progress
   const getPhaseMessage = () => {
     if (progress < 0.1) return "The magic is gathering energy...";
-    if (progress < 0.25) return "Your item field is settling into the room...";
+    if (progress < 0.25) return "Your belief field is settling into the room...";
     if (progress < 0.5) return "The sensors detected strong energy. Now it needs quiet...";
     if (progress < 0.75) return "The magic is almost ready. Stay cozy...";
     if (progress < 0.9) return "Just a little longer. The magic is nearly complete...";

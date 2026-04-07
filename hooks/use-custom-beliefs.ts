@@ -23,7 +23,7 @@ export function useCustomItems() {
       .finally(() => setLoaded(true));
   }, []);
 
-  const additem = useCallback(async (item: ItemOption) => {
+  const addBelief = useCallback(async (item: ItemOption) => {
     setCustomItems((prev) => {
       const next = [item, ...prev];
       AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -31,7 +31,7 @@ export function useCustomItems() {
     });
   }, []);
 
-  const removeitem = useCallback(async (id: string) => {
+  const removeBelief = useCallback(async (id: string) => {
     setCustomItems((prev) => {
       const next = prev.filter((b) => b.id !== id);
       AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -39,5 +39,5 @@ export function useCustomItems() {
     });
   }, []);
 
-  return { customItems, loaded, additem, removeitem };
+  return { customItems, loaded, addBelief, removeBelief };
 }

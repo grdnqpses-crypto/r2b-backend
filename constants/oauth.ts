@@ -5,7 +5,7 @@ import * as ReactNative from "react-native";
 // e.g., "space.manus.my.app.t20240115103045" -> "manus20240115103045"
 // Note: this legacy bundleId is used only to derive the deep-link scheme;
 // the production Android package is com.remember2buy.shopping (see app.config.ts)
-const bundleId = "space.manus.item.field.detector.t20260218220634";
+const bundleId = "space.manus.belief.field.detector.t20250219030644";
 const timestamp = bundleId.split(".").pop()?.replace(/^t/, "") ?? "";
 const schemeFromBundleId = `manus${timestamp}`;
 

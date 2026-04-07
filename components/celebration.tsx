@@ -158,8 +158,8 @@ export function Celebration({ score, itemEmoji, visible, onComplete }: Celebrati
               {celebrationLevel === "extraordinary"
                 ? "Extraordinary!"
                 : celebrationLevel === "powerful"
-                ? "Powerful item!"
-                : "Strong item!"}
+                ? "Powerful Belief!"
+                : "Strong Belief!"}
             </Text>
           </Animated.View>
         </View>

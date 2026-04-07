@@ -1,5 +1,5 @@
 /**
- * item Themes — visual environments for each item category.
+ * Belief Themes — visual environments for each belief category.
  * Each theme defines gradient colors, particle colors, orb glow,
  * and ambient symbols that appear during a scan.
  * Scientific, sensitive, and fun.
@@ -113,23 +113,23 @@ export const ITEM_THEMES: Record<string, ItemTheme> = {
     particleColors: ["#9B7AFF", "#C4A8FF", "#FFD700", "#00BFFF", "#FF69B4"],
     ambientSymbols: ["✨", "🌟", "💫", "🔮", "⚡"],
     accent: "#9B7AFF",
-    atmosphereLabel: "Unique item signature detected",
+    atmosphereLabel: "Unique belief signature detected",
   },
 };
 
-/** Get the theme for a item category, with fallback to childhood/wonder */
+/** Get the theme for a belief category, with fallback to childhood/wonder */
 export function getThemeForCategory(categoryId: string): ItemTheme {
   return ITEM_THEMES[categoryId] || ITEM_THEMES.childhood;
 }
 
-/** Get the theme for a specific item by looking up its category */
+/** Get the theme for a specific belief by looking up its category */
 export function getThemeForItem(itemCategory: string): ItemTheme {
-  // Map item category names to theme IDs
+    // Map belief category names to theme IDs
   const categoryMap: Record<string, string> = {
     "Childhood Magic": "childhood",
     "World Religions": "religion",
     "Spiritual & Mystical": "spiritual",
-    "item in Yourself": "personal",
+    "Belief in Yourself": "personal",
     "Nature & Universe": "nature",
     "Supernatural": "supernatural",
     "Seasonal & Holiday": "seasonal",

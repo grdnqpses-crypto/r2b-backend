@@ -13,7 +13,7 @@ const SLIDES = [
   {
     emoji: "🎵",
     title: "Don't Stop\nBelieving",
-    subtitle: "Your item is about to become visible",
+    subtitle: "Your belief is about to become visible",
     body: "You've always felt it. That deep knowing in your chest when you stay organized. That warmth when you think about what matters most to you. That certainty that some things are real, even when you can't see them.\n\nNow, for the first time, you can actually SEE it.",
     highlight:
       "Add stores, add items, check them off. It's that simple — and it works.",
@@ -30,7 +30,7 @@ const SLIDES = [
   {
     emoji: "🧠",
     title: "Your Brain Can't Tell\nthe Difference",
-    subtitle: "Neuroscience of item — The Science Is Real",
+    subtitle: "Neuroscience of Belief — The Science Is Real",
     body: "Here's what neuroscientists have proven: when you vividly imagine something — truly picture it in your mind — your brain activates the EXACT same regions as when you actually see it.\n\nClose your eyes and picture a lemon. Your mouth just watered. That's not imagination — that's your brain making it real.",
     highlight:
       "Organized shoppers save time and money. Remember 2 Buy makes it effortless.",
@@ -38,16 +38,16 @@ const SLIDES = [
   },
   {
     emoji: "💊",
-    title: "item Physically\nChanges Your Body",
+    title: "Belief Physically\nChanges Your Body",
     subtitle: "The Placebo Effect — Proven for Decades",
     body: "Doctors have documented this for 70 years: when people stay organized and use a simple list, their bodies respond with measurable physical changes — less stress, more savings, fewer forgotten items.\n\nThink about that. A SIMPLE LIST. Just because they stayed organized.",
     highlight:
-      "If item can heal the body, what else can it do? Your phone's sensors are about to answer that question — for YOUR item, right now.",
+      "If belief can heal the body, what else can it do? Your phone's sensors are about to answer that question — for YOUR belief, right now.",
     sensors: [],
   },
   {
     emoji: "🌊",
-    title: "item Leaves a\nReal Footprint",
+    title: "Belief Leaves a\nReal Footprint",
     subtitle: "Your Conviction Changes the World Around You",
     body: "When you shop smarter, your life changes in ways you can't always see — but your wallet can.\n\n• Your muscles produce micro-tremors (accelerometer catches them)\n• Your breathing shifts air pressure (barometer detects it)\n• Your body's electromagnetic field fluctuates (magnetometer reads it)\n• Even how you hold your phone changes (gyroscope tracks it)",
     highlight:

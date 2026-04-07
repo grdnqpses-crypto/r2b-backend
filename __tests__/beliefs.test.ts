@@ -11,7 +11,7 @@ import {
   generateSummary,
 } from "../hooks/use-scan-history";
 
-describe("item Categories", () => {
+describe("Belief Categories", () => {
   it("should have at least 7 categories including seasonal and supernatural", () => {
     expect(ITEM_CATEGORIES.length).toBeGreaterThanOrEqual(7);
     const ids = ITEM_CATEGORIES.map((c) => c.id);
@@ -34,7 +34,7 @@ describe("item Categories", () => {
     }
   });
 
-  it("each item should have required fields", () => {
+  it("each belief should have required fields", () => {
     for (const item of ALL_ITEMS) {
       expect(item.id).toBeTruthy();
       expect(item.name).toBeTruthy();
@@ -63,7 +63,7 @@ describe("item Categories", () => {
     expect(ids).toContain("jewish-faith");
   });
 
-  it("should have unique item ids", () => {
+  it("should have unique belief ids", () => {
     const ids = ALL_ITEMS.map((b) => b.id);
     const uniqueIds = new Set(ids);
     expect(uniqueIds.size).toBe(ids.length);
@@ -135,8 +135,8 @@ describe("getItemById", () => {
   });
 });
 
-describe("createCustomitem", () => {
-  it("should create a custom item with provided values", () => {
+describe("createCustomBelief", () => {
+  it("should create a custom belief with provided values", () => {
     const item = createCustomitem("Unicorns", "🦄", "Magical horned horses");
     expect(item.name).toBe("Unicorns");
     expect(item.emoji).toBe("🦄");
@@ -152,7 +152,7 @@ describe("createCustomitem", () => {
     expect(b1.id).not.toBe(b2.id);
   });
 
-  it("should include encouragement and bedtime messages with the item name", () => {
+  it("should include encouragement and bedtime messages with the belief name", () => {
     const item = createCustomitem("Time Travel", "⏰", "Going back in time");
     expect(item.encouragement).toContain("Time Travel");
     expect(item.bedtimeMessage).toContain("Time Travel");
@@ -221,7 +221,7 @@ describe("generateSummary", () => {
   });
 });
 
-describe("item Themes", () => {
+describe("Belief Themes", () => {
   it("should have themes for all main categories", async () => {
     const { ITEM_THEMES } = await import("../constants/belief-themes");
     expect(ITEM_THEMES.childhood).toBeDefined();
@@ -331,7 +331,7 @@ describe("Scan Report", () => {
   });
 });
 
-describe("item Stories", () => {
+describe("Belief Stories", () => {
   it("should have stories for key beliefs", async () => {
     const { ITEM_STORIES } = await import("../constants/belief-stories");
     expect(ITEM_STORIES.length).toBeGreaterThanOrEqual(3);
@@ -580,9 +580,9 @@ describe("Notifications", () => {
 
   it("reminder messages should be encouraging", () => {
     const messages = [
-      "Your item field is waiting to be measured today",
+      "Your belief field is waiting to be measured today",
       "Time to explore what you believe in",
-      "Ready for today's item scan?",
+      "Ready for today's belief scan?",
     ];
     messages.forEach((m) => {
       expect(m.length).toBeGreaterThan(10);

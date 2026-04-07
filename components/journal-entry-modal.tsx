@@ -25,8 +25,8 @@ const PROMPTS = [
   "How did you feel during the scan?",
   "What were you thinking about while focusing?",
   "Did anything surprise you about the results?",
-  "How strong was your item in that moment?",
-  "What would make your item even stronger?",
+  "How strong was your belief in that moment?",
+  "What would make your belief even stronger?",
   "Describe the feeling in one word, then explain...",
 ];
 

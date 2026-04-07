@@ -2,13 +2,13 @@
 import "./scripts/load-env.js";
 import type { ExpoConfig } from "expo/config";
 
-const bundleId = "com.remember2buy.shopping";
-const schemeFromBundleId = "remember2buy";
+const bundleId = "space.manus.belief.field.detector.t20250219030644";
+const schemeFromBundleId = "belief-field-detector";
 
 const env = {
-  appName: "Remember2Buy",
-  appSlug: "remember2buy",
-  logoUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663348315388/3MWRPobTFfqJ6iFRe4j7At/r2b-icon-CAWNbqfNGqp34zMiwqtnFA.png",
+  appName: "Belief Field Detector",
+  appSlug: "belief-field-detector",
+  logoUrl: "",
   scheme: schemeFromBundleId,
   iosBundleId: bundleId,
   androidPackage: bundleId,
@@ -17,7 +17,7 @@ const env = {
 const config: ExpoConfig = {
   name: env.appName,
   slug: env.appSlug,
-  version: "1.0.70",
+  version: "1.0.15",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: env.scheme,
@@ -28,47 +28,24 @@ const config: ExpoConfig = {
     bundleIdentifier: env.iosBundleId,
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
-      NSLocationAlwaysAndWhenInUseUsageDescription:
-        "Remember2Buy needs your location to alert you when you approach a store on your list.",
+      NSMotionUsageDescription:
+        "Belief Field Detector uses motion sensors to measure your belief field strength.",
       NSLocationWhenInUseUsageDescription:
-        "Remember2Buy needs your location to show nearby stores.",
-      UIBackgroundModes: ["location", "fetch"],
+        "Belief Field Detector uses your location to enhance the belief field reading.",
     },
   },
   android: {
     adaptiveIcon: {
-      backgroundColor: "#1D4ED8",
+      backgroundColor: "#1a0533",
       foregroundImage: "./assets/images/android-icon-foreground.png",
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
     package: env.androidPackage,
-    versionCode: 10070,
+    versionCode: 10015,
     permissions: [
-      "ACCESS_FINE_LOCATION",
-      "ACCESS_COARSE_LOCATION",
-      "ACCESS_BACKGROUND_LOCATION",
       "POST_NOTIFICATIONS",
       "VIBRATE",
-      "RECEIVE_BOOT_COMPLETED",
-      "FOREGROUND_SERVICE",
-      "FOREGROUND_SERVICE_LOCATION",
-      "CAMERA",
-      "READ_MEDIA_IMAGES",
-      "com.android.vending.BILLING",
-    ],
-    intentFilters: [
-      {
-        action: "VIEW",
-        autoVerify: true,
-        data: [
-          {
-            scheme: env.scheme,
-            host: "*",
-          },
-        ],
-        category: ["BROWSABLE", "DEFAULT"],
-      },
     ],
   },
   web: {
@@ -77,36 +54,11 @@ const config: ExpoConfig = {
     favicon: "./assets/images/favicon.png",
   },
   plugins: [
-    "./plugins/withGestureHandlerFix",
-    "./plugins/withMinSdkVersion",
     "expo-router",
-    [
-      "expo-location",
-      {
-        locationAlwaysAndWhenInUsePermission:
-          "Remember2Buy needs your location to alert you when you're near a store on your shopping list.",
-        isAndroidBackgroundLocationEnabled: true,
-        isAndroidForegroundServiceEnabled: true,
-      },
-    ],
-    [
-      "expo-camera",
-      {
-        cameraPermission:
-          "Allow Remember2Buy to access your camera to scan coupon barcodes.",
-      },
-    ],
-    [
-      "expo-image-picker",
-      {
-        photosPermission:
-          "Allow Remember2Buy to access your photos to import shopping lists.",
-      },
-    ],
     [
       "expo-notifications",
       {
-        color: "#1D4ED8",
+        color: "#7c3aed",
         sounds: [],
       },
     ],
@@ -116,9 +68,9 @@ const config: ExpoConfig = {
         image: "./assets/images/splash-icon.png",
         imageWidth: 200,
         resizeMode: "contain",
-        backgroundColor: "#ffffff",
+        backgroundColor: "#1a0533",
         dark: {
-          backgroundColor: "#1D4ED8",
+          backgroundColor: "#1a0533",
         },
       },
     ],
@@ -128,10 +80,8 @@ const config: ExpoConfig = {
         android: {
           buildArchs: ["armeabi-v7a", "arm64-v8a"],
           minSdkVersion: 24,
-          kotlinVersion: "2.1.20",
           compileSdkVersion: 36,
           targetSdkVersion: 36,
-          foregroundServiceType: "location",
         },
       },
     ],
@@ -139,11 +89,6 @@ const config: ExpoConfig = {
   experiments: {
     typedRoutes: true,
     reactCompiler: true,
-  },
-  extra: {
-    eas: {
-      projectId: "21c9a0c3-1878-4688-8a82-1ed219c3045f",
-    },
   },
 };
 

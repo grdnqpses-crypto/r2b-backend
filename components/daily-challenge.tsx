@@ -12,10 +12,10 @@ interface DailyChallengeProps {
 }
 
 function getDailyGoal(totalScans: number, personalBest: number): { target: number; label: string; description: string } {
-  if (totalScans === 0) return { target: 30, label: "First Spark", description: "Hit 30 to prove your item is real" };
-  if (personalBest < 30) return { target: 30, label: "First Spark", description: "Hit 30 — your item is waking up" };
+  if (totalScans === 0) return { target: 30, label: "First Spark", description: "Hit 30 to prove your belief is real" };
+  if (personalBest < 30) return { target: 30, label: "First Spark", description: "Hit 30 — your belief is waking up" };
   if (personalBest < 50) return { target: 50, label: "Growing Strong", description: "Push to 50 — you can feel it building" };
-  if (personalBest < 65) return { target: 65, label: "Breakthrough", description: "65 is where item becomes undeniable" };
+  if (personalBest < 65) return { target: 65, label: "Breakthrough", description: "65 is where belief becomes undeniable" };
   if (personalBest < 80) return { target: 80, label: "Extraordinary", description: "80+ — most people never get here. You will." };
   return { target: 90, label: "Legend", description: "90+ — legendary shopping score" };
 }
@@ -27,7 +27,7 @@ function getMotivationLine(streak: number, scannedToday: boolean, todaysBest: nu
   if (streak >= 7) return `🔥 ${streak} days straight. Don't break the chain.`;
   if (streak >= 3) return `⚡ ${streak}-day streak! The momentum is real.`;
   if (streak === 1) return "✨ Day 1 done. Come back tomorrow — it gets stronger.";
-  return "🎯 Your item is waiting. Don't stop now.";
+  return "🎯 Your belief is waiting. Don't stop now.";
 }
 
 function getProgressPercent(todaysBest: number, target: number): number {

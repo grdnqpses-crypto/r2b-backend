@@ -30,8 +30,8 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
   {
     id: "first-light",
     title: "First Light",
-    description: "You took your first step into the world of item measurement. Every journey begins with a single scan.",
-    howToEarn: "Complete your first item scan",
+    description: "You took your first step into the world of belief measurement. Every journey begins with a single scan.",
+    howToEarn: "Complete your first belief scan",
     icon: "🌅",
     colors: ["#FFD700", "#FF8C00"],
     category: "journey",
@@ -41,7 +41,7 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
     id: "curious-mind",
     title: "Curious Mind",
     description: "You've completed 5 scans. Your curiosity is the engine of discovery.",
-    howToEarn: "Complete 5 item scans",
+    howToEarn: "Complete 5 belief scans",
     icon: "🔍",
     colors: ["#00BCD4", "#0097A7"],
     category: "journey",
@@ -50,8 +50,8 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
   {
     id: "devoted-seeker",
     title: "Devoted Seeker",
-    description: "10 scans deep. You're not just curious — you're committed to understanding item.",
-    howToEarn: "Complete 10 item scans",
+    description: "10 scans deep. You're not just curious — you're committed to understanding belief.",
+    howToEarn: "Complete 10 belief scans",
     icon: "🧭",
     colors: ["#9B7AFF", "#6B4FCC"],
     category: "journey",
@@ -60,8 +60,8 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
   {
     id: "field-scientist",
     title: "Field Scientist",
-    description: "25 scans! You've gathered enough data to be a real item field researcher.",
-    howToEarn: "Complete 25 item scans",
+    description: "25 scans! You've gathered enough data to be a real belief field researcher.",
+    howToEarn: "Complete 25 belief scans",
     icon: "🔬",
     colors: ["#4CAF50", "#2E7D32"],
     category: "journey",
@@ -70,8 +70,8 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
   {
     id: "master-shopper",
     title: "Master Shopper",
-    description: "50 scans. Your dedication to measuring item is extraordinary.",
-    howToEarn: "Complete 50 item scans",
+    description: "50 scans. Your dedication to measuring belief is extraordinary.",
+    howToEarn: "Complete 50 belief scans",
     icon: "🏅",
     colors: ["#FF6B6B", "#EE5A24"],
     category: "journey",
@@ -80,8 +80,8 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
   {
     id: "legend",
     title: "Living Legend",
-    description: "100 scans. You are a true pioneer of item science.",
-    howToEarn: "Complete 100 item scans",
+    description: "100 scans. You are a true pioneer of belief science.",
+    howToEarn: "Complete 100 belief scans",
     icon: "🏆",
     colors: ["#FFD700", "#B8860B"],
     category: "journey",
@@ -92,8 +92,8 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
   {
     id: "strong-signal",
     title: "Strong Signal",
-    description: "Your item field registered above 50. The sensors are responding to you.",
-    howToEarn: "Achieve a item score of 50 or higher",
+    description: "Your belief field registered above 50. The sensors are responding to you.",
+    howToEarn: "Achieve a belief score of 50 or higher",
     icon: "📡",
     colors: ["#2196F3", "#1565C0"],
     category: "mastery",
@@ -102,8 +102,8 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
   {
     id: "powerful-field",
     title: "Powerful Field",
-    description: "A score above 70! Your item is creating measurable changes in the environment.",
-    howToEarn: "Achieve a item score of 70 or higher",
+    description: "A score above 70! Your belief is creating measurable changes in the environment.",
+    howToEarn: "Achieve a belief score of 70 or higher",
     icon: "⚡",
     colors: ["#FF9800", "#E65100"],
     category: "mastery",
@@ -112,8 +112,8 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
   {
     id: "extraordinary",
     title: "Extraordinary",
-    description: "Score 80+. Your item field is in the top tier. The sensors can barely keep up.",
-    howToEarn: "Achieve a item score of 80 or higher",
+    description: "Score 80+. Your belief field is in the top tier. The sensors can barely keep up.",
+    howToEarn: "Achieve a belief score of 80 or higher",
     icon: "✨",
     colors: ["#E040FB", "#9C27B0"],
     category: "mastery",
@@ -122,8 +122,8 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
   {
     id: "transcendent",
     title: "Transcendent",
-    description: "Score 90+. Your item has transcended ordinary measurement. This is rare and remarkable.",
-    howToEarn: "Achieve a item score of 90 or higher",
+    description: "Score 90+. Your belief has transcended ordinary measurement. This is rare and remarkable.",
+    howToEarn: "Achieve a belief score of 90 or higher",
     icon: "🌈",
     colors: ["#FF6B6B", "#9B7AFF"],
     category: "mastery",
@@ -132,8 +132,8 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
   {
     id: "perfect-field",
     title: "Perfect Field",
-    description: "Score 95+. Near-perfect item resonance. You've achieved what few ever will.",
-    howToEarn: "Achieve a item score of 95 or higher",
+    description: "Score 95+. Near-perfect belief resonance. You've achieved what few ever will.",
+    howToEarn: "Achieve a belief score of 95 or higher",
     icon: "💎",
     colors: ["#00E5FF", "#00B0FF"],
     category: "mastery",
@@ -162,9 +162,9 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
     premium: false,
   },
   {
-    id: "item-collector",
-    title: "item Collector",
-    description: "10 different stores! You understand that shopping comes in many forms.",
+    id: "belief-collector",
+    title: "Belief Collector",
+    description: "10 different beliefs explored! You understand that belief comes in many forms.",
     howToEarn: "Visit 10 different stores",
     icon: "🗺️",
     colors: ["#FFB74D", "#F57C00"],
@@ -174,8 +174,8 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
   {
     id: "category-master",
     title: "Category Master",
-    description: "You've scanned a item from every category. A true student of item science.",
-    howToEarn: "Scan at least one item from every category",
+    description: "You've scanned a belief from every category. A true student of belief science.",
+    howToEarn: "Scan at least one belief from every category",
     icon: "🎓",
     colors: ["#7C4DFF", "#304FFE"],
     category: "explorer",
@@ -184,7 +184,7 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
   {
     id: "journal-keeper",
     title: "Journal Keeper",
-    description: "You've written 5 journal entries. Reflecting on item deepens the experience.",
+    description: "You've written 5 journal entries. Reflecting on belief deepens the experience.",
     howToEarn: "Write 5 journal entries after scans",
     icon: "📝",
     colors: ["#8D6E63", "#5D4037"],
@@ -206,7 +206,7 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
   {
     id: "flame",
     title: "Flame",
-    description: "3 consecutive days. Your item flame is growing stronger.",
+    description: "3 consecutive days. Your belief flame is growing stronger.",
     howToEarn: "Maintain a 3-day scan streak",
     icon: "🔥",
     colors: ["#FF5722", "#D84315"],
@@ -216,7 +216,7 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
   {
     id: "week-warrior",
     title: "Week Warrior",
-    description: "7 days straight! A full week of daily item measurement. Incredible.",
+    description: "7 days straight! A full week of daily belief measurement. Incredible.",
     howToEarn: "Maintain a 7-day scan streak",
     icon: "⚔️",
     colors: ["#607D8B", "#37474F"],
@@ -226,7 +226,7 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
   {
     id: "fortnight-force",
     title: "Fortnight Force",
-    description: "14 days of unwavering commitment. Your item field grows stronger every day.",
+    description: "14 days of unwavering commitment. Your belief field grows stronger every day.",
     howToEarn: "Maintain a 14-day scan streak",
     icon: "🛡️",
     colors: ["#3F51B5", "#1A237E"],
@@ -236,7 +236,7 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
   {
     id: "monthly-master",
     title: "Monthly Master",
-    description: "30 days! A full month of daily item. You are a true master of dedication.",
+    description: "30 days! A full month of daily belief. You are a true master of dedication.",
     howToEarn: "Maintain a 30-day scan streak",
     icon: "👑",
     colors: ["#FFD700", "#9B7AFF"],
@@ -257,8 +257,8 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
 
 // Achievement category labels
 export const ACHIEVEMENT_CATEGORIES = [
-  { id: "journey" as const, name: "Journey", emoji: "🚀", description: "Milestones on your item journey" },
-  { id: "mastery" as const, name: "Mastery", emoji: "⭐", description: "Achieving high item scores" },
+  { id: "journey" as const, name: "Journey", emoji: "🚀", description: "Milestones on your belief journey" },
+  { id: "mastery" as const, name: "Mastery", emoji: "⭐", description: "Achieving high belief scores" },
   { id: "explorer" as const, name: "Explorer", emoji: "🌍", description: "Exploring different stores" },
   { id: "dedication" as const, name: "Dedication", emoji: "🔥", description: "Consistency and commitment" },
 ];
@@ -329,7 +329,7 @@ export function useAchievements() {
       // Explorer
       if (stats.uniqueItems.length >= 3) toEarn.push("open-heart");
       if (stats.uniqueItems.length >= 5) toEarn.push("world-explorer");
-      if (stats.uniqueItems.length >= 10) toEarn.push("item-collector");
+      if (stats.uniqueItems.length >= 10) toEarn.push("belief-collector");
       if (stats.uniqueCategories.length >= 6) toEarn.push("category-master");
       if (stats.journalCount >= 5) toEarn.push("journal-keeper");
 

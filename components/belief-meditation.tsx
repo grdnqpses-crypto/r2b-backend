@@ -61,7 +61,7 @@ const MEDITATION_STEPS = [
   {
     phase: "focus",
     duration: 6000,
-    title: "Focus Your item",
+    title: "Focus Your Belief",
     subtitle: "", // will be filled with item name
     voice: "", // will be filled dynamically
     emoji: "", // will be filled with item emoji
@@ -91,8 +91,8 @@ const MEDITATION_STEPS = [
     phase: "breathe-out-2",
     duration: 6000,
     title: "Breathe Out",
-    subtitle: "Release slowly... let your item fill the space around you",
-    voice: "Release slowly. Let your item fill the space around you.",
+    subtitle: "Release slowly... let your belief fill the space around you",
+    voice: "Release slowly. Let your belief fill the space around you.",
     emoji: "🌟",
     breathe: true,
     breatheDirection: "out" as const,
@@ -101,8 +101,8 @@ const MEDITATION_STEPS = [
     phase: "ready",
     duration: 4000,
     title: "You Are Ready",
-    subtitle: "Your mind is focused. Your item is strong. Let's begin the scan.",
-    voice: "Your mind is focused. Your item is strong. Let's begin the scan.",
+    subtitle: "Your mind is focused. Your belief is strong. Let's begin the scan.",
+    voice: "Your mind is focused. Your belief is strong. Let's begin the scan.",
     emoji: "⚡",
     breathe: false,
   },
@@ -342,7 +342,7 @@ export function ItemMeditation({ item, onComplete, onSkip }: ItemMeditationProps
             : currentData.phase === "focus"
             ? "Visualization creates real neural activity. When you picture something vividly, your brain activates the same regions as if it were really happening. This is scientifically proven."
             : currentData.phase === "ready"
-            ? "Your mind is now in an optimal state for item detection. Your focused, calm state will produce clearer sensor readings during the scan."
+            ? "Your mind is now in an optimal state for belief detection. Your focused, calm state will produce clearer sensor readings during the scan."
             : "Preparing your mind before a scan produces more accurate results. Studies show that focused intention creates measurable changes in the body's electromagnetic field."}
         </Text>
       </View>

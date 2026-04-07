@@ -45,7 +45,7 @@ export function ScanReport({ result, onDismiss }: ScanReportProps) {
         if (canShare) {
           await Sharing.shareAsync(uri, {
             mimeType: "image/png",
-            dialogTitle: "Share item Field Report",
+            dialogTitle: "Share Belief Field Report",
           });
         }
       }
