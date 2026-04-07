@@ -16,6 +16,7 @@ import { ThemeProvider } from "@/lib/theme-provider";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { trpc, createTRPCClient } from "@/lib/trpc";
 import { OnboardingProvider, useOnboarding } from "@/lib/onboarding-context";
+import { SubscriptionProvider } from "@/lib/subscription-context";
 import { getSavedStores } from "@/lib/storage";
 import { checkLocationPermissions, startGeofencing } from "@/lib/geofence";
 
@@ -115,8 +116,10 @@ export default function RootLayout() {
           <trpc.Provider client={trpcClient} queryClient={queryClient}>
             <QueryClientProvider client={queryClient}>
               <OnboardingProvider>
-                <RootNavigator />
-                <StatusBar style="auto" />
+                <SubscriptionProvider>
+                  <RootNavigator />
+                  <StatusBar style="auto" />
+                </SubscriptionProvider>
               </OnboardingProvider>
             </QueryClientProvider>
           </trpc.Provider>

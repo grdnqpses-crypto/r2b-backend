@@ -1,28 +1,29 @@
 /**
- * LocationDisclosureModal — Google Play Prominent Disclosure (Phase 2)
+ * BatteryDisclosureModal — Android Battery Optimization Disclosure (Phase 2)
  *
- * Required by Google Play policy before calling
- * Location.requestBackgroundPermissionsAsync() on Android 11+.
+ * Shown before launching the android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+ * intent. Explains why the app needs to be exempt from battery optimization
+ * so that geofences fire reliably when the phone is in the user's pocket.
  *
  * Exact disclosure text per Master Directive:
- * "To notify you when you are near your saved stores, Remember2Buy needs
- *  background location access. On the next screen, please select
- *  'Allow all the time'."
+ * "To ensure geofences trigger while your phone is in your pocket,
+ *  Remember2Buy needs to be exempt from Android Battery Optimizations.
+ *  Please allow this on the next screen."
  */
 import { Modal, View, Text, Pressable, StyleSheet, Platform } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 
-export interface LocationDisclosureModalProps {
+export interface BatteryDisclosureModalProps {
   visible: boolean;
   onNotNow: () => void;
   onGotIt: () => void;
 }
 
-export function LocationDisclosureModal({
+export function BatteryDisclosureModal({
   visible,
   onNotNow,
   onGotIt,
-}: LocationDisclosureModalProps) {
+}: BatteryDisclosureModalProps) {
   const colors = useColors();
 
   return (
@@ -41,36 +42,37 @@ export function LocationDisclosureModal({
           ]}
         >
           {/* Icon */}
-          <View style={[styles.iconCircle, { backgroundColor: colors.primary + "20" }]}>
-            <Text style={styles.iconText}>📍</Text>
+          <View style={[styles.iconCircle, { backgroundColor: colors.warning + "20" }]}>
+            <Text style={styles.iconText}>🔋</Text>
           </View>
 
           {/* Title */}
           <Text style={[styles.title, { color: colors.foreground }]}>
-            Background Location Required
+            Battery Optimization
           </Text>
 
           {/* Mandatory disclosure text — exact wording per directive */}
           <Text style={[styles.body, { color: colors.foreground }]}>
-            To notify you when you are near your saved stores,{" "}
-            <Text style={styles.bold}>Remember2Buy needs background location access.</Text>
-            {" "}On the next screen, please select{" "}
-            <Text style={[styles.bold, { color: colors.primary }]}>
-              "Allow all the time"
+            To ensure geofences trigger while your phone is in your pocket,{" "}
+            <Text style={styles.bold}>
+              Remember2Buy needs to be exempt from Android Battery Optimizations.
             </Text>
-            .
+            {" "}Please allow this on the next screen.
           </Text>
 
-          {/* Usage clarification */}
+          {/* What this means */}
           <View style={[styles.usageBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
             <Text style={[styles.usageItem, { color: colors.muted }]}>
-              ✅ Used only to detect when you are near a saved store
+              ✅ Allows the app to wake up when you enter a store zone
             </Text>
             <Text style={[styles.usageItem, { color: colors.muted }]}>
-              ✅ Location data is never shared or stored on servers
+              ✅ Does NOT drain your battery — geofencing is low-power
             </Text>
             <Text style={[styles.usageItem, { color: colors.muted }]}>
-              ✅ You can revoke this permission at any time in Settings
+              ✅ Without this, Android may kill alerts in your pocket
+            </Text>
+            <Text style={[styles.usageItem, { color: colors.muted }]}>
+              ✅ You can revoke this at any time in Android Settings
             </Text>
           </View>
 
@@ -91,7 +93,7 @@ export function LocationDisclosureModal({
             <Pressable
               style={({ pressed }) => [
                 styles.btnPrimary,
-                { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
+                { backgroundColor: colors.warning, opacity: pressed ? 0.85 : 1 },
               ]}
               onPress={onGotIt}
             >

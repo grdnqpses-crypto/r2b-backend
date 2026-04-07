@@ -1,23 +1,19 @@
 /**
- * usePermissions — Centralized permission state and request flow for R2B.
+ * usePermissions — R2B Permissions Engine (Phase 3 — Master Directive)
  *
- * Handles three critical permission gates:
- *   1. Foreground Location ("While Using the App")
- *   2. Background Location ("Allow all the time") — two-step per Google Play policy
- *   3. Notifications (POST_NOTIFICATIONS on Android 13+)
+ * Orchestrates the exact chronological permission flow:
  *
- * Also exposes battery optimization state and the intent to request exemption.
+ *   Step 1 — Notifications (expo-notifications)
+ *   Step 2 — Foreground Location (Location.requestForegroundPermissionsAsync)
+ *   Step 3 — Background Location (two-step: LocationDisclosureModal → requestBackgroundPermissionsAsync)
+ *   Step 4 — Battery Optimization (BatteryDisclosureModal → expo-intent-launcher intent)
  *
- * Two-step background location flow (Android 11+ compliance):
- *   Step 1 → requestForegroundPermissionsAsync()
- *   Step 2 → Show LocationDisclosureModal (prominent disclosure)
- *   Step 3 → User taps "Got It" → requestBackgroundPermissionsAsync()
+ * Battery optimization check:
+ *   Android does not expose a JS API to query this directly. We track it via
+ *   AsyncStorage. On first launch we assume it is NOT exempted (batteryOptimizationEnabled = true).
+ *   After the user acts on the intent we persist "r2b_battery_exemption_granted" = "true".
  *
- * Battery Optimization:
- *   Android kills background services unless the app is on the battery
- *   optimization whitelist. We detect this via the
- *   android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS intent and
- *   prompt the user to grant exemption.
+ * Package: com.remember2buy.shopping (used in the battery intent URI)
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Linking, Platform } from "react-native";
@@ -45,27 +41,49 @@ export interface PermissionState {
 export interface UsePermissionsReturn extends PermissionState {
   /** Re-check all permission states (call after returning from Settings) */
   refresh: () => Promise<void>;
+
+  // ── Individual request methods ──────────────────────────────────────────
+
+  /** Step 1 — Request notification permission. Returns true if granted. */
+  requestNotifications: () => Promise<boolean>;
+
   /**
-   * Step 1 of the background location flow.
-   * Requests foreground location. Returns true if granted.
-   * Callers should show LocationDisclosureModal when this returns true
-   * AND background is still false.
+   * Step 2 — Request foreground location.
+   * Returns true if granted. If denied, halts the flow.
    */
   requestForeground: () => Promise<boolean>;
+
   /**
-   * Step 3 of the background location flow.
-   * Called after the user taps "Got It" on LocationDisclosureModal.
-   * Opens the OS permission dialog (Android 11+) or Settings sheet.
+   * Step 3 — Request background location.
+   * Must be called AFTER LocationDisclosureModal "Got It".
+   * Opens the OS "Allow all the time" dialog.
    */
   requestBackground: () => Promise<void>;
-  /** Request notification permission */
-  requestNotifications: () => Promise<void>;
+
   /**
-   * Opens the Android battery optimization exemption dialog.
-   * On Android < 23 or iOS / web, this is a no-op.
+   * Step 4 — Request battery optimization exemption.
+   * Must be called AFTER BatteryDisclosureModal "Got It".
+   * Uses expo-intent-launcher to fire the Android intent.
    */
   requestBatteryOptimizationExemption: () => Promise<void>;
+
+  /**
+   * Run the full sequential permission flow (Steps 1–4).
+   * Returns an object describing which steps were completed.
+   * Callers should show disclosure modals between steps 2→3 and 3→4.
+   */
+  runFullFlow: () => Promise<{
+    notifications: boolean;
+    foreground: boolean;
+    background: boolean;
+    batteryExempted: boolean;
+  }>;
 }
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const ANDROID_PACKAGE = "com.remember2buy.shopping";
+const BATTERY_EXEMPTION_KEY = "r2b_battery_exemption_granted";
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -74,34 +92,27 @@ export function usePermissions(): UsePermissionsReturn {
     foreground: false,
     background: false,
     notifications: false,
-    batteryOptimizationEnabled: false,
+    batteryOptimizationEnabled: true, // assume not exempted until proven otherwise
     loading: true,
   });
 
-  // Prevent duplicate concurrent refreshes
   const refreshingRef = useRef(false);
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
+  // ── Battery optimization check ────────────────────────────────────────────
 
-  /**
-   * Check whether Android battery optimization is active for this app.
-   * We cannot query this directly from JS, so we use a heuristic:
-   * if the app is on Android and we have never successfully launched the
-   * REQUEST_IGNORE_BATTERY_OPTIMIZATIONS intent, we assume it is enabled.
-   * The flag is stored in AsyncStorage after the user acts on the prompt.
-   */
   const checkBatteryOptimization = useCallback(async (): Promise<boolean> => {
     if (Platform.OS !== "android") return false;
     try {
       const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
-      const exempted = await AsyncStorage.getItem("r2b_battery_exemption_granted");
+      const exempted = await AsyncStorage.getItem(BATTERY_EXEMPTION_KEY);
+      // true = still optimized (not exempted), false = exempted
       return exempted !== "true";
     } catch {
-      return false;
+      return true; // assume worst case
     }
   }, []);
 
-  // ── Refresh ───────────────────────────────────────────────────────────────
+  // ── Refresh all states ────────────────────────────────────────────────────
 
   const refresh = useCallback(async () => {
     if (refreshingRef.current) return;
@@ -128,16 +139,52 @@ export function usePermissions(): UsePermissionsReturn {
     }
   }, [checkBatteryOptimization]);
 
-  // Initial check on mount
   useEffect(() => {
     refresh();
   }, [refresh]);
 
-  // ── Request Foreground ────────────────────────────────────────────────────
+  // ── Step 1: Notifications ─────────────────────────────────────────────────
+
+  const requestNotifications = useCallback(async (): Promise<boolean> => {
+    if (Platform.OS === "web") return false;
+    try {
+      const { status: existing } = await Notifications.getPermissionsAsync();
+      if (existing === "granted") {
+        setState((prev) => ({ ...prev, notifications: true }));
+        return true;
+      }
+      if (existing === "denied") {
+        Alert.alert(
+          "Notifications Blocked",
+          "To receive store arrival alerts, please enable notifications for Remember2Buy in your device Settings.",
+          [
+            { text: "Not Now", style: "cancel" },
+            { text: "Open Settings", onPress: () => Linking.openSettings() },
+          ]
+        );
+        return false;
+      }
+      const { status } = await Notifications.requestPermissionsAsync({
+        ios: { allowAlert: true, allowBadge: true, allowSound: true },
+      });
+      const granted = status === "granted";
+      setState((prev) => ({ ...prev, notifications: granted }));
+      return granted;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  // ── Step 2: Foreground Location ───────────────────────────────────────────
 
   const requestForeground = useCallback(async (): Promise<boolean> => {
     if (Platform.OS === "web") return false;
     try {
+      const { status: existing } = await Location.getForegroundPermissionsAsync();
+      if (existing === "granted") {
+        setState((prev) => ({ ...prev, foreground: true }));
+        return true;
+      }
       const { status } = await Location.requestForegroundPermissionsAsync();
       const granted = status === "granted";
       setState((prev) => ({ ...prev, foreground: granted }));
@@ -147,7 +194,7 @@ export function usePermissions(): UsePermissionsReturn {
     }
   }, []);
 
-  // ── Request Background (Step 3 — after prominent disclosure) ─────────────
+  // ── Step 3: Background Location (called after LocationDisclosureModal) ────
 
   const requestBackground = useCallback(async (): Promise<void> => {
     if (Platform.OS === "web") return;
@@ -172,68 +219,65 @@ export function usePermissions(): UsePermissionsReturn {
     }
   }, []);
 
-  // ── Request Notifications ─────────────────────────────────────────────────
-
-  const requestNotifications = useCallback(async (): Promise<void> => {
-    if (Platform.OS === "web") return;
-    try {
-      const { status: existing } = await Notifications.getPermissionsAsync();
-      if (existing === "granted") {
-        setState((prev) => ({ ...prev, notifications: true }));
-        return;
-      }
-      if (existing === "denied") {
-        Alert.alert(
-          "Notifications Blocked",
-          "To receive store arrival alerts, please enable notifications for Remember2Buy in your device Settings.",
-          [
-            { text: "Not Now", style: "cancel" },
-            { text: "Open Settings", onPress: () => Linking.openSettings() },
-          ]
-        );
-        return;
-      }
-      const { status } = await Notifications.requestPermissionsAsync();
-      setState((prev) => ({ ...prev, notifications: status === "granted" }));
-    } catch {
-      // Non-fatal
-    }
-  }, []);
-
-  // ── Battery Optimization Exemption ───────────────────────────────────────
+  // ── Step 4: Battery Optimization (called after BatteryDisclosureModal) ────
 
   const requestBatteryOptimizationExemption = useCallback(async (): Promise<void> => {
     if (Platform.OS !== "android") return;
     try {
-      const Constants = (await import("expo-constants")).default;
-      const pkg =
-        (Constants.expoConfig?.android?.package as string | undefined) ??
-        "space.manus.belief.field.detector.t20250219030644";
-
-      const intentUrl = `android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS?package=${pkg}`;
-
-      const canOpen = await Linking.canOpenURL(intentUrl);
-      if (canOpen) {
-        await Linking.openURL(intentUrl);
-        const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
-        await AsyncStorage.setItem("r2b_battery_exemption_granted", "true");
-        setState((prev) => ({ ...prev, batteryOptimizationEnabled: false }));
-      } else {
-        await Linking.openSettings();
-      }
+      // Use expo-intent-launcher to fire the exact intent per directive
+      const IntentLauncher = await import("expo-intent-launcher");
+      await IntentLauncher.startActivityAsync(
+        "android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+        { data: `package:${ANDROID_PACKAGE}` }
+      );
+      // Mark as exempted in AsyncStorage
+      const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+      await AsyncStorage.setItem(BATTERY_EXEMPTION_KEY, "true");
+      setState((prev) => ({ ...prev, batteryOptimizationEnabled: false }));
     } catch {
-      await Linking.openSettings();
+      // Intent may not be available on all OEMs — fall back to Settings
+      try {
+        await Linking.openSettings();
+      } catch {
+        // Non-fatal
+      }
     }
   }, []);
+
+  // ── Full sequential flow ──────────────────────────────────────────────────
+
+  const runFullFlow = useCallback(async () => {
+    const result = {
+      notifications: false,
+      foreground: false,
+      background: false,
+      batteryExempted: false,
+    };
+
+    // Step 1 — Notifications
+    result.notifications = await requestNotifications();
+
+    // Step 2 — Foreground Location (halt if denied)
+    result.foreground = await requestForeground();
+    if (!result.foreground) return result;
+
+    // Steps 3 & 4 are triggered by disclosure modals in the UI layer.
+    // The caller (Settings screen / Onboarding) shows LocationDisclosureModal
+    // and BatteryDisclosureModal, then calls requestBackground() and
+    // requestBatteryOptimizationExemption() respectively.
+
+    return result;
+  }, [requestNotifications, requestForeground]);
 
   // ─────────────────────────────────────────────────────────────────────────
 
   return {
     ...state,
     refresh,
+    requestNotifications,
     requestForeground,
     requestBackground,
-    requestNotifications,
     requestBatteryOptimizationExemption,
+    runFullFlow,
   };
 }

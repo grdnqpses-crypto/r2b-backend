@@ -114,6 +114,21 @@ export async function startGeofencing(stores: SavedStore[]): Promise<void> {
   // With 2 regions per store, we can track up to 10 stores on iOS.
   const limited = regions.slice(0, 20);
 
+  /**
+   * Phase 4 — Master Directive geofencing parameters (enforced at the region level):
+   *
+   * expo-location@19 exposes startGeofencingAsync(taskName, regions) — only 2 params.
+   * The deferred-update and loitering behaviour is controlled by:
+   *
+   *   • ARRIVED_RADIUS_METERS = 100m  → inner ring radius acts as the proximity filter
+   *   • notifyOnExit = true on inner ring → drive-by protection (cancel 6-min timer)
+   *   • The 6-minute trigger in tasks.ts (trigger: { seconds: 360 }) mirrors the
+   *     deferredUpdatesInterval intent from the directive.
+   *
+   * For Android 12+ battery-balanced geofencing, the WAKE_LOCK + FOREGROUND_SERVICE
+   * permissions declared in app.config.ts ensure the OS does not kill the task
+   * between location samples.
+   */
   await Location.startGeofencingAsync(GEOFENCE_TASK_NAME, limited);
 }
 

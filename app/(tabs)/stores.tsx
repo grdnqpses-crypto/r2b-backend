@@ -13,7 +13,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { PremiumPaywall } from "@/components/premium-paywall";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
-import { useSubscription } from "@/hooks/use-subscription";
+import { useSubscriptionContext } from "@/lib/subscription-context";
 
 interface NominatimResult {
   place_id: number;
@@ -68,7 +68,7 @@ type Tab = "nearby" | "search" | "saved";
 
 export default function StoresScreen() {
   const colors = useColors();
-  const storeSubscription = useSubscription();
+  const storeSubscription = useSubscriptionContext();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>("nearby");
   const [savedStores, setSavedStores] = useState<SavedStore[]>([]);

@@ -29,7 +29,8 @@ import {
   getSavedStores,
 } from "@/lib/geofence";
 import { setupNotifications, sendTestNotification } from "@/lib/notifications";
-import { useSubscription, PLAY_STORE_URL } from "@/hooks/use-subscription";
+import { PLAY_STORE_URL } from "@/hooks/use-subscription";
+import { useSubscriptionContext } from "@/lib/subscription-context";
 import { PremiumPaywall } from "@/components/premium-paywall";
 import { LocationDisclosureModal } from "@/components/LocationDisclosureModal";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -49,7 +50,7 @@ export default function SettingsScreen() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const { setColorScheme: setTheme } = useThemeContext();
-  const subscription = useSubscription();
+  const subscription = useSubscriptionContext();
   const permissions = usePermissions();
   const [showDisclosureModal, setShowDisclosureModal] = useState(false);
   const [batteryOptimized, setBatteryOptimized] = useState(false);

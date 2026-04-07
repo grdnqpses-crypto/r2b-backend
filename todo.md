@@ -447,3 +447,37 @@
 - [x] Wire usePermissions + LocationDisclosureModal into app/(tabs)/settings.tsx
 - [x] Add Battery Optimization row to Settings Permissions card (Android only, shows Fix/Exempt status)
 - [x] Replace old single-step requestLocationPermissions with two-step foreground→disclosure→background flow
+
+## Master Directive — R2B Persistence, Compliance & Subscription Overhaul (Apr 7 2026)
+
+**Phase 1 — Dependencies & Configuration**
+- [x] Install expo-intent-launcher and expo-device
+- [x] Add ACCESS_COARSE_LOCATION, ACCESS_FINE_LOCATION, ACCESS_BACKGROUND_LOCATION, FOREGROUND_SERVICE, FOREGROUND_SERVICE_LOCATION, FOREGROUND_SERVICE_SPECIAL_USE, REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, POST_NOTIFICATIONS, WAKE_LOCK to android.permissions in app.config.ts
+- [x] Configure expo-location plugin with isAndroidBackgroundLocationEnabled: true and isAndroidForegroundServiceEnabled: true
+
+**Phase 2 — UI Components (Google Play Compliance)**
+- [x] Create components/LocationDisclosureModal.tsx with exact disclosure text and Not Now / Got It buttons
+- [x] Create components/BatteryDisclosureModal.tsx with exact disclosure text and Not Now / Got It buttons
+
+**Phase 3 — Permissions Engine**
+- [x] Rewrite hooks/use-permissions.ts with chronological flow: Notifications → Foreground → Background (two-step) → Battery Optimization
+- [x] Use expo-intent-launcher for android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS with package:com.remember2buy.shopping
+- [x] Persist battery exemption state via AsyncStorage key r2b_battery_exemption_granted
+
+**Phase 4 — Background Task Registration**
+- [x] Verified R2B_GEOFENCE_TASK is defined in lib/tasks.ts and imported at top of app/_layout.tsx
+- [x] Verified Location.startGeofencingAsync uses GEOFENCE_TASK_NAME with dual-ring regions
+- [x] Added Phase 4 comment block to geofence.ts documenting deferred-update strategy via ring radii and 6-min trigger
+
+**Phase 5 — Subscription System Audit & Hardening**
+- [x] Identified subscription library: react-native-iap v14 (Nitro Modules)
+- [x] Created lib/subscription-context.tsx — SubscriptionProvider + useSubscriptionContext() for single global IAP connection
+- [x] Created normalizeIAPError() utility covering USER_CANCELED, network, pending, already-owned, unavailable
+- [x] Wired SubscriptionProvider into app/_layout.tsx (wraps RootNavigator)
+- [x] Switched app/(tabs)/settings.tsx from useSubscription() to useSubscriptionContext()
+- [x] Switched app/(tabs)/stores.tsx from useSubscription() to useSubscriptionContext()
+- [x] Verified Restore Purchases button exists in paywall.tsx and calls subscription.restore()
+- [x] Verified purchaseErrorListener silently dismisses user-cancelled errors (line 251 use-subscription.ts)
+
+**Phase 6 — Verification**
+- [x] TypeScript check: 0 errors (exit code 0)
