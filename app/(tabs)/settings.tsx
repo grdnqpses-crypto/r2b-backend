@@ -31,6 +31,8 @@ import {
 import { setupNotifications, sendTestNotification } from "@/lib/notifications";
 import { useSubscription, PLAY_STORE_URL } from "@/hooks/use-subscription";
 import { PremiumPaywall } from "@/components/premium-paywall";
+import { LocationDisclosureModal } from "@/components/LocationDisclosureModal";
+import { usePermissions } from "@/hooks/use-permissions";
 
 export default function SettingsScreen() {
   const colors = useColors();
@@ -48,6 +50,9 @@ export default function SettingsScreen() {
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const { setColorScheme: setTheme } = useThemeContext();
   const subscription = useSubscription();
+  const permissions = usePermissions();
+  const [showDisclosureModal, setShowDisclosureModal] = useState(false);
+  const [batteryOptimized, setBatteryOptimized] = useState(false);
 
   const loadState = useCallback(async () => {
     const [tierData, perms, geofence, unit, devEnabled, notifStatus, appSettingsData] = await Promise.all([
@@ -67,6 +72,8 @@ export default function SettingsScreen() {
     setNotifGranted(notifStatus.status === "granted");
     setNotifDenied(notifStatus.status === "denied");
     setAppSettings(appSettingsData);
+    // Sync battery optimization state
+    setBatteryOptimized(permissions.batteryOptimizationEnabled);
     // Apply saved theme
     if (appSettingsData.themeMode !== "system") {
       setTheme(appSettingsData.themeMode);
@@ -90,27 +97,9 @@ export default function SettingsScreen() {
   useFocusEffect(useCallback(() => { loadState(); }, [loadState]));
 
   const handleRequestLocation = async () => {
-    const perms = await requestLocationPermissions();
-    setLocationPerms(perms);
-    if (perms.background) {
-      const stores = await getSavedStores();
-      if (stores.length > 0) {
-        await startGeofencing(stores);
-        setGeofencingActive(true);
-        Alert.alert(t("settings.location"), t("dashboard.addStoresToStart"));
-      } else {
-        Alert.alert(t("settings.location"), t("stores.noSavedStoresSubtitle"));
-      }
-    } else if (perms.foreground) {
-      Alert.alert(
-        t("settings.backgroundLocation"),
-        t("onboarding.locationBg.description"),
-        [
-          { text: t("settings.openSettings"), onPress: () => Linking.openSettings() },
-          { text: t("common.cancel"), style: "cancel" },
-        ]
-      );
-    } else {
+    // Step 1: Request foreground location
+    const fgGranted = await permissions.requestForeground();
+    if (!fgGranted) {
       Alert.alert(
         t("settings.location"),
         t("stores.permissionDenied"),
@@ -119,6 +108,26 @@ export default function SettingsScreen() {
           { text: t("common.cancel"), style: "cancel" },
         ]
       );
+      return;
+    }
+    // Step 2: Check if background is already granted
+    const bgCheck = await (await import("expo-location")).getBackgroundPermissionsAsync();
+    if (bgCheck.status !== "granted") {
+      // Show prominent disclosure modal before requesting background
+      setShowDisclosureModal(true);
+      return;
+    }
+    // Already have background — refresh and start geofencing
+    const perms = await checkLocationPermissions();
+    setLocationPerms(perms);
+    if (perms.background) {
+      const stores = await getSavedStores();
+      if (stores.length > 0) {
+        await startGeofencing(stores);
+        setGeofencingActive(true);
+      } else {
+        Alert.alert(t("settings.location"), t("stores.noSavedStoresSubtitle"));
+      }
     }
   };
 
@@ -260,6 +269,43 @@ export default function SettingsScreen() {
               onPress={handleEnableNotifications}
               description={t("onboarding.notifications.description")}
             />
+            {/* Battery Optimization — Android only */}
+            {Platform.OS === "android" && (
+              <>
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                <View style={[styles.settingRow, { borderColor: colors.border }]}>
+                  <View style={styles.settingInfo}>
+                    <Text style={[styles.settingLabel, { color: colors.foreground }]}>
+                      🔋 Battery Optimization
+                    </Text>
+                    <Text style={[styles.settingDesc, { color: batteryOptimized ? colors.error : colors.muted }]}>
+                      {batteryOptimized
+                        ? "App may be killed in background. Tap to exempt."
+                        : "App is exempt from battery optimization."}
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.permBtn,
+                      {
+                        backgroundColor: batteryOptimized ? colors.error : colors.success + "20",
+                        opacity: pressed ? 0.8 : 1,
+                      },
+                    ]}
+                    onPress={async () => {
+                      if (batteryOptimized) {
+                        await permissions.requestBatteryOptimizationExemption();
+                        setBatteryOptimized(false);
+                      }
+                    }}
+                  >
+                    <Text style={[styles.permBtnText, { color: batteryOptimized ? "#fff" : colors.success }]}>
+                      {batteryOptimized ? "Fix" : "Exempt ✓"}
+                    </Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
           </View>
         </View>
 
@@ -647,6 +693,25 @@ export default function SettingsScreen() {
         </View>
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Location Prominent Disclosure Modal — required by Google Play policy */}
+      <LocationDisclosureModal
+        visible={showDisclosureModal}
+        onNotNow={() => setShowDisclosureModal(false)}
+        onGotIt={async () => {
+          setShowDisclosureModal(false);
+          await permissions.requestBackground();
+          const perms = await checkLocationPermissions();
+          setLocationPerms(perms);
+          if (perms.background) {
+            const stores = await getSavedStores();
+            if (stores.length > 0) {
+              await startGeofencing(stores);
+              setGeofencingActive(true);
+            }
+          }
+        }}
+      />
 
       {/* Premium Paywall Modal — triggers real Google Play Billing purchase */}
       <Modal

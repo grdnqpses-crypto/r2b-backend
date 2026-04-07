@@ -437,3 +437,13 @@
 - [x] Ensure correct product IDs match Play Store subscription setup
 - [x] Verify react-native-iap initialization and connection lifecycle
 - [x] Add proper error handling and retry logic for IAP connection failures
+
+## Build 71 — Android Persistence Fixes (Apr 7 2026)
+- [x] Add FOREGROUND_SERVICE, FOREGROUND_SERVICE_LOCATION, ACCESS_BACKGROUND_LOCATION, REQUEST_IGNORE_BATTERY_OPTIMIZATIONS to android.permissions in app.config.ts
+- [x] Add expo-location plugin with isAndroidForegroundServiceEnabled: true and isAndroidBackgroundLocationEnabled: true to app.config.ts
+- [x] Add expo-task-manager plugin declaration to app.config.ts
+- [x] Create components/LocationDisclosureModal.tsx — Google Play prominent disclosure modal
+- [x] Create hooks/use-permissions.ts — centralized two-step background location + battery optimization exemption hook
+- [x] Wire usePermissions + LocationDisclosureModal into app/(tabs)/settings.tsx
+- [x] Add Battery Optimization row to Settings Permissions card (Android only, shows Fix/Exempt status)
+- [x] Replace old single-step requestLocationPermissions with two-step foreground→disclosure→background flow

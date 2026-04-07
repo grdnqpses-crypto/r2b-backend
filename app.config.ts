@@ -46,6 +46,12 @@ const config: ExpoConfig = {
     permissions: [
       "POST_NOTIFICATIONS",
       "VIBRATE",
+      "ACCESS_COARSE_LOCATION",
+      "ACCESS_FINE_LOCATION",
+      "ACCESS_BACKGROUND_LOCATION",
+      "FOREGROUND_SERVICE",
+      "FOREGROUND_SERVICE_LOCATION",
+      "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
     ],
   },
   web: {
@@ -55,6 +61,23 @@ const config: ExpoConfig = {
   },
   plugins: [
     "expo-router",
+    [
+      "expo-location",
+      {
+        locationAlwaysAndWhenInUsePermission:
+          "Remember2Buy needs background location to alert you when you arrive near a saved store.",
+        locationAlwaysPermission:
+          "Remember2Buy needs 'Allow all the time' access to send store arrival alerts while the app is in the background.",
+        locationWhenInUsePermission:
+          "Remember2Buy uses your location to show nearby stores.",
+        isIosBackgroundLocationEnabled: true,
+        isAndroidBackgroundLocationEnabled: true,
+        isAndroidForegroundServiceEnabled: true,
+      },
+    ],
+    [
+      "expo-task-manager",
+    ],
     [
       "expo-notifications",
       {
