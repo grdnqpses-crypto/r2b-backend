@@ -493,7 +493,7 @@
 - [ ] Add RECORD_AUDIO, CAMERA, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE to android.permissions
 - [ ] Implement ai.scanReceipt server mutation using invokeLLM multimodal
 - [ ] Wire receipt-scanner.tsx to call ai.scanReceipt mutation (replace manual fallback stub)
-- [ ] Bump version to 1.0.73 / versionCode 10073
+- [x] Bump version to 1.0.74 / versionCode 10074 (Build 74)
 - [ ] EAS Build 73 production Android
 
 ## Geofence Exit "Did You Forget?" Notification
