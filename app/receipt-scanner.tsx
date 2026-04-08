@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import {
   View, Text, Pressable, StyleSheet, Alert, Image, ActivityIndicator, ScrollView, TextInput, Modal,
 } from "react-native";
@@ -10,6 +10,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { addTripLog } from "@/lib/storage";
+import { trpc } from "@/lib/trpc";
 
 interface ParsedReceipt {
   storeName: string;
@@ -29,42 +30,14 @@ export default function ReceiptScannerScreen() {
   const [total, setTotal] = useState("");
   const [notes, setNotes] = useState("");
 
-
-
-  const parseReceiptText = (text: string): ParsedReceipt => {
-    // Extract total
-    const totalMatch = text.match(/total[:\s]+\$?([\d.]+)/i) ||
-      text.match(/\$?([\d.]+)\s*(?:total|due|paid)/i);
-    const total = totalMatch ? parseFloat(totalMatch[1]) : 0;
-
-    // Extract store name
-    const storeMatch = text.match(/store[:\s]+([^\n]+)/i) ||
-      text.match(/^([A-Z][A-Za-z\s&]+)(?:\n|$)/m);
-    const storeName = storeMatch ? storeMatch[1].trim() : "Unknown Store";
-
-    // Extract items (look for price patterns)
-    const itemLines = text.split("\n").filter((line) => /\$?[\d.]+$/.test(line.trim()));
-    const items = itemLines.slice(0, 10).map((line) => {
-      const priceMatch = line.match(/\$?([\d.]+)$/);
-      const price = priceMatch ? parseFloat(priceMatch[1]) : 0;
-      const name = line.replace(/\$?[\d.]+$/, "").trim();
-      return { name, price };
-    }).filter((i) => i.name.length > 0 && i.price > 0);
-
-    return {
-      storeName,
-      total,
-      items,
-      date: new Date().toISOString().split("T")[0],
-    };
-  };
+  const scanReceiptMutation = trpc.ai.scanReceipt.useMutation();
 
   const pickImage = async (source: "camera" | "gallery") => {
     let result;
     if (source === "camera") {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert("Camera permission required");
+        Alert.alert("Camera permission required", "Please allow camera access in Settings to scan receipts.");
         return;
       }
       result = await ImagePicker.launchCameraAsync({ quality: 0.8, base64: true });
@@ -78,9 +51,43 @@ export default function ReceiptScannerScreen() {
       setParsed(null);
       setScanning(true);
 
-      // For now, fall back to manual entry (receipt OCR requires server-side vision endpoint)
-      setScanning(false);
-      setShowSaveModal(true);
+      const base64 = asset.base64;
+      if (!base64) {
+        // No base64 data — fall back to manual entry
+        setScanning(false);
+        setShowSaveModal(true);
+        return;
+      }
+
+      try {
+        const scanResult = await scanReceiptMutation.mutateAsync({
+          imageBase64: base64,
+          mimeType: "image/jpeg",
+        });
+
+        const receiptData: ParsedReceipt = {
+          storeName: scanResult.storeName,
+          total: scanResult.total,
+          items: scanResult.items,
+          date: scanResult.date,
+        };
+
+        setParsed(receiptData);
+        // Pre-fill the save modal with AI-extracted data
+        setStoreName(receiptData.storeName !== "Unknown Store" ? receiptData.storeName : "");
+        setTotal(receiptData.total > 0 ? receiptData.total.toFixed(2) : "");
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (err) {
+        // AI scan failed — fall back gracefully to manual entry
+        Alert.alert(
+          "AI Scan Failed",
+          "Could not automatically read the receipt. Please enter the details manually.",
+          [{ text: "OK" }]
+        );
+        setShowSaveModal(true);
+      } finally {
+        setScanning(false);
+      }
     }
   };
 
@@ -264,30 +271,30 @@ const styles = StyleSheet.create({
   scanTitle: { fontSize: 20, fontWeight: "700" },
   scanDesc: { fontSize: 14, textAlign: "center", lineHeight: 20 },
   buttonRow: { flexDirection: "row", gap: 12, marginBottom: 12 },
-  scanBtn: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16, borderRadius: 14 },
-  scanBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
-  manualBtn: { alignItems: "center", paddingVertical: 12, borderWidth: 1, borderRadius: 12 },
+  scanBtn: { flex: 1, borderRadius: 16, padding: 20, alignItems: "center", gap: 8 },
+  scanBtnText: { fontSize: 15, fontWeight: "600", color: "#fff" },
+  manualBtn: { borderRadius: 12, borderWidth: 1, padding: 14, alignItems: "center", marginBottom: 20 },
   manualBtnText: { fontSize: 14 },
-  receiptImage: { width: "100%", height: 200, borderRadius: 14, borderWidth: 1, marginBottom: 16 },
-  scanningCard: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 12, borderWidth: 1, padding: 14, marginBottom: 12 },
-  scanningText: { fontSize: 14, fontWeight: "600" },
-  parsedCard: { borderRadius: 14, borderWidth: 1, padding: 16, gap: 10, marginBottom: 12 },
+  receiptImage: { width: "100%", height: 300, borderRadius: 16, borderWidth: 1, marginBottom: 16 },
+  scanningCard: { borderRadius: 16, borderWidth: 1, padding: 20, flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 16 },
+  scanningText: { fontSize: 15, fontWeight: "600" },
+  parsedCard: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 16, gap: 10 },
   parsedTitle: { fontSize: 16, fontWeight: "700" },
-  parsedRow: { flexDirection: "row", gap: 8, alignItems: "center" },
-  parsedLabel: { fontSize: 13, fontWeight: "600", width: 50 },
+  parsedRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  parsedLabel: { fontSize: 13, fontWeight: "600" },
   parsedValue: { fontSize: 14 },
-  itemRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3 },
+  itemRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 },
   itemName: { fontSize: 13, flex: 1 },
   itemPrice: { fontSize: 13 },
   moreItems: { fontSize: 12, marginTop: 4 },
-  saveBtn: { paddingVertical: 14, borderRadius: 12, alignItems: "center", marginTop: 8 },
-  saveBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
-  rescanBtn: { alignItems: "center", paddingVertical: 12, borderWidth: 1, borderRadius: 12, marginTop: 8 },
+  saveBtn: { borderRadius: 14, padding: 16, alignItems: "center", marginTop: 8 },
+  saveBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  rescanBtn: { borderRadius: 12, borderWidth: 1, padding: 14, alignItems: "center" },
   rescanBtnText: { fontSize: 14 },
   modal: { flex: 1 },
-  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, paddingBottom: 12 },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 20, paddingTop: 24 },
   modalTitle: { fontSize: 20, fontWeight: "700" },
-  modalBody: { paddingHorizontal: 20, gap: 12 },
-  fieldLabel: { fontSize: 12, fontWeight: "600", marginBottom: -4 },
-  input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15 },
+  modalBody: { padding: 20, gap: 8 },
+  fieldLabel: { fontSize: 13, fontWeight: "600", marginBottom: 4, marginTop: 8 },
+  input: { borderRadius: 12, borderWidth: 1, padding: 14, fontSize: 15, marginBottom: 4 },
 });

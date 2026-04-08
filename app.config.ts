@@ -17,7 +17,7 @@ const env = {
 const config: ExpoConfig = {
   name: env.appName,
   slug: env.appSlug,
-  version: "1.0.72",
+  version: "1.0.73",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: env.scheme,
@@ -26,7 +26,7 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: env.iosBundleId,
-    buildNumber: "1.0.72",
+    buildNumber: "1.0.73",
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
       NSMotionUsageDescription:
@@ -43,7 +43,7 @@ const config: ExpoConfig = {
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
     package: env.androidPackage,
-    versionCode: 10072,
+    versionCode: 10073,
     permissions: [
       "POST_NOTIFICATIONS",
       "VIBRATE",
@@ -55,6 +55,10 @@ const config: ExpoConfig = {
       "FOREGROUND_SERVICE_SPECIAL_USE",
       "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
       "WAKE_LOCK",
+      "RECORD_AUDIO",
+      "CAMERA",
+      "READ_EXTERNAL_STORAGE",
+      "WRITE_EXTERNAL_STORAGE",
     ],
   },
   web: {

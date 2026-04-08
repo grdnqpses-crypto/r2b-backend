@@ -89,6 +89,91 @@ I'm shopping${storeContext}. What am I likely forgetting?`,
           return { suggestions: [] as string[], reasoning: "" };
         }
       }),
+
+    /**
+     * Scan a receipt image using AI vision and extract structured data.
+     * Accepts a base64-encoded image string (with or without data URI prefix).
+     * Returns storeName, total, items array, and date.
+     */
+    scanReceipt: publicProcedure
+      .input(
+        z.object({
+          imageBase64: z.string().min(1),
+          mimeType: z.string().default("image/jpeg"),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const { imageBase64, mimeType } = input;
+
+        // Build a data URI if not already present
+        const dataUri = imageBase64.startsWith("data:")
+          ? imageBase64
+          : `data:${mimeType};base64,${imageBase64}`;
+
+        const response = await invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content: `You are a receipt OCR assistant. Extract structured data from the receipt image and return ONLY a JSON object with this exact structure:
+{
+  "storeName": "string (store or merchant name, or 'Unknown Store' if not found)",
+  "total": number (final total amount as a number, 0 if not found),
+  "items": [
+    { "name": "string", "price": number }
+  ],
+  "date": "string (YYYY-MM-DD format, today's date if not found)"
+}
+
+Rules:
+- storeName: the business/merchant name at the top of the receipt
+- total: the final total charged (after tax), as a plain number (e.g. 47.83)
+- items: list of purchased line items with their individual prices; omit subtotals/tax/tip lines
+- date: transaction date in YYYY-MM-DD format
+- If you cannot read the receipt clearly, return your best guess with available data`,
+            },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Please extract the receipt data from this image.",
+                },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: dataUri,
+                    detail: "high",
+                  },
+                },
+              ],
+            },
+          ],
+          response_format: { type: "json_object" },
+        });
+
+        try {
+          const rawContent = response.choices[0]?.message?.content;
+          const content = typeof rawContent === "string" ? rawContent : "{}";
+          const parsed = JSON.parse(content);
+          return {
+            storeName: (parsed.storeName ?? "Unknown Store") as string,
+            total: typeof parsed.total === "number" ? parsed.total : 0,
+            items: Array.isArray(parsed.items)
+              ? (parsed.items as { name: string; price: number }[]).filter(
+                  (i) => i.name && typeof i.price === "number"
+                )
+              : [],
+            date: (parsed.date ?? new Date().toISOString().split("T")[0]) as string,
+          };
+        } catch {
+          return {
+            storeName: "Unknown Store",
+            total: 0,
+            items: [] as { name: string; price: number }[],
+            date: new Date().toISOString().split("T")[0],
+          };
+        }
+      }),
   }),
 });
 

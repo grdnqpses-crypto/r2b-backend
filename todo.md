@@ -488,3 +488,10 @@
 - [x] Replace raw subscription.error displays in paywall.tsx with normalizeIAPError(err).message
 - [x] Add startup permissions banner to Dashboard/Home screen with useFocusEffect
 - [x] Banner checks background location + battery optimization, is dismissible, high-visibility
+
+## Build 73 — Final Hardening & Feature Completion (Apr 8 2026)
+- [ ] Add RECORD_AUDIO, CAMERA, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE to android.permissions
+- [ ] Implement ai.scanReceipt server mutation using invokeLLM multimodal
+- [ ] Wire receipt-scanner.tsx to call ai.scanReceipt mutation (replace manual fallback stub)
+- [ ] Bump version to 1.0.73 / versionCode 10073
+- [ ] EAS Build 73 production Android
