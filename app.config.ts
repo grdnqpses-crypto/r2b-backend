@@ -2,11 +2,11 @@
 import "./scripts/load-env.js";
 import type { ExpoConfig } from "expo/config";
 
-const bundleId = "space.manus.belief.field.detector.t20250219030644";
-const schemeFromBundleId = "belief-field-detector";
+const bundleId = "com.remember2buy.shopping";
+const schemeFromBundleId = "remember2buy";
 
 const env = {
-  appName: "Belief Field Detector",
+  appName: "Remember 2 Buy",
   appSlug: "belief-field-detector",
   logoUrl: "",
   scheme: schemeFromBundleId,
@@ -17,7 +17,7 @@ const env = {
 const config: ExpoConfig = {
   name: env.appName,
   slug: env.appSlug,
-  version: "1.0.16",
+  version: "1.0.17",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: env.scheme,
@@ -29,9 +29,9 @@ const config: ExpoConfig = {
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
       NSMotionUsageDescription:
-        "Belief Field Detector uses motion sensors to measure your belief field strength.",
+        "Remember2Buy uses motion sensors to detect when you arrive near a saved store.",
       NSLocationWhenInUseUsageDescription:
-        "Belief Field Detector uses your location to enhance the belief field reading.",
+        "Remember2Buy uses your location to show nearby stores and send arrival alerts.",
     },
   },
   android: {
@@ -42,7 +42,7 @@ const config: ExpoConfig = {
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
     package: env.androidPackage,
-    versionCode: 10016,
+    versionCode: 10017,
     permissions: [
       "POST_NOTIFICATIONS",
       "VIBRATE",
@@ -114,6 +114,11 @@ const config: ExpoConfig = {
   experiments: {
     typedRoutes: true,
     reactCompiler: true,
+  },
+  extra: {
+    eas: {
+      projectId: "1c2dd7ea-a0a4-49cb-92f8-061aec5dfb6c",
+    },
   },
 };
 
