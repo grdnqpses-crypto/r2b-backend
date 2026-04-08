@@ -495,3 +495,9 @@
 - [ ] Wire receipt-scanner.tsx to call ai.scanReceipt mutation (replace manual fallback stub)
 - [ ] Bump version to 1.0.73 / versionCode 10073
 - [ ] EAS Build 73 production Android
+
+## Geofence Exit "Did You Forget?" Notification
+- [x] Add INNER ring EXIT handler in tasks.ts: if unchecked items remain, fire high-priority "Did you forget something?" notification with data type "geofence_forgot"
+- [x] Create dedicated Android notification channel "r2b-forgot" with MAX importance for the forgot notification
+- [x] Add notification response listener in _layout.tsx: when user taps a "geofence_forgot" notification, router.push("/forgot-check")
+- [x] Register forgot-check screen in root Stack in _layout.tsx

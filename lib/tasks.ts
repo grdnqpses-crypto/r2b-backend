@@ -198,12 +198,14 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // INNER RING EXIT — User left the store before 6 minutes
-  // Cancel the pending in-store reminder (drive-by protection)
-  // Also reset the approach-sent flag so the next visit fires a fresh alert
+  // INNER RING EXIT — User left the store
+  // 1. Cancel the pending 6-min in-store reminder (drive-by protection)
+  // 2. If unchecked items remain → fire high-priority "Did you forget?" alert
+  // 3. Reset approach-sent flag so the next visit fires a fresh approach alert
   // ─────────────────────────────────────────────────────────────────────────
   if (isArrivedRing && eventType === Location.GeofencingEventType.Exit) {
     try {
+      // Cancel the 6-min in-store reminder if it hasn't fired yet
       const pendingId = await AsyncStorage.getItem(pendingKey);
       if (pendingId) {
         await Notifications.cancelScheduledNotificationAsync(pendingId);
@@ -213,8 +215,39 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
 
       // Reset approach-sent flag so next visit fires a fresh approach alert
       await AsyncStorage.removeItem(`${APPROACH_SENT_KEY_PREFIX}${storeName}`);
+
+      // ── "Did you forget something?" notification ──────────────────────────
+      // Only fires when the user actually entered the store (inner ring) and
+      // is now leaving with unchecked items still on their list.
+      const unchecked = await getUncheckedItems();
+      if (unchecked.length > 0) {
+        ensureI18nLanguage();
+        const top3 = unchecked.slice(0, 3);
+        const remaining = unchecked.length - top3.length;
+        const itemList = buildItemList(top3, remaining);
+
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: `🤔 Did you forget something at ${storeName}?`,
+            body: `Still on your list: ${itemList}`,
+            sound: true,
+            // Android: use MAX-importance channel so it heads-up even in DND
+            ...(require("react-native").Platform.OS === "android" && {
+              android: { channelId: "r2b-forgot", priority: "max" },
+            }),
+            data: {
+              type: "geofence_forgot",
+              storeId: storeName,
+              // Deep-link target — handled by notification response listener in _layout.tsx
+              url: "/forgot-check",
+            },
+          },
+          trigger: null, // fire immediately on exit
+        });
+        console.log(`[R2B Geofence] "Did you forget?" notification sent for ${storeName} (${unchecked.length} items remaining)`);
+      }
     } catch (err) {
-      console.error("[R2B Geofence] Exit cancel error:", err);
+      console.error("[R2B Geofence] Exit handler error:", err);
     }
   }
 

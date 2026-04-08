@@ -6,9 +6,10 @@ import "@/lib/i18n"; // Initialize i18next with all 21 locales
 import "@/global.css";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack, SplashScreen } from "expo-router";
+import { Stack, SplashScreen, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import * as Notifications from "expo-notifications";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import "@/lib/_core/nativewind-pressable";
@@ -56,6 +57,8 @@ async function autoStartGeofencing() {
 function RootNavigator() {
   const { isLoaded, isOnboardingComplete } = useOnboarding();
   const [geofenceStarted, setGeofenceStarted] = useState(false);
+  const router = useRouter();
+  const notifListenerRef = useRef<Notifications.EventSubscription | null>(null);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -72,6 +75,29 @@ function RootNavigator() {
     }, 2000);
     return () => clearTimeout(timer);
   }, [isOnboardingComplete, geofenceStarted]);
+
+  // ── Notification tap deep-link handler ────────────────────────────────────
+  // When the user taps a "geofence_forgot" notification, navigate to /forgot-check.
+  // This listener handles both foreground and background (cold-start) taps.
+  useEffect(() => {
+    if (!isOnboardingComplete) return;
+
+    notifListenerRef.current = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        const data = response.notification.request.content.data as Record<string, unknown>;
+        if (data?.type === "geofence_forgot") {
+          // Small delay to ensure navigation stack is ready
+          setTimeout(() => {
+            router.push("/forgot-check" as never);
+          }, 300);
+        }
+      }
+    );
+
+    return () => {
+      notifListenerRef.current?.remove();
+    };
+  }, [isOnboardingComplete, router]);
 
   // Keep splash screen up until we know onboarding state
   if (!isLoaded) return null;
@@ -90,6 +116,8 @@ function RootNavigator() {
       <Stack.Protected guard={isOnboardingComplete}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="oauth/callback" />
+        {/* Deep-link target for "Did you forget something?" geofence-exit notification */}
+        <Stack.Screen name="forgot-check" options={{ animation: "slide_from_bottom" }} />
       </Stack.Protected>
     </Stack>
   );

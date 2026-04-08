@@ -19,13 +19,21 @@ Notifications.setNotificationHandler({
 });
 
 export async function setupNotifications(): Promise<boolean> {
-  // Create Android notification channel
+  // Create Android notification channels
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("r2b-alerts", {
       name: i18n.t("notifications.channelName", { defaultValue: "Store Alerts" }),
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: "#1D4ED8",
+      sound: "default",
+    });
+    // MAX importance channel for "Did you forget something?" geofence-exit alerts
+    await Notifications.setNotificationChannelAsync("r2b-forgot", {
+      name: "Forgot Items Alerts",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 400, 200, 400],
+      lightColor: "#F59E0B",
       sound: "default",
     });
   }
