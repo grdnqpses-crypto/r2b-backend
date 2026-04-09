@@ -88,24 +88,71 @@ export async function checkLocationPermissions(): Promise<{
   };
 }
 
+/**
+ * Haversine distance helper (metres) — duplicated here so geofence.ts is
+ * self-contained and doesn't create a circular import with tasks.ts.
+ */
+function haversineMeters(
+  lat1: number, lng1: number,
+  lat2: number, lng2: number
+): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export async function startGeofencing(stores: SavedStore[]): Promise<void> {
   if (stores.length === 0) {
     await stopGeofencing();
     return;
   }
 
+  // Already-inside guard: get current GPS position once so we can set
+  // notifyOnEnter: false on the outer ring for any store the user is
+  // already standing inside. This prevents a shadow ENTER event from
+  // firing after the 10-second cooldown window when the user re-registers
+  // geofences while physically inside the 0.3-mile approach zone.
+  let currentLat: number | null = null;
+  let currentLng: number | null = null;
+  try {
+    const pos = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
+    currentLat = pos.coords.latitude;
+    currentLng = pos.coords.longitude;
+  } catch {
+    // Non-fatal — if GPS is unavailable, fall back to notifyOnEnter: true
+  }
+
   const regions: GeofenceRegion[] = [];
 
   for (const store of stores) {
+    // Check if the user is already inside this store's outer ring
+    const alreadyInsideOuter =
+      currentLat !== null &&
+      currentLng !== null &&
+      haversineMeters(currentLat, currentLng, store.lat, store.lng) <= APPROACH_RADIUS_METERS;
+
     // Outer ring: approach alert at 0.3 miles
+    // notifyOnEnter is suppressed when the user is already inside the zone
+    // to prevent a post-registration shadow trigger beyond the 10-second window.
     regions.push({
       identifier: `${store.name}${APPROACH_SUFFIX}`,
       latitude: store.lat,
       longitude: store.lng,
       radius: APPROACH_RADIUS_METERS,
-      notifyOnEnter: true,
+      notifyOnEnter: !alreadyInsideOuter,
       notifyOnExit: false, // No exit action needed for the outer ring
     });
+
+    if (alreadyInsideOuter) {
+      console.log(`[R2B Geofence] Already inside outer ring for ${store.name} — notifyOnEnter suppressed`);
+    }
 
     // Inner ring: arrived alert (6-min countdown) at 100m
     regions.push({

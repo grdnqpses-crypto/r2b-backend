@@ -506,3 +506,8 @@
 - [x] geofence.ts: Write r2b_last_reg_<storeId> timestamp to AsyncStorage immediately before calling Location.startGeofencingAsync for each region
 - [x] tasks.ts: Add 10-second cooldown check — if currentTime - regTime < 10000ms, exit task immediately (ignores INITIAL_TRIGGER_ENTER race condition)
 - [x] tasks.ts: Add Haversine distance guard — call Location.getCurrentPositionAsync(Accuracy.Balanced), calculate distance to store, discard ENTER if distance > radius + 50m
+
+## Build 75 — 30-min Duplicate Exit Suppression (Apr 8 2026)
+- [x] tasks.ts: Add r2b_forgot_sent_<storeName> flag with 30-min TTL in INNER RING EXIT handler — prevents repeat "Did you forget?" notifications on same trip
+- [x] geofence.ts: Check user's current GPS position before registering outer ring — if already inside the 0.3-mile zone, set notifyOnEnter: false for that store's outer ring to prevent post-registration shadow triggers beyond the 10-second window
+- [x] EAS Build 75 production Android

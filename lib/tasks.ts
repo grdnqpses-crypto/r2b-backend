@@ -104,6 +104,15 @@ async function isShadowTrigger(
 const APPROACH_SENT_KEY_PREFIX = "r2b_approach_sent_";
 
 /**
+ * AsyncStorage key prefix for the "Did you forget?" suppression flag.
+ * Written when the notification fires; expires after 30 minutes.
+ * Prevents notification spam if the user walks in/out of the store entrance
+ * multiple times on the same trip.
+ */
+const FORGOT_SENT_KEY_PREFIX = "r2b_forgot_sent_";
+const FORGOT_SENT_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+/**
  * Ensure i18n is initialized with the correct device language before
  * building notification strings. Background tasks run in a separate JS
  * context on some platforms, so we re-set the language from the device
@@ -304,6 +313,18 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
       // ── "Did you forget something?" notification ──────────────────────────
       // Only fires when the user actually entered the store (inner ring) and
       // is now leaving with unchecked items still on their list.
+      // 30-minute suppression: skip if we already sent this notification
+      // recently (prevents spam when walking in/out of the store entrance).
+      const forgotKey = `${FORGOT_SENT_KEY_PREFIX}${storeName}`;
+      const forgotSentStr = await AsyncStorage.getItem(forgotKey);
+      if (forgotSentStr) {
+        const sentAt = parseInt(forgotSentStr, 10);
+        if (Date.now() - sentAt < FORGOT_SENT_TTL_MS) {
+          console.log(`[R2B Geofence] "Did you forget?" suppressed for ${storeName} — sent ${Math.round((Date.now() - sentAt) / 60000)}min ago`);
+          return;
+        }
+      }
+
       const unchecked = await getUncheckedItems();
       if (unchecked.length > 0) {
         ensureI18nLanguage();
@@ -329,6 +350,8 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
           },
           trigger: null, // fire immediately on exit
         });
+        // Stamp the suppression flag so we don't re-fire within 30 minutes
+        await AsyncStorage.setItem(forgotKey, String(Date.now()));
         console.log(`[R2B Geofence] "Did you forget?" notification sent for ${storeName} (${unchecked.length} items remaining)`);
       }
     } catch (err) {
@@ -343,7 +366,9 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
   if (isApproachRing && eventType === Location.GeofencingEventType.Exit) {
     try {
       await AsyncStorage.removeItem(`${APPROACH_SENT_KEY_PREFIX}${storeName}`);
-      console.log(`[R2B Geofence] Reset approach flag for ${storeName} (user left outer ring)`);
+      // Also clear the forgot-sent suppression flag so the next visit starts fresh
+      await AsyncStorage.removeItem(`${FORGOT_SENT_KEY_PREFIX}${storeName}`);
+      console.log(`[R2B Geofence] Reset approach + forgot flags for ${storeName} (user left outer ring)`);
     } catch {
       // Non-fatal
     }
