@@ -1,6 +1,14 @@
 import * as Location from "expo-location";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GEOFENCE_TASK_NAME } from "./tasks";
 import { type SavedStore } from "./storage";
+
+/**
+ * AsyncStorage key prefix for geofence registration timestamps.
+ * Written immediately before Location.startGeofencingAsync so the task
+ * handler can detect and discard INITIAL_TRIGGER_ENTER shadow events.
+ */
+export const REG_TIMESTAMP_KEY_PREFIX = "r2b_last_reg_";
 
 export { getSavedStores } from "./storage";
 
@@ -113,6 +121,20 @@ export async function startGeofencing(stores: SavedStore[]): Promise<void> {
   // Android allows up to 100 geofences; iOS allows up to 20.
   // With 2 regions per store, we can track up to 10 stores on iOS.
   const limited = regions.slice(0, 20);
+
+  /**
+   * Shadow-trigger guard: write the registration timestamp for every store
+   * BEFORE calling startGeofencingAsync. The background task handler reads
+   * this value and discards any ENTER event that arrives within 10 seconds
+   * of registration — these are Android's INITIAL_TRIGGER_ENTER phantom
+   * events that fire even when the user is miles away.
+   */
+  const now = Date.now();
+  await Promise.all(
+    stores.map((store) =>
+      AsyncStorage.setItem(`${REG_TIMESTAMP_KEY_PREFIX}${store.name}`, String(now))
+    )
+  );
 
   /**
    * Phase 4 — Master Directive geofencing parameters (enforced at the region level):

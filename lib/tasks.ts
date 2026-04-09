@@ -9,7 +9,7 @@ import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Localization from "expo-localization";
 import i18n from "@/lib/i18n";
-import { APPROACH_SUFFIX, ARRIVED_SUFFIX } from "@/lib/geofence";
+import { APPROACH_SUFFIX, ARRIVED_SUFFIX, REG_TIMESTAMP_KEY_PREFIX, APPROACH_RADIUS_METERS, ARRIVED_RADIUS_METERS } from "@/lib/geofence";
 
 export const GEOFENCE_TASK_NAME = "R2B_GEOFENCE_TASK";
 
@@ -18,6 +18,83 @@ export const GEOFENCE_TASK_NAME = "R2B_GEOFENCE_TASK";
  * Keyed by store name so we can cancel per-store when the user exits the inner ring.
  */
 const PENDING_NOTIF_KEY_PREFIX = "r2b_pending_instore_";
+
+/**
+ * Haversine formula — returns the great-circle distance in meters between
+ * two lat/lng coordinates. Used to validate geofence ENTER events against
+ * the user's actual GPS position (false-positive guard).
+ */
+function haversineDistance(
+  lat1: number, lng1: number,
+  lat2: number, lng2: number
+): number {
+  const R = 6371000; // Earth radius in metres
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Shadow-trigger guard: returns true if the ENTER event should be discarded.
+ *
+ * Two checks are performed:
+ *   1. Cooldown — if the geofence was registered < 10 s ago, Android's
+ *      INITIAL_TRIGGER_ENTER may have fired a phantom event. Discard it.
+ *   2. Haversine — get the device's actual GPS position and confirm the
+ *      user is within (radius + 50m). If they are > radius + 50m away,
+ *      the event is a false positive (stale OS cache, GPS drift, etc.).
+ */
+async function isShadowTrigger(
+  storeName: string,
+  storeRegion: Location.LocationRegion,
+  radiusMeters: number
+): Promise<boolean> {
+  // ── Check 1: 10-second registration cooldown ──────────────────────────────
+  try {
+    const regTimeStr = await AsyncStorage.getItem(`${REG_TIMESTAMP_KEY_PREFIX}${storeName}`);
+    if (regTimeStr) {
+      const regTime = parseInt(regTimeStr, 10);
+      const elapsed = Date.now() - regTime;
+      if (elapsed < 10_000) {
+        console.log(
+          `[R2B Geofence] Shadow trigger discarded for ${storeName} — only ${elapsed}ms since registration`
+        );
+        return true;
+      }
+    }
+  } catch {
+    // Non-fatal — proceed to distance check
+  }
+
+  // ── Check 2: Haversine distance validation ────────────────────────────────
+  try {
+    const pos = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
+    const distanceM = haversineDistance(
+      pos.coords.latitude,
+      pos.coords.longitude,
+      storeRegion.latitude ?? 0,
+      storeRegion.longitude ?? 0
+    );
+    const maxAllowed = radiusMeters + 50; // 50m tolerance for GPS jitter
+    if (distanceM > maxAllowed) {
+      console.log(
+        `[R2B Geofence] False positive discarded for ${storeName} — ` +
+        `actual distance ${Math.round(distanceM)}m > allowed ${maxAllowed}m`
+      );
+      return true;
+    }
+  } catch {
+    // If we can't get GPS, allow the event through (fail open)
+  }
+
+  return false;
+}
 
 /**
  * AsyncStorage key prefix to track whether we already sent an approach
@@ -113,6 +190,10 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
   // ─────────────────────────────────────────────────────────────────────────
   if (isApproachRing && eventType === Location.GeofencingEventType.Enter) {
     try {
+      // Shadow-trigger guard: discard INITIAL_TRIGGER_ENTER phantom events
+      const shadow = await isShadowTrigger(storeName, region, APPROACH_RADIUS_METERS);
+      if (shadow) return;
+
       ensureI18nLanguage();
 
       // Deduplicate: don't fire approach alert twice in a row for the same store
@@ -166,6 +247,10 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
   // ─────────────────────────────────────────────────────────────────────────
   if (isArrivedRing && eventType === Location.GeofencingEventType.Enter) {
     try {
+      // Shadow-trigger guard: discard INITIAL_TRIGGER_ENTER phantom events
+      const shadow = await isShadowTrigger(storeName, region, ARRIVED_RADIUS_METERS);
+      if (shadow) return;
+
       ensureI18nLanguage();
 
       const unchecked = await getUncheckedItems();

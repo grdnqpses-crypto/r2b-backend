@@ -501,3 +501,8 @@
 - [x] Create dedicated Android notification channel "r2b-forgot" with MAX importance for the forgot notification
 - [x] Add notification response listener in _layout.tsx: when user taps a "geofence_forgot" notification, router.push("/forgot-check")
 - [x] Register forgot-check screen in root Stack in _layout.tsx
+
+## Geofence Shadow Trigger Fix — Build 75 (Apr 8 2026)
+- [x] geofence.ts: Write r2b_last_reg_<storeId> timestamp to AsyncStorage immediately before calling Location.startGeofencingAsync for each region
+- [x] tasks.ts: Add 10-second cooldown check — if currentTime - regTime < 10000ms, exit task immediately (ignores INITIAL_TRIGGER_ENTER race condition)
+- [x] tasks.ts: Add Haversine distance guard — call Location.getCurrentPositionAsync(Accuracy.Balanced), calculate distance to store, discard ENTER if distance > radius + 50m
