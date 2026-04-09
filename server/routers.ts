@@ -2,9 +2,54 @@ import { z } from "zod";
 import { COOKIE_NAME } from "../shared/const.js";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { invokeLLM } from "./_core/llm";
+import { ENV } from "./_core/env";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { voiceRouter } from "./voiceRouter";
+
+/**
+ * Scan a receipt image using OCR.space API (free tier: 25k req/month).
+ * Returns raw OCR text that we then parse with a simple regex/LLM pass.
+ */
+async function ocrSpaceExtract(imageBase64: string, mimeType: string): Promise<string> {
+  const apiKey = ENV.ocrSpaceApiKey;
+  const dataUri = imageBase64.startsWith("data:")
+    ? imageBase64
+    : `data:${mimeType};base64,${imageBase64}`;
+
+  const formData = new URLSearchParams();
+  formData.append("base64Image", dataUri);
+  formData.append("language", "eng");
+  formData.append("isOverlayRequired", "false");
+  formData.append("detectOrientation", "true");
+  formData.append("scale", "true");
+  formData.append("OCREngine", "2"); // Engine 2 = better accuracy for receipts
+
+  const response = await fetch("https://api.ocr.space/parse/image", {
+    method: "POST",
+    headers: {
+      apikey: apiKey,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: formData.toString(),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OCR.space request failed: ${response.status} ${response.statusText}`);
+  }
+
+  const result = (await response.json()) as {
+    IsErroredOnProcessing: boolean;
+    ParsedResults?: Array<{ ParsedText: string }>;
+    ErrorMessage?: string[];
+  };
+
+  if (result.IsErroredOnProcessing) {
+    throw new Error(`OCR.space error: ${result.ErrorMessage?.join(", ") ?? "Unknown error"}`);
+  }
+
+  return result.ParsedResults?.[0]?.ParsedText ?? "";
+}
 
 export const appRouter = router({
   // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -25,6 +70,7 @@ export const appRouter = router({
     /**
      * Given the user's purchase history and current list, suggest items they
      * commonly buy but haven't added yet.
+     * Uses Groq Llama-3.3-70b for fast, free-tier inference.
      */
     suggestMissingItems: publicProcedure
       .input(
@@ -91,7 +137,8 @@ I'm shopping${storeContext}. What am I likely forgetting?`,
       }),
 
     /**
-     * Scan a receipt image using AI vision and extract structured data.
+     * Scan a receipt image using OCR.space (free tier) for text extraction,
+     * then parse the OCR text with Groq Llama-3.3-70b to extract structured data.
      * Accepts a base64-encoded image string (with or without data URI prefix).
      * Returns storeName, total, items array, and date.
      */
@@ -105,16 +152,36 @@ I'm shopping${storeContext}. What am I likely forgetting?`,
       .mutation(async ({ input }) => {
         const { imageBase64, mimeType } = input;
 
-        // Build a data URI if not already present
-        const dataUri = imageBase64.startsWith("data:")
-          ? imageBase64
-          : `data:${mimeType};base64,${imageBase64}`;
+        // Step 1: Extract raw text from the receipt image via OCR.space
+        let ocrText = "";
+        try {
+          ocrText = await ocrSpaceExtract(imageBase64, mimeType);
+        } catch (ocrError) {
+          console.error("[scanReceipt] OCR.space failed:", ocrError);
+          // Return a graceful fallback instead of throwing
+          return {
+            storeName: "Unknown Store",
+            total: 0,
+            items: [] as { name: string; price: number }[],
+            date: new Date().toISOString().split("T")[0],
+          };
+        }
 
+        if (!ocrText.trim()) {
+          return {
+            storeName: "Unknown Store",
+            total: 0,
+            items: [] as { name: string; price: number }[],
+            date: new Date().toISOString().split("T")[0],
+          };
+        }
+
+        // Step 2: Parse the OCR text with Groq Llama-3.3-70b to extract structured data
         const response = await invokeLLM({
           messages: [
             {
               role: "system",
-              content: `You are a receipt OCR assistant. Extract structured data from the receipt image and return ONLY a JSON object with this exact structure:
+              content: `You are a receipt parser. Given raw OCR text from a receipt, extract structured data and return ONLY a JSON object with this exact structure:
 {
   "storeName": "string (store or merchant name, or 'Unknown Store' if not found)",
   "total": number (final total amount as a number, 0 if not found),
@@ -129,23 +196,11 @@ Rules:
 - total: the final total charged (after tax), as a plain number (e.g. 47.83)
 - items: list of purchased line items with their individual prices; omit subtotals/tax/tip lines
 - date: transaction date in YYYY-MM-DD format
-- If you cannot read the receipt clearly, return your best guess with available data`,
+- Return your best guess with available data`,
             },
             {
               role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: "Please extract the receipt data from this image.",
-                },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: dataUri,
-                    detail: "high",
-                  },
-                },
-              ],
+              content: `Here is the raw OCR text from the receipt:\n\n${ocrText}`,
             },
           ],
           response_format: { type: "json_object" },

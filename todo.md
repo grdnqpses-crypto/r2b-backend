@@ -511,3 +511,13 @@
 - [x] tasks.ts: Add r2b_forgot_sent_<storeName> flag with 30-min TTL in INNER RING EXIT handler — prevents repeat "Did you forget?" notifications on same trip
 - [x] geofence.ts: Check user's current GPS position before registering outer ring — if already inside the 0.3-mile zone, set notifyOnEnter: false for that store's outer ring to prevent post-registration shadow triggers beyond the 10-second window
 - [x] EAS Build 75 production Android
+
+## Build 76 — Production Infrastructure Deployment (Apr 8 2026)
+- [ ] Swap server/routers.ts AI calls: replace BUILT_IN_FORGE invokeLLM with OpenAI GPT-4o for ai.scanReceipt and ai.suggestMissingItems
+- [ ] Swap server/_core/voiceTranscription.ts: replace BUILT_IN_FORGE with OpenAI Whisper API
+- [ ] Update server/_core/env.ts: add OPENAI_API_KEY env var
+- [ ] Create render.yaml for Render deployment (web service + PostgreSQL)
+- [ ] Deploy backend to Render, provision PostgreSQL, run drizzle migrations
+- [ ] Set EXPO_PUBLIC_API_BASE_URL to Render production URL in eas.json production env
+- [ ] Bump version to 1.0.76 / versionCode 10076
+- [ ] EAS Build 76 production Android

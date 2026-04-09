@@ -202,13 +202,13 @@ const normalizeToolChoice = (
 };
 
 const resolveApiUrl = () =>
-  ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
-    ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
-    : "https://forge.manus.im/v1/chat/completions";
+  ENV.groqApiUrl && ENV.groqApiUrl.trim().length > 0
+    ? `${ENV.groqApiUrl.replace(/\/$/, "")}/v1/chat/completions`
+    : "https://api.groq.com/openai/v1/chat/completions";
 
 const assertApiKey = () => {
-  if (!ENV.forgeApiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
+  if (!ENV.groqApiKey) {
+    throw new Error("GROQ_API_KEY is not configured");
   }
 };
 
@@ -267,7 +267,9 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   } = params;
 
   const payload: Record<string, unknown> = {
-    model: "gemini-2.5-flash",
+    // llama-3.3-70b-versatile: fast, free-tier Groq model for text tasks
+    // Falls back gracefully to forge endpoint in local sandbox (which uses gemini)
+    model: ENV.groqApiKey && !process.env.BUILT_IN_FORGE_API_KEY ? "llama-3.3-70b-versatile" : "gemini-2.5-flash",
     messages: messages.map(normalizeMessage),
   };
 
@@ -300,7 +302,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: `Bearer ${ENV.forgeApiKey}`,
+      authorization: `Bearer ${ENV.groqApiKey}`,
     },
     body: JSON.stringify(payload),
   });
