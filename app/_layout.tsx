@@ -2,6 +2,7 @@
 // TaskManager.defineTask and Notifications.setNotificationHandler must run at module scope.
 import "@/lib/tasks";
 import "@/lib/notifications";
+import "@/lib/geolocationService"; // Register GEOFENCE_TASK and LOCATION_UPDATE_TASK at module scope
 import "@/lib/i18n"; // Initialize i18next with all 21 locales
 import "@/global.css";
 
@@ -20,6 +21,12 @@ import { OnboardingProvider, useOnboarding } from "@/lib/onboarding-context";
 import { SubscriptionProvider } from "@/lib/subscription-context";
 import { getSavedStores } from "@/lib/storage";
 import { checkLocationPermissions, startGeofencing } from "@/lib/geofence";
+import {
+  startGeofencingV2,
+  startLocationUpdates,
+  checkAllStores,
+  getAllGeoStores,
+} from "@/lib/geolocationService";
 
 // Keep the splash screen visible until we have loaded onboarding state
 SplashScreen.preventAutoHideAsync();
@@ -34,7 +41,18 @@ async function autoStartGeofencing() {
     if (!perms.background) return;
     const stores = await getSavedStores();
     if (stores.length === 0) return;
+
+    // Legacy geofence (keep for backward compat during transition)
     await startGeofencing(stores);
+
+    // New hybrid geolocation engine (v2)
+    const geoStores = await getAllGeoStores();
+    if (geoStores.length > 0) {
+      await startGeofencingV2(geoStores);
+      await startLocationUpdates();
+      // Fallback: check all stores immediately on launch
+      checkAllStores(geoStores).catch(() => {});
+    }
   } catch {
     // Non-fatal
   }

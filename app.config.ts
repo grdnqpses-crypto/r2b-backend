@@ -26,13 +26,17 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: env.iosBundleId,
-    buildNumber: "2.0.0",
+    buildNumber: "2.1.0",
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
       NSMotionUsageDescription:
         "Remember2Buy uses motion sensors to detect when you arrive near a saved store.",
       NSLocationWhenInUseUsageDescription:
         "Remember2Buy uses your location to show nearby stores and send arrival alerts.",
+      NSLocationAlwaysUsageDescription:
+        "Remember2Buy needs 'Always' location access to send store arrival alerts when the app is in the background or closed.",
+      NSLocationAlwaysAndWhenInUseUsageDescription:
+        "Remember2Buy needs 'Always' location access to alert you when you arrive near a saved store, even when the app is not open.",
     },
   },
   android: {
@@ -43,7 +47,7 @@ const config: ExpoConfig = {
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
     package: env.androidPackage,
-    versionCode: 20000,
+    versionCode: 21000,
     permissions: [
       "POST_NOTIFICATIONS",
       "VIBRATE",

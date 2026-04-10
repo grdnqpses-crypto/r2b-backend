@@ -167,6 +167,9 @@ importers:
       express:
         specifier: ^4.22.1
         version: 4.22.1
+      geolib:
+        specifier: ^3.3.14
+        version: 3.3.14
       i18next:
         specifier: ^25.10.9
         version: 25.10.9(typescript@5.9.3)
@@ -4132,6 +4135,9 @@ packages:
   gensync@1.0.0-beta.2:
     resolution: {integrity: sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg==}
     engines: {node: '>=6.9.0'}
+
+  geolib@3.3.14:
+    resolution: {integrity: sha512-uQ1772h3OjhWvL/HhSRZTMjBKIKoc4wFksLDqzqOkuG/2TgBbTwFamU0Disx3sNFk/BOweHyhKoVaYDuLIpsxQ==}
 
   get-caller-file@2.0.5:
     resolution: {integrity: sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg==}
@@ -10813,6 +10819,8 @@ snapshots:
   generator-function@2.0.1: {}
 
   gensync@1.0.0-beta.2: {}
+
+  geolib@3.3.14: {}
 
   get-caller-file@2.0.5: {}
 

@@ -34,6 +34,8 @@ import { useSubscriptionContext } from "@/lib/subscription-context";
 import { PremiumPaywall } from "@/components/premium-paywall";
 import { LocationDisclosureModal } from "@/components/LocationDisclosureModal";
 import { usePermissions } from "@/hooks/use-permissions";
+import { isBatteryExempted } from "@/lib/batteryService";
+import BatteryGateScreen from "@/components/BatteryGateScreen";
 
 export default function SettingsScreen() {
   const colors = useColors();
@@ -54,6 +56,7 @@ export default function SettingsScreen() {
   const permissions = usePermissions();
   const [showDisclosureModal, setShowDisclosureModal] = useState(false);
   const [batteryOptimized, setBatteryOptimized] = useState(false);
+  const [showBatteryGate, setShowBatteryGate] = useState(false);
 
   const loadState = useCallback(async () => {
     const [tierData, perms, geofence, unit, devEnabled, notifStatus, appSettingsData] = await Promise.all([
@@ -157,6 +160,14 @@ export default function SettingsScreen() {
       if (!locationPerms.background) {
         Alert.alert(t("settings.location"), t("onboarding.locationBg.title"));
         return;
+      }
+      // MANDATORY: Battery optimization gate — block geofencing until exempted
+      if (Platform.OS === "android") {
+        const exempted = await isBatteryExempted();
+        if (!exempted) {
+          setShowBatteryGate(true);
+          return;
+        }
       }
       const stores = await getSavedStores();
       if (stores.length === 0) {
@@ -713,6 +724,29 @@ export default function SettingsScreen() {
           }
         }}
       />
+
+      {/* Battery Optimization Gate — MANDATORY full-screen block on Android */}
+      <Modal
+        visible={showBatteryGate}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setShowBatteryGate(false)}
+      >
+        <BatteryGateScreen
+          onComplete={async () => {
+            setShowBatteryGate(false);
+            // Now proceed with enabling geofencing
+            const stores = await getSavedStores();
+            if (stores.length > 0) {
+              await startGeofencing(stores);
+              setGeofencingActive(true);
+            } else {
+              Alert.alert(t("stores.noSavedStores"), t("stores.noSavedStoresSubtitle"));
+            }
+          }}
+          onSkip={() => setShowBatteryGate(false)}
+        />
+      </Modal>
 
       {/* Premium Paywall Modal — triggers real Google Play Billing purchase */}
       <Modal

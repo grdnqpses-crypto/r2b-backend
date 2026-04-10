@@ -72,6 +72,7 @@
     "expo-video": "~3.0.15",
     "expo-web-browser": "~15.0.10",
     "express": "^4.22.1",
+    "geolib": "^3.3.14",
     "i18next": "^25.10.9",
     "jose": "6.1.0",
     "mysql2": "^3.16.0",
